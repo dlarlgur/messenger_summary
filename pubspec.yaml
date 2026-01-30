@@ -1,0 +1,60 @@
+name: chat_llm
+description: AI Chat LLM Mobile App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 상태 관리
+  provider: ^6.1.1
+  
+  # HTTP 통신
+  http: ^1.1.0
+  dio: ^5.4.0
+  
+  # 로컬 저장소
+  shared_preferences: ^2.2.2
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  flutter_svg: ^2.0.9
+  flutter_markdown: ^0.7.1
+  
+  # 소셜 로그인
+  url_launcher: ^6.2.2
+  webview_flutter: ^4.4.2
+  kakao_flutter_sdk_user: ^1.9.5
+  
+  # 유틸리티
+  uuid: ^4.2.1
+  intl: ^0.18.1
+  path_provider: ^2.1.1
+  crypto: ^3.0.3
+
+  # 위치
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
