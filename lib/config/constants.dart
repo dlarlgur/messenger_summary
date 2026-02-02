@@ -26,12 +26,6 @@ class ApiConstants {
   static String messengerRoomDelete(String roomId) => '/api/v1/messenger/rooms/$roomId';
 }
 
-// 카카오 SDK 설정
-class KakaoConstants {
-  // TODO: 카카오 개발자 콘솔에서 발급받은 네이티브 앱 키로 변경
-  static const String nativeAppKey = 'ec8e28e373ce458e3e6707717d400ee9';
-}
-
 // 앱 테마 색상
 class AppColors {
   // Primary Blue Theme (카카오 노랑 대신 파랑)

@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 배경색 -->
+    <item android:drawable="@color/splash_background"/>
+    
+    <!-- 아이콘 (중앙) -->
     <item>
-        <bitmap android:gravity="fill" android:src="@drawable/background"/>
-    </item>
-    <item>
-        <bitmap android:gravity="center" android:src="@drawable/splash"/>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/ic_launcher"/>
     </item>
 </layer-list>

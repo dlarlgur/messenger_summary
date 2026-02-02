@@ -3,6 +3,10 @@ DateTime? parseServerDateTime(dynamic value) {
   if (value == null) return null;
 
   try {
+    // DateTime 객체면 그대로 반환
+    if (value is DateTime) {
+      return value;
+    }
     if (value is List) {
       // 배열 형식: [년, 월, 일, 시, 분, 초, 나노초(선택)]
       if (value.length >= 3) {
@@ -67,6 +71,7 @@ class SummaryItem {
   final int summaryId;
   final String summaryName;
   final String summaryMessage;
+  final String? summaryDetailMessage; // 상세 요약 메시지
   final DateTime? summaryFrom;
   final DateTime? summaryTo;
 
@@ -74,6 +79,7 @@ class SummaryItem {
     required this.summaryId,
     required this.summaryName,
     required this.summaryMessage,
+    this.summaryDetailMessage,
     this.summaryFrom,
     this.summaryTo,
   });
@@ -83,6 +89,7 @@ class SummaryItem {
       summaryId: json['summaryId'] ?? 0,
       summaryName: json['summaryName'] ?? '',
       summaryMessage: json['summaryMessage'] ?? '',
+      summaryDetailMessage: json['summaryDetailMessage'],
       summaryFrom: parseServerDateTime(json['summaryFrom']),
       summaryTo: parseServerDateTime(json['summaryTo']),
     );
@@ -135,20 +142,81 @@ class MessageItem {
   final String sender;
   final String message;
   final DateTime createTime;
+  final String? imagePath; // 이미지 경로 (있을 경우)
+  final bool isLinkMessage; // 링크 메시지 여부
 
   MessageItem({
     required this.messageId,
     required this.sender,
     required this.message,
     required this.createTime,
+    this.imagePath,
+    this.isLinkMessage = false,
   });
 
   factory MessageItem.fromJson(Map<String, dynamic> json) {
+    String messageText = json['message'] ?? '';
+    String? imagePath;
+    bool isLinkMessage = false;
+    
+    // 메시지에서 링크 메시지 패턴 추출 [LINK:이미지경로]원본메시지 형식
+    final linkPattern = RegExp(r'\[LINK:(.+?)\](.+)');
+    final linkMatch = linkPattern.firstMatch(messageText);
+    if (linkMatch != null) {
+      imagePath = linkMatch.group(1);
+      messageText = linkMatch.group(2) ?? '';
+      isLinkMessage = true;
+    } else {
+      // 메시지에서 이미지 경로 추출 [IMAGE:경로] 형식
+      final imagePattern = RegExp(r'\[IMAGE:(.+?)\]');
+      final match = imagePattern.firstMatch(messageText);
+      if (match != null) {
+        imagePath = match.group(1);
+        // 메시지에서 이미지 마커 제거
+        messageText = messageText.replaceAll(imagePattern, '').trim();
+      }
+    }
+    
+    // 이미지가 있을 때는 시스템 메시지("사진을 보냈습니다" 등) 필터링
+    if (messageText.isNotEmpty) {
+      final systemMessagePatterns = [
+        RegExp(r'사진을 보냈습니다\.?', caseSensitive: false),
+        RegExp(r'사진을?\s*보냈?습니다?\.?', caseSensitive: false),
+        RegExp(r'이미지를?\s*보냈?습니다?\.?', caseSensitive: false),
+        RegExp(r'이모티콘을 보냈습니다\.?', caseSensitive: false),
+        RegExp(r'이모티콘을?\s*보냈?습니다?\.?', caseSensitive: false),
+        RegExp(r'스티커를 보냈습니다\.?', caseSensitive: false),
+        RegExp(r'스티커를?\s*보냈?습니다?\.?', caseSensitive: false),
+      ];
+      
+      bool isSystemMessage = false;
+      for (final pattern in systemMessagePatterns) {
+        if (pattern.hasMatch(messageText)) {
+          isSystemMessage = true;
+          break;
+        }
+      }
+      
+      if (isSystemMessage) {
+        messageText = ''; // 시스템 메시지 제거
+      }
+    }
+    
+    // 메시지가 비어있으면 원본 메시지에서 이모티콘/스티커 여부 확인
+    if (messageText.isEmpty) {
+      final originalMessage = json['message'] ?? '';
+      final isEmojiOrSticker = originalMessage.contains('이모티콘') || 
+                               originalMessage.contains('스티커');
+      messageText = isEmojiOrSticker ? '이모티콘을 보냈습니다' : '사진을 보냈습니다';
+    }
+    
     return MessageItem(
       messageId: json['messageId'] ?? 0,
       sender: json['sender'] ?? '',
-      message: json['message'] ?? '',
+      message: messageText,
       createTime: parseServerDateTime(json['createTime']) ?? DateTime.now(),
+      imagePath: imagePath,
+      isLinkMessage: isLinkMessage,
     );
   }
 }

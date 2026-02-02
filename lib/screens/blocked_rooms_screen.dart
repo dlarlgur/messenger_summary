@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/chat_room.dart';
-import '../services/api_service.dart';
+import '../services/local_db_service.dart';
 import '../services/profile_image_service.dart';
-import 'dart:io';
 
 /// 차단된 채팅방 관리 화면
 class BlockedRoomsScreen extends StatefulWidget {
@@ -13,9 +12,9 @@ class BlockedRoomsScreen extends StatefulWidget {
 }
 
 class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
-  final ApiService _apiService = ApiService();
+  final LocalDbService _localDb = LocalDbService();
   final ProfileImageService _profileService = ProfileImageService();
-  
+
   List<ChatRoom> _blockedRooms = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -33,7 +32,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     });
 
     try {
-      final rooms = await _apiService.getBlockedRooms();
+      final rooms = await _localDb.getBlockedRooms();
       if (mounted) {
         setState(() {
           _blockedRooms = rooms;
@@ -51,7 +50,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
   }
 
   Future<void> _unblockRoom(ChatRoom room) async {
-    final result = await _apiService.updateRoomSettings(room.id, blocked: false);
+    final result = await _localDb.updateRoomSettings(room.id, blocked: false);
 
     if (result != null && mounted) {
       setState(() {
@@ -100,7 +99,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
 
   Widget _buildRoomProfile(ChatRoom room) {
     final profileFile = _profileService.getRoomProfile(room.roomName);
-    
+
     if (profileFile != null && profileFile.existsSync()) {
       return ClipOval(
         child: Image.file(
@@ -114,15 +113,14 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
         ),
       );
     }
-    
+
     return _buildDefaultAvatar(room);
   }
 
   Widget _buildDefaultAvatar(ChatRoom room) {
-    // 방 이름의 해시값으로 색상 결정
     final colorIndex = room.roomName.hashCode.abs() % Colors.primaries.length;
     final backgroundColor = Colors.primaries[colorIndex].shade200;
-    
+
     return CircleAvatar(
       radius: 25,
       backgroundColor: backgroundColor,

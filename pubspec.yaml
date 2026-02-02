@@ -19,34 +19,44 @@ dependencies:
   
   # 로컬 저장소
   shared_preferences: ^2.2.2
-  
+  sqflite: ^2.3.0
+  path: ^1.8.3
+
   # UI
   cupertino_icons: ^1.0.6
   flutter_svg: ^2.0.9
   flutter_markdown: ^0.7.1
   
-  # 소셜 로그인
+  # 웹뷰/URL
   url_launcher: ^6.2.2
   webview_flutter: ^4.4.2
-  kakao_flutter_sdk_user: ^1.9.5
   
   # 유틸리티
   uuid: ^4.2.1
-  intl: ^0.18.1
+  intl: ^0.20.2
   path_provider: ^2.1.1
   crypto: ^3.0.3
 
+  # 디바이스 정보
+  device_info_plus: ^12.3.0
+  package_info_plus: ^9.0.0
+
   # 위치
-  geolocator: ^10.1.0
-  geocoding: ^2.1.1
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/ai_talk.png
+    - assets/images/
 
   fonts:
     - family: Pretendard
@@ -58,3 +68,12 @@ flutter:
           weight: 600
         - asset: assets/fonts/Pretendard-Bold.otf
           weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/ai_talk.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#4A90E2"
+  adaptive_icon_foreground: "assets/ai_talk.png"
+  remove_alpha_ios: true

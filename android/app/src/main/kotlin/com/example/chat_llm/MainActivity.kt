@@ -80,6 +80,22 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "roomName is required", null)
                     }
                 }
+                "sendMessage" -> {
+                    val roomIdValue = call.argument<Any>("roomId")
+                    val roomId = when (roomIdValue) {
+                        is Long -> roomIdValue
+                        is Int -> roomIdValue.toLong()
+                        is Number -> roomIdValue.toLong()
+                        else -> null
+                    }
+                    val message = call.argument<String>("message")
+                    if (roomId != null && roomId > 0 && message != null && message.isNotEmpty()) {
+                        val success = sendMessage(roomId, message)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "roomId and message are required", null)
+                    }
+                }
                 "getCacheDir" -> {
                     // Android의 cacheDir 경로를 Flutter에 전달 (하위 호환)
                     result.success(cacheDir?.absolutePath)
@@ -197,6 +213,25 @@ class MainActivity : FlutterActivity() {
         startActivity(intent)
     }
 
+    /**
+     * 메시지 전송 (NotificationListener의 sendMessage 호출)
+     */
+    private fun sendMessage(roomId: Long, message: String): Boolean {
+        try {
+            val intent = Intent(NotificationListener.ACTION_SEND_MESSAGE).apply {
+                putExtra("roomId", roomId)
+                putExtra("message", message)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+            Log.d(TAG, "메시지 전송 브로드캐스트 전송: roomId=$roomId, message=$message")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "메시지 전송 실패: ${e.message}", e)
+            return false
+        }
+    }
+    
     private fun isBatteryOptimizationDisabled(): Boolean {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         return powerManager.isIgnoringBatteryOptimizations(packageName)

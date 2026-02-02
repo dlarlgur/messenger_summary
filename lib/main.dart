@@ -3,25 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
-import 'services/auth_service.dart';
+import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/profile_image_service.dart';
-import 'screens/login_screen.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
-import 'config/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 카카오 SDK 초기화
-  KakaoSdk.init(nativeAppKey: KakaoConstants.nativeAppKey);
-
   // 한국어 날짜 포맷 초기화
   await initializeDateFormatting('ko_KR', null);
-  
+
+  // 로컬 DB 초기화
+  await LocalDbService().initialize();
+
   // 프로필 이미지 서비스 초기화 (앱 시작 시 한 번)
   await ProfileImageService().initialize();
 
@@ -35,11 +32,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => NotificationSettingsService()),
       ],
       child: MaterialApp(
-        title: 'Chat LLM',
+        title: 'AI 톡비서',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
@@ -52,111 +48,7 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
         ),
-        home: const SplashScreen(),
-      ),
-    );
-  }
-}
-
-// 스플래시 화면 - 초기화 및 자동 로그인 처리
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/notification');
-  
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final notificationService =
-        Provider.of<NotificationSettingsService>(context, listen: false);
-
-    // 알림 설정 초기화
-    await notificationService.initialize();
-
-    // 자동 로그인 시도
-    final isLoggedIn = await authService.initialize();
-
-    // 필수 권한 확인 (알림 접근 권한)
-    bool notificationPermissionGranted = false;
-    try {
-      notificationPermissionGranted = await _methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
-    } catch (e) {
-      debugPrint('권한 확인 실패: $e');
-    }
-
-    if (mounted) {
-      if (isLoggedIn && !notificationPermissionGranted) {
-        // 로그인은 되어있지만 권한이 없으면 권한 화면으로
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PermissionScreen(
-              onComplete: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const MainScreen()),
-                );
-              },
-            ),
-          ),
-        );
-      } else {
-        // 권한이 있거나 로그인이 안 되어있으면 기존 플로우
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => isLoggedIn ? const MainScreen() : const LoginScreen(),
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF2196F3),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 앱 로고
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: const Icon(
-                Icons.chat_bubble_rounded,
-                size: 50,
-                color: Color(0xFF2196F3),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Chat LLM',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
-        ),
+        home: const MainScreen(),
       ),
     );
   }
@@ -170,7 +62,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const methodChannel =
       MethodChannel('com.example.chat_llm/notification');
   static const eventChannel =
@@ -179,23 +71,103 @@ class _MainScreenState extends State<MainScreen> {
   StreamSubscription? _subscription;
   bool _isPermissionGranted = false;
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
+  final LocalDbService _localDb = LocalDbService();
 
   @override
   void initState() {
     super.initState();
-    _checkPermission();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeAndCheckPermissions();
     _startListening();
+  }
+  
+  Future<void> _initializeAndCheckPermissions() async {
+    final notificationService =
+        Provider.of<NotificationSettingsService>(context, listen: false);
+
+    // 알림 설정 초기화
+    await notificationService.initialize();
+
+    // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외)
+    bool notificationPermissionGranted = false;
+    bool batteryOptimizationDisabled = false;
+    
+    try {
+      notificationPermissionGranted =
+          await methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
+    } catch (e) {
+      debugPrint('알림 권한 확인 실패: $e');
+    }
+
+    try {
+      batteryOptimizationDisabled =
+          await methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
+    } catch (e) {
+      debugPrint('배터리 최적화 권한 확인 실패: $e');
+    }
+
+    if (mounted) {
+      // 알림 권한 또는 배터리 최적화 제외 권한이 없으면 권한 화면으로
+      if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
+        debugPrint('⚠️ 권한 미허용 - 권한 화면으로 이동');
+        debugPrint('  알림 권한: $notificationPermissionGranted');
+        debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => PermissionScreen(
+              onComplete: () {
+                debugPrint('✅ 권한 화면 완료 콜백 호출됨');
+                Future.microtask(() {
+                  if (mounted) {
+                    debugPrint('✅ 메인 화면으로 네비게이션 시작');
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const MainScreen()),
+                    );
+                  }
+                });
+              },
+            ),
+          ),
+        );
+      } else {
+        // 모든 권한이 있으면 메인 화면 유지
+        debugPrint('✅ 모든 권한 허용됨 - 메인 화면 유지');
+        _checkPermission(); // 기존 권한 확인 로직도 실행
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      if (!mounted) return;
+      debugPrint('🔄 앱 포그라운드 복귀 - 리스너 재구독 및 대화목록 새로고침');
+      // 이벤트 리스너 재구독 (백그라운드에서 끊어졌을 수 있음)
+      _subscription?.cancel();
+      _startListening();
+      // 대화목록 즉시 새로고침
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _chatRoomListKey.currentState?.refreshRooms();
+        }
+      });
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint('⏸️ 앱 백그라운드로 이동');
+    }
   }
 
   Future<void> _checkPermission() async {
     try {
       final bool isEnabled =
           await methodChannel.invokeMethod('isNotificationListenerEnabled');
-      setState(() {
-        _isPermissionGranted = isEnabled;
-      });
+      if (mounted) {
+        setState(() {
+          _isPermissionGranted = isEnabled;
+        });
+      }
 
-      if (!isEnabled) {
+      if (!isEnabled && mounted) {
         _showPermissionDialog();
       }
     } on PlatformException catch (e) {
@@ -205,13 +177,14 @@ class _MainScreenState extends State<MainScreen> {
 
   void _showPermissionDialog() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: const Text('알림 접근 권한 필요'),
           content: const Text(
-            '카카오톡 메시지를 수신하려면 알림 접근 권한이 필요합니다.\n\n설정에서 Chat LLM의 알림 접근을 허용해주세요.',
+            '카카오톡 메시지를 수신하려면 알림 접근 권한이 필요합니다.\n\n설정에서 AI 톡비서의 알림 접근을 허용해주세요.',
           ),
           actions: [
             TextButton(
@@ -240,6 +213,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _startListening() {
+    _subscription?.cancel(); // 기존 구독 취소
     _subscription = eventChannel.receiveBroadcastStream().listen(
       (event) async {
         if (event is Map) {
@@ -250,47 +224,76 @@ class _MainScreenState extends State<MainScreen> {
             // 채팅방 업데이트 이벤트 처리
             await _handleRoomUpdate(data);
           } else {
-            // 기존 알림 이벤트 처리
+            // 새 알림 처리 → 로컬 DB에 저장
             await _handleNotification(data);
           }
         }
       },
       onError: (error) {
-        debugPrint('스트림 에러: $error');
+        debugPrint('❌ 스트림 에러: $error');
+        // 에러 발생 시 재구독 시도
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            debugPrint('🔄 스트림 에러 후 재구독 시도...');
+            _startListening();
+          }
+        });
       },
+      cancelOnError: false, // 에러 발생해도 구독 유지
     );
+    debugPrint('✅ 이벤트 리스너 구독 시작');
   }
 
-  /// 채팅방 업데이트 처리 (서버에서 응답이 왔을 때)
+  /// 채팅방 업데이트 처리
   Future<void> _handleRoomUpdate(Map<String, dynamic> data) async {
     debugPrint('=== 채팅방 업데이트 수신 ===');
-    debugPrint('  roomId: ${data['roomId']}');
     debugPrint('  roomName: ${data['roomName']}');
     debugPrint('  unreadCount: ${data['unreadCount']}');
     debugPrint('  lastMessage: ${data['lastMessage']}');
 
     // ChatRoomListScreen에 업데이트 전달
-    _chatRoomListKey.currentState?.updateRoom(data);
+    // 즉시 실행하여 빠른 동기화 보장
+    if (mounted && _chatRoomListKey.currentState != null) {
+      debugPrint('🔄 대화방 목록 새로고침 요청');
+      _chatRoomListKey.currentState!.refreshRooms();
+    } else {
+      debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 또는 위젯이 dispose됨');
+    }
   }
 
+  /// 알림 수신 → UI 갱신 (Android 네이티브에서 이미 DB에 저장됨)
   Future<void> _handleNotification(Map<String, dynamic> data) async {
+    debugPrint('📩 알림 수신: $data');
+
     final packageName = data['packageName'] ?? '';
 
-    // 지원하는 패키지인지 확인은 서버에서 처리
-    // 클라이언트는 모든 알림을 서버로 전달하고, 서버에서 지원 여부를 확인
-    if (packageName.isEmpty) {
-      debugPrint('패키지명이 없는 알림 무시');
+    // 지원하는 메신저인지 확인
+    if (!_localDb.isSupportedMessenger(packageName)) {
+      debugPrint('❌ 지원하지 않는 메신저: $packageName');
       return;
     }
 
     // 매핑: title -> sender, text -> message, subText -> roomName
     final sender = data['title'] ?? '';
     final message = data['text'] ?? '';
-    final roomName = data['subText'] ?? '';
+    final subText = data['subText'] ?? '';
 
-    // 유효성 검사: sender, message, roomName 모두 필수
-    if (sender.isEmpty || message.isEmpty || roomName.isEmpty) {
-      debugPrint('알림 무시: 필수 필드 누락');
+    // 개인톡: subText가 비어있으면 sender를 roomName으로 사용
+    // 그룹톡: subText가 채팅방 이름
+    final roomName = subText.isNotEmpty ? subText : sender;
+
+    debugPrint('📝 파싱 결과: sender=$sender, message=$message, roomName=$roomName');
+
+    // 유효성 검사: sender, message 필수
+    if (sender.isEmpty || message.isEmpty) {
+      debugPrint('❌ 알림 무시: 필수 필드 누락 (sender=${sender.isEmpty}, message=${message.isEmpty})');
+      return;
+    }
+
+    // 차단된 채팅방인지 확인
+    final existingRoom = await _localDb.findRoom(roomName, packageName);
+    if (existingRoom != null && existingRoom.blocked) {
+      debugPrint('🚫 차단된 채팅방 알림 무시: $roomName');
       return;
     }
 
@@ -298,31 +301,38 @@ class _MainScreenState extends State<MainScreen> {
     final notificationService =
         Provider.of<NotificationSettingsService>(context, listen: false);
 
+    // 음소거된 채팅방이면 알림만 삭제
     if (notificationService.isMuted(roomName)) {
-      debugPrint('알림 음소거됨: $roomName');
-      // 음소거된 채팅방의 알림 자동 삭제
+      debugPrint('🔇 알림 음소거됨: $roomName');
       try {
         await methodChannel.invokeMethod(
           'cancelAllNotificationsForRoom',
           {'roomName': roomName},
         );
-        debugPrint('음소거 채팅방 알림 삭제 요청됨: $roomName');
       } catch (e) {
-        debugPrint('알림 삭제 실패: $e');
+        debugPrint('❌ 알림 삭제 실패: $e');
       }
-      return;
     }
 
-    // API 호출은 Native(NotificationListener)에서 처리
-    // Flutter는 UI 알림/갱신만 담당
-    // 지원 여부는 서버에서 확인하므로 클라이언트는 모든 알림을 전달
-    debugPrint('=== 알림 수신 (Native에서 API 호출) ===');
+    debugPrint('✅ === 알림 수신 → UI 갱신 (Android 네이티브에서 이미 저장됨) ===');
     debugPrint('  패키지: $packageName');
     debugPrint('  발신자: $sender, 대화방: $roomName');
+    debugPrint('  메시지: $message');
+
+    // Android 네이티브에서 이미 DB에 저장했으므로 UI만 갱신
+    // 즉시 실행하여 빠른 동기화 보장
+    if (mounted && _chatRoomListKey.currentState != null) {
+      debugPrint('🔄 대화방 목록 새로고침 요청');
+      _chatRoomListKey.currentState!.refreshRooms();
+      debugPrint('✅ UI 갱신 요청 완료');
+    } else {
+      debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 또는 위젯이 dispose됨');
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     super.dispose();
   }

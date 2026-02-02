@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/chat_room.dart';
-import '../services/api_service.dart';
-import '../services/auth_service.dart';
+import '../services/local_db_service.dart';
 import '../services/notification_settings_service.dart';
 import '../services/profile_image_service.dart';
 import 'chat_room_detail_screen.dart';
-import 'consent_screen.dart';
-import 'login_screen.dart';
 import 'blocked_rooms_screen.dart';
 
 class ChatRoomListScreen extends StatefulWidget {
@@ -20,46 +17,46 @@ class ChatRoomListScreen extends StatefulWidget {
   State<ChatRoomListScreen> createState() => ChatRoomListScreenState();
 }
 
-class ChatRoomListScreenState extends State<ChatRoomListScreen> {
-  final ApiService _apiService = ApiService();
+class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBindingObserver {
+  final LocalDbService _localDb = LocalDbService();
   final ProfileImageService _profileService = ProfileImageService();
   List<ChatRoom> _chatRooms = [];
   bool _isLoading = true;
   String? _error;
-  
+  // roomId -> 최신 메시지 텍스트 (내가 보낸 메시지가 최신이면 그것, 아니면 lastMessage)
+  final Map<int, String> _lastMessageCache = {};
+
   // 패키지별 필터링
-  String? _selectedPackageName;  // null이면 전체, 'com.kakao.talk'이면 카카오톡만
-  
-  // 지원 메신저 목록 (서버에서 가져옴)
-  List<Map<String, dynamic>> _supportedMessengers = [];
+  String? _selectedPackageName;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initProfileService();
-    _loadSupportedMessengers();
     _loadChatRooms();
   }
-  
-  /// 지원 메신저 목록 로드
-  Future<void> _loadSupportedMessengers() async {
-    try {
-      final messengers = await _apiService.getSupportedMessengers();
-      if (mounted) {
-        setState(() {
-          _supportedMessengers = messengers;
-        });
-      }
-    } catch (e) {
-      debugPrint('지원 메신저 목록 로드 실패: $e');
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 앱이 포그라운드로 돌아올 때 대화목록 자동 새로고침
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 ChatRoomListScreen: 앱 포그라운드 복귀 - 대화목록 새로고침');
+      _loadChatRooms();
     }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   /// 프로필 이미지 서비스 초기화
   Future<void> _initProfileService() async {
     try {
       await _profileService.initialize();
-      // 화면 갱신하여 프로필 이미지 로드
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('프로필 서비스 초기화 실패: $e');
@@ -71,138 +68,95 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
     return _profileService.getRoomProfile(roomName);
   }
 
+  /// 외부에서 호출 가능한 채팅방 목록 새로고침
+  void refreshRooms() {
+    debugPrint('🔄 refreshRooms() 호출됨 - 대화방 목록 새로고침');
+    // 즉시 실행하여 빠른 동기화 보장
+    if (mounted) {
+      _loadChatRooms(silent: true);
+    } else {
+      debugPrint('⚠️ 위젯이 dispose됨 - refreshRooms() 스킵');
+    }
+  }
+
   /// 외부에서 호출 가능한 채팅방 업데이트 메서드
   void updateRoom(Map<String, dynamic> data) {
-    final roomId = data['roomId'] as int? ?? 0;
     final roomName = data['roomName'] as String? ?? '';
 
-    // 프로필 이미지 캐시 무효화 (새로운 알림에서 이미지가 갱신되었을 수 있음)
+    // 프로필 이미지 캐시 무효화
     _profileService.invalidateRoomProfile(roomName);
-    final unreadCount = data['unreadCount'] as int? ?? 0;
-    final lastMessage = data['lastMessage'] as String? ?? '';
-    final lastMessageTimeStr = data['lastMessageTime'] as String? ?? '';
 
-    // lastMessageTime 파싱 (서버에서 배열 또는 문자열로 올 수 있음)
-    DateTime? lastMessageTime;
-    if (lastMessageTimeStr.isNotEmpty) {
-      try {
-        // 배열 형식 "[2026, 1, 28, 8, 29, 13]" 파싱
-        if (lastMessageTimeStr.startsWith('[')) {
-          final parts = lastMessageTimeStr
-              .replaceAll('[', '')
-              .replaceAll(']', '')
-              .split(',')
-              .map((e) => int.parse(e.trim()))
-              .toList();
-          if (parts.length >= 3) {
-            lastMessageTime = DateTime(
-              parts[0],
-              parts[1],
-              parts[2],
-              parts.length > 3 ? parts[3] : 0,
-              parts.length > 4 ? parts[4] : 0,
-              parts.length > 5 ? parts[5] : 0,
-            );
-          }
-        } else {
-          lastMessageTime = DateTime.parse(lastMessageTimeStr);
-        }
-      } catch (e) {
-        debugPrint('lastMessageTime 파싱 실패: $e');
+    // 목록 새로고침
+    _loadChatRooms();
+  }
+
+  Future<void> _loadChatRooms({bool silent = false}) async {
+    if (!silent) {
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+          _profileService.clearCache();
+        });
       }
     }
 
-    setState(() {
-      // 기존 채팅방 업데이트 또는 새로 추가
-      final existingIndex = _chatRooms.indexWhere(
-        (r) => r.id == roomId || r.roomName == roomName,
-      );
-
-      // 서버 응답에서 pinned, category, summaryEnabled 파싱 (없으면 기존 값 유지)
-      final pinned = data['pinned'] as bool? ??
-          (existingIndex >= 0 ? _chatRooms[existingIndex].pinned : false);
-      final categoryStr = data['category'] as String?;
-      final category = categoryStr != null
-          ? RoomCategory.fromString(categoryStr)
-          : (existingIndex >= 0 ? _chatRooms[existingIndex].category : RoomCategory.DAILY);
-      final summaryEnabled = data['summaryEnabled'] as bool? ??
-          (existingIndex >= 0 ? _chatRooms[existingIndex].summaryEnabled : true);
-
-      final packageName = data['packageName'] as String? ?? 'com.kakao.talk';
-      final packageAlias = data['packageAlias'] as String? ?? 
-          (packageName == 'com.kakao.talk' ? '카카오톡' : packageName);
-      
-      final updatedRoom = ChatRoom(
-        id: roomId,
-        roomName: roomName,
-        lastMessage: lastMessage,
-        lastMessageTime: lastMessageTime,
-        unreadCount: unreadCount,
-        pinned: pinned,
-        category: category,
-        summaryEnabled: summaryEnabled,
-        packageName: packageName,
-        packageAlias: packageAlias,
-      );
-
-      if (existingIndex >= 0) {
-        _chatRooms[existingIndex] = updatedRoom;
-      } else {
-        _chatRooms.insert(0, updatedRoom);
-      }
-
-      // 고정 우선, 최신 메시지 순으로 정렬
-      _sortChatRooms();
-    });
-
-    debugPrint('채팅방 목록 업데이트 완료: $roomName');
-  }
-
-  Future<void> _loadChatRooms() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-      // 프로필 이미지 메모리 캐시 클리어 (새로운 이미지 반영)
-      _profileService.clearCache();
-    });
-
     try {
-      final rooms = await _apiService.getChatRooms();
+      final rooms = await _localDb.getChatRooms();
+      debugPrint('📋 DB에서 ${rooms.length}개 대화방 조회 완료');
+      
+      // 각 채팅방의 최신 메시지 확인 (내가 보낸 메시지가 최신이면 그것을 표시)
+      final messageCache = <int, String>{};
+      for (final room in rooms) {
+        try {
+          final latestMessage = await _localDb.getLatestMessage(room.id);
+          if (latestMessage != null) {
+            final latestSender = latestMessage['sender'] as String;
+            final latestMsg = latestMessage['message'] as String;
+            
+            // 최신 메시지가 내가 보낸 메시지면 그것을 표시
+            if (latestSender == '나') {
+              messageCache[room.id] = _formatMessageText(latestMsg);
+            } else {
+              // 최신 메시지가 내가 보낸 것이 아니면 room.lastMessage 표시
+              messageCache[room.id] = _formatMessageText(room.lastMessage);
+            }
+          } else {
+            // 최신 메시지가 없으면 room.lastMessage 표시
+            messageCache[room.id] = _formatMessageText(room.lastMessage);
+          }
+        } catch (e) {
+          debugPrint('최신 메시지 조회 실패 (roomId: ${room.id}): $e');
+          messageCache[room.id] = _formatMessageText(room.lastMessage);
+        }
+      }
+      
+      if (!mounted) {
+        debugPrint('⚠️ 위젯이 dispose됨 - UI 업데이트 스킵');
+        return;
+      }
+      
+      // silent 모드에서도 항상 업데이트하여 새 메시지 반영 보장
       setState(() {
         _chatRooms = rooms;
+        _lastMessageCache.clear();
+        _lastMessageCache.addAll(messageCache);
+        _sortChatRooms(); // 정렬도 함께 수행
+        // silent 모드에서도 로딩 상태를 false로 설정하여 UI가 업데이트되도록 함
         _isLoading = false;
       });
-    } on AuthException catch (e) {
-      // 인증 실패 - 로그인 화면으로 이동
-      debugPrint('인증 실패: $e');
-      if (mounted) {
-        final authService = Provider.of<AuthService>(context, listen: false);
-        await authService.logout();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    } on ConsentRequiredException catch (e) {
-      // 동의 필요 - 동의 화면으로 이동
-      debugPrint('동의 필요: $e');
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ConsentScreen(
-              onConsentComplete: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const ChatRoomListScreen()),
-                );
-              },
-            ),
-          ),
-        );
-      }
+      debugPrint('✅ UI 업데이트 완료: ${_chatRooms.length}개 대화방 표시');
     } catch (e) {
-      setState(() {
-        _error = '대화방 목록을 불러오는데 실패했습니다.';
-        _isLoading = false;
-      });
+      debugPrint('대화방 목록 로드 실패: $e');
+      if (mounted) {
+        setState(() {
+          if (!silent) {
+            _error = '대화방 목록을 불러오는데 실패했습니다.';
+          }
+          // silent 모드에서도 로딩 상태를 false로 설정
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -253,16 +207,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   await _toggleSummaryEnabled(room);
-                },
-              ),
-              // 채팅방 요약 설정
-              _buildMenuItem(
-                icon: Icons.summarize_outlined,
-                title: '채팅방 요약 설정',
-                subtitle: '${room.category.emoji} ${room.category.displayName}',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showCategorySelectorDialog(room);
                 },
               ),
               // 채팅방 상단 고정
@@ -328,7 +272,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
   /// AI 요약 기능 토글
   Future<void> _toggleSummaryEnabled(ChatRoom room) async {
     final newSummaryEnabled = !room.summaryEnabled;
-    final result = await _apiService.updateRoomSettings(room.id, summaryEnabled: newSummaryEnabled);
+    final result = await _localDb.updateRoomSettings(room.id, summaryEnabled: newSummaryEnabled);
 
     if (result != null && mounted) {
       setState(() {
@@ -339,8 +283,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newSummaryEnabled 
-              ? '✨ AI 요약 기능이 켜졌습니다.' 
+          content: Text(newSummaryEnabled
+              ? '✨ AI 요약 기능이 켜졌습니다.'
               : 'AI 요약 기능이 꺼졌습니다.'),
           duration: const Duration(seconds: 2),
         ),
@@ -360,14 +304,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
   /// 채팅방 상단 고정 토글
   Future<void> _togglePinned(ChatRoom room) async {
     final newPinned = !room.pinned;
-    final result = await _apiService.updateRoomSettings(room.id, pinned: newPinned);
+    final result = await _localDb.updateRoomSettings(room.id, pinned: newPinned);
 
     if (result != null && mounted) {
       setState(() {
         final index = _chatRooms.indexWhere((r) => r.id == room.id);
         if (index >= 0) {
           _chatRooms[index] = room.copyWith(pinned: newPinned);
-          // 고정 우선 정렬
           _sortChatRooms();
         }
       });
@@ -383,121 +326,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
   /// 채팅방 목록 정렬 (고정 우선, 최신 메시지 순)
   void _sortChatRooms() {
     _chatRooms.sort((a, b) {
-      // 고정된 방 우선
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
-      // 최신 메시지 순
       if (a.lastMessageTime == null && b.lastMessageTime == null) return 0;
       if (a.lastMessageTime == null) return 1;
       if (b.lastMessageTime == null) return -1;
       return b.lastMessageTime!.compareTo(a.lastMessageTime!);
     });
-  }
-
-  /// 채팅방 요약 카테고리 선택 다이얼로그
-  void _showCategorySelectorDialog(ChatRoom room) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // 핸들바
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // 헤더
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Text(
-                    '이 채팅방은 어떤 방인가요?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '카테고리에 따라 요약 방식이 달라집니다',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            // 카테고리 목록
-            Expanded(
-              child: ListView.builder(
-                itemCount: RoomCategory.values.length,
-                itemBuilder: (context, index) {
-                  final category = RoomCategory.values[index];
-                  final isSelected = room.category == category;
-                  return ListTile(
-                    leading: Text(
-                      category.emoji,
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    title: Text(
-                      category.displayName,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? const Color(0xFF2196F3) : Colors.black87,
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check, color: Color(0xFF2196F3))
-                        : null,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await _updateCategory(room, category);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 채팅방 카테고리 업데이트
-  Future<void> _updateCategory(ChatRoom room, RoomCategory category) async {
-    if (room.category == category) return;
-
-    final result = await _apiService.updateRoomSettings(room.id, category: category.name);
-
-    if (result != null && mounted) {
-      setState(() {
-        final index = _chatRooms.indexWhere((r) => r.id == room.id);
-        if (index >= 0) {
-          _chatRooms[index] = room.copyWith(category: category);
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('요약 설정이 "${category.emoji} ${category.displayName}"으로 변경되었습니다.'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   Widget _buildMenuItem({
@@ -556,7 +391,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
 
   /// 대화방 차단
   Future<void> _blockRoom(ChatRoom room) async {
-    final result = await _apiService.updateRoomSettings(room.id, blocked: true);
+    final result = await _localDb.updateRoomSettings(room.id, blocked: true);
 
     if (result != null && mounted) {
       setState(() {
@@ -594,7 +429,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success = await _apiService.deleteRoom(room.id);
+              final success = await _localDb.deleteRoom(room.id);
               if (!mounted) return;
 
               if (success) {
@@ -625,6 +460,30 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
     );
   }
 
+  /// 마지막 메시지 포맷팅 (캐시에서 가져오기)
+  String _formatLastMessage(ChatRoom room) {
+    return _lastMessageCache[room.id] ?? _formatMessageText(room.lastMessage);
+  }
+  
+  /// 메시지 텍스트 포맷팅 (공통 로직)
+  String _formatMessageText(String? message) {
+    if (message == null || message.isEmpty) return '';
+    
+    // [IMAGE:경로] 패턴 제거
+    final imagePattern = RegExp(r'\[IMAGE:(.+?)\]');
+    final hasImage = imagePattern.hasMatch(message);
+    String formattedMessage = message.replaceAll(imagePattern, '').trim();
+    
+    // 이미지만 있고 텍스트가 없으면 원본 메시지에서 이모티콘/스티커 여부 확인
+    if (formattedMessage.isEmpty && hasImage) {
+      final isEmojiOrSticker = message.contains('이모티콘') || message.contains('스티커');
+      return isEmojiOrSticker ? '이모티콘을 보냈습니다' : '사진을 보냈습니다';
+    }
+    
+    // 이미지와 텍스트가 모두 있으면 텍스트만 반환
+    return formattedMessage;
+  }
+
   String _formatTime(DateTime? time) {
     if (time == null) return '';
     final now = DateTime.now();
@@ -643,7 +502,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
     final notificationService = Provider.of<NotificationSettingsService>(context);
 
     return Scaffold(
@@ -652,7 +510,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
         backgroundColor: const Color(0xFF2196F3),
         elevation: 0,
         title: const Text(
-          '채팅',
+          'AI 톡비서',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -666,27 +524,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
               // TODO: 검색 기능
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.add_comment_outlined, color: Colors.white),
-            onPressed: () {
-              // TODO: 새 채팅
-            },
-          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (value) async {
-              if (value == 'logout') {
-                await authService.logout();
-                if (mounted) {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                }
-              } else if (value == 'blocked_rooms') {
+              if (value == 'blocked_rooms') {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const BlockedRoomsScreen()),
                 ).then((_) {
-                  // 차단 해제 후 목록 새로고침
                   _loadChatRooms();
                 });
               }
@@ -709,16 +553,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
                     Icon(Icons.settings, size: 20, color: Colors.grey),
                     SizedBox(width: 12),
                     Text('설정'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 20, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text('로그아웃'),
                   ],
                 ),
               ),
@@ -792,227 +626,222 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
                               itemCount: _getFilteredRooms().length,
                               itemBuilder: (context, index) {
                                 final room = _getFilteredRooms()[index];
-                          final isMuted =
-                              notificationService.isMuted(room.roomName);
+                                final isMuted =
+                                    notificationService.isMuted(room.roomName);
 
-                          return InkWell(
-                            onTap: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ChatRoomDetailScreen(room: room),
-                                ),
-                              );
-                              // 상세 화면에서 돌아오면 목록 새로고침 (unreadCount 초기화 또는 삭제된 방 제거)
-                              if (result == true) {
-                                // 대화방이 삭제된 경우 목록에서 제거
-                                setState(() {
-                                  _chatRooms.removeWhere((r) => r.id == room.id);
-                                });
-                              } else if (result is Map) {
-                                // 설정 변경된 경우 (pinned, summaryEnabled 등)
-                                setState(() {
-                                  final index = _chatRooms.indexWhere((r) => r.id == room.id);
-                                  if (index >= 0) {
-                                    if (result['pinned'] != null) {
-                                      _chatRooms[index] = room.copyWith(pinned: result['pinned']);
-                                    }
-                                    if (result['summaryEnabled'] != null) {
-                                      _chatRooms[index] = room.copyWith(summaryEnabled: result['summaryEnabled']);
-                                    }
-                                    _sortChatRooms();
-                                  }
-                                });
-                              } else {
-                                // 일반적으로 돌아온 경우 목록 새로고침
-                                _loadChatRooms();
-                              }
-                            },
-                            onLongPress: () => _showRoomContextMenu(context, room),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey[200]!,
-                                    width: 0.5,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // 프로필 이미지
-                                  Stack(
-                                    children: [
-                                      Builder(
-                                        builder: (context) {
-                                          final profileFile = _getProfileImageFile(room.roomName);
-                                          ImageProvider? bgImage;
-                                          if (profileFile != null) {
-                                            bgImage = FileImage(profileFile);
-                                          } else if (room.profileImageUrl != null) {
-                                            bgImage = NetworkImage(room.profileImageUrl!);
+                                return InkWell(
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ChatRoomDetailScreen(room: room),
+                                      ),
+                                    );
+                                    if (result == true) {
+                                      // 대화방 삭제
+                                      setState(() {
+                                        _chatRooms.removeWhere((r) => r.id == room.id);
+                                      });
+                                    } else if (result is Map) {
+                                      // 특정 속성 업데이트
+                                      setState(() {
+                                        final index = _chatRooms.indexWhere((r) => r.id == room.id);
+                                        if (index >= 0) {
+                                          if (result['pinned'] != null) {
+                                            _chatRooms[index] = room.copyWith(pinned: result['pinned']);
                                           }
-                                          return CircleAvatar(
-                                            radius: 28,
-                                            backgroundColor: const Color(0xFF64B5F6),
-                                            backgroundImage: bgImage,
-                                            child: bgImage == null
-                                                ? Text(
-                                                    room.roomName.isNotEmpty
-                                                        ? room.roomName[0]
-                                                        : '?',
+                                          if (result['summaryEnabled'] != null) {
+                                            _chatRooms[index] = room.copyWith(summaryEnabled: result['summaryEnabled']);
+                                          }
+                                          _sortChatRooms();
+                                        }
+                                      });
+                                    }
+                                    // 항상 새로고침하여 읽음 상태 등 최신 정보 반영
+                                    _loadChatRooms(silent: true);
+                                  },
+                                  onLongPress: () => _showRoomContextMenu(context, room),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey[200]!,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // 프로필 이미지
+                                        Stack(
+                                          children: [
+                                            Builder(
+                                              builder: (context) {
+                                                final profileFile = _getProfileImageFile(room.roomName);
+                                                ImageProvider? bgImage;
+                                                if (profileFile != null) {
+                                                  bgImage = FileImage(profileFile);
+                                                } else if (room.profileImageUrl != null) {
+                                                  bgImage = NetworkImage(room.profileImageUrl!);
+                                                }
+                                                return CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor: const Color(0xFF64B5F6),
+                                                  backgroundImage: bgImage,
+                                                  child: bgImage == null
+                                                      ? Text(
+                                                          room.roomName.isNotEmpty
+                                                              ? room.roomName[0]
+                                                              : '?',
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 20,
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        )
+                                                      : null,
+                                                );
+                                              },
+                                            ),
+                                            if (room.participantCount > 2)
+                                              Positioned(
+                                                right: 0,
+                                                bottom: 0,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[700],
+                                                    borderRadius:
+                                                        BorderRadius.circular(10),
+                                                  ),
+                                                  child: Text(
+                                                    '${room.participantCount}',
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontSize: 22,
+                                                      fontSize: 10,
                                                       fontWeight: FontWeight.w500,
                                                     ),
-                                                  )
-                                                : null,
-                                          );
-                                        },
-                                      ),
-                                      // 참여자 수 표시 (그룹 채팅인 경우)
-                                      if (room.participantCount > 2)
-                                        Positioned(
-                                          right: 0,
-                                          bottom: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[700],
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '${room.participantCount}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(width: 14),
-                                  // 채팅방 정보
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            // 대화명
-                                            Expanded(
-                                              child: Text(
-                                                room.roomName,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            // 고정 아이콘 (대화명 오른쪽)
-                                            if (room.pinned)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.only(left: 4),
-                                                child: Icon(
-                                                  Icons.push_pin,
-                                                  size: 14,
-                                                  color: const Color(0xFF2196F3),
-                                                ),
-                                              ),
-                                            // AI 요약 기능 아이콘 (대화명 오른쪽)
-                                            if (room.summaryEnabled)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.only(left: 4),
-                                                child: Icon(
-                                                  Icons.auto_awesome,
-                                                  size: 16,
-                                                  color: Colors.amber[600],
-                                                ),
-                                              ),
-                                            // 알림 끔 아이콘 (대화명 오른쪽)
-                                            if (isMuted)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.only(left: 4),
-                                                child: Icon(
-                                                  Icons.notifications_off,
-                                                  size: 16,
-                                                  color: Colors.grey[400],
+                                                  ),
                                                 ),
                                               ),
                                           ],
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          room.lastMessage ?? '',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[600],
+                                        const SizedBox(width: 12),
+                                        // 채팅방 정보
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      room.roomName,
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w600,
+                                                        height: 1.2,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  if (room.pinned)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(left: 4),
+                                                      child: Icon(
+                                                        Icons.push_pin,
+                                                        size: 14,
+                                                        color: const Color(0xFF2196F3),
+                                                      ),
+                                                    ),
+                                                  if (room.summaryEnabled)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(left: 4),
+                                                      child: Icon(
+                                                        Icons.auto_awesome,
+                                                        size: 16,
+                                                        color: Colors.amber[600],
+                                                      ),
+                                                    ),
+                                                  if (isMuted)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(left: 4),
+                                                      child: Icon(
+                                                        Icons.notifications_off,
+                                                        size: 16,
+                                                        color: Colors.grey[400],
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _formatLastMessage(room),
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
+                                              ),
+                                            ],
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // 시간 및 읽지 않은 메시지 수
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              _formatTime(room.lastMessageTime),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[500],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            if (room.unreadCount > 0)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 7,
+                                                  vertical: 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF2196F3),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  room.unreadCount > 999
+                                                      ? '999+'
+                                                      : '${room.unreadCount}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // 시간 및 읽지 않은 메시지 수
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        _formatTime(room.lastMessageTime),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      if (room.unreadCount > 0)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 7,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF2196F3),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            room.unreadCount > 999
-                                                ? '999+'
-                                                : '${room.unreadCount}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                                );
+                              },
                             ),
                           ),
           ),
@@ -1023,39 +852,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
 
   /// 패키지별 탭 필터 위젯
   Widget _buildPackageTabs() {
-    // 지원 메신저 목록을 기반으로 탭 생성
-    // 서버에서 가져온 supportedMessengers 사용
-    final List<Map<String, String>> tabItems = [];
+    // 지원 메신저 목록 (하드코딩)
+    final tabItems = LocalDbService.supportedMessengers;
 
-    // 서버에서 가져온 지원 메신저 목록 사용
-    for (final messenger in _supportedMessengers) {
-      final packageName = messenger['packageName'] as String? ?? '';
-      final packageAlias = messenger['packageAlias'] as String? ?? packageName;
-      if (packageName.isNotEmpty) {
-        tabItems.add({
-          'packageName': packageName,
-          'packageAlias': packageAlias,
-        });
-      }
-    }
-
-    // 서버에서 목록이 없으면 실제 데이터에서 추출
-    if (tabItems.isEmpty) {
-      final uniquePackages = <String, String>{};
-      for (final room in _chatRooms) {
-        if (!uniquePackages.containsKey(room.packageName)) {
-          uniquePackages[room.packageName] = room.packageAlias;
-        }
-      }
-      for (final entry in uniquePackages.entries) {
-        tabItems.add({
-          'packageName': entry.key,
-          'packageAlias': entry.value,
-        });
-      }
-    }
-
-    // 탭이 없으면 빈 컨테이너 반환
+    // 탭이 없으면 빈 컨테이너 반환 (1개여도 표시)
     if (tabItems.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1086,13 +886,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
         itemBuilder: (context, index) {
           final item = tabItems[index];
           final packageName = item['packageName']!;
-          final packageAlias = item['packageAlias']!;
+          final packageAlias = item['alias']!;
           final isSelected = _selectedPackageName == packageName;
 
           return _buildTabItem(
             packageAlias,
             isSelected,
             () => setState(() => _selectedPackageName = packageName),
+            packageName: packageName,
           );
         },
       ),
@@ -1100,61 +901,70 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
   }
 
   /// 탭 아이템 위젯
-  Widget _buildTabItem(String label, bool isSelected, VoidCallback onTap) {
+  Widget _buildTabItem(String label, bool isSelected, VoidCallback onTap, {String? packageName}) {
+    // 카카오톡인지 확인
+    final isKakaoTalk = packageName == 'com.kakao.talk';
+    // 카카오톡 노란색: #FEE500
+    final selectedColor = isKakaoTalk ? const Color(0xFFFEE500) : const Color(0xFF2196F3);
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.black : Colors.transparent,
+          color: isSelected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontSize: 14,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 카카오톡 아이콘
+              if (isKakaoTalk && isSelected)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(
+                    Icons.chat_bubble,
+                    size: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected 
+                      ? (isKakaoTalk ? Colors.black87 : Colors.white)
+                      : Colors.black87,
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// 패키지 이름을 표시 이름으로 변환 (packageAlias 사용)
+  /// 패키지 이름을 표시 이름으로 변환
   String _getPackageDisplayName(String packageName) {
-    // 지원 메신저 목록에서 찾기
-    final messenger = _supportedMessengers.firstWhere(
+    final messenger = LocalDbService.supportedMessengers.firstWhere(
       (m) => m['packageName'] == packageName,
-      orElse: () => <String, dynamic>{},
+      orElse: () => {'alias': '알 수 없음'},
     );
-    
-    if (messenger.isNotEmpty && messenger['packageAlias'] != null) {
-      return messenger['packageAlias'] as String;
-    }
-    
-    // 없으면 실제 데이터에서 찾기
-    final room = _chatRooms.firstWhere(
-      (r) => r.packageName == packageName,
-      orElse: () => ChatRoom(id: 0, roomName: '', packageName: packageName),
-    );
-    return room.packageAlias;
+    return messenger['alias'] ?? '알 수 없음';
   }
 
   /// 필터링된 채팅방 목록 반환
   List<ChatRoom> _getFilteredRooms() {
     if (_selectedPackageName == null) {
-      // 선택된 패키지가 없으면 첫 번째 패키지로 필터링
-      if (_supportedMessengers.isNotEmpty) {
-        final firstPackage = _supportedMessengers.first['packageName'] as String?;
+      if (LocalDbService.supportedMessengers.isNotEmpty) {
+        final firstPackage = LocalDbService.supportedMessengers.first['packageName'];
         if (firstPackage != null) {
           return _chatRooms.where((room) => room.packageName == firstPackage).toList();
         }
       }
-      // 지원 메신저 목록도 없으면 첫 번째 채팅방의 패키지로 필터링
       if (_chatRooms.isNotEmpty) {
         final firstPackage = _chatRooms.first.packageName;
         return _chatRooms.where((room) => room.packageName == firstPackage).toList();
@@ -1162,11 +972,5 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> {
       return [];
     }
     return _chatRooms.where((room) => room.packageName == _selectedPackageName).toList();
-  }
-
-  @override
-  void dispose() {
-    _apiService.dispose();
-    super.dispose();
   }
 }

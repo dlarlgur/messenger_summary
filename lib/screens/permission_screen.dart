@@ -40,6 +40,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
   }
 
   Future<void> _checkPermissions() async {
+    if (!mounted) return;
     setState(() => _isChecking = true);
     
     try {
@@ -48,6 +49,11 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
       
       // 배터리 최적화 제외 확인
       final batteryOptimizationDisabled = await _methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
+      
+      debugPrint('📋 권한 상태 확인:');
+      debugPrint('  알림 권한: $notificationEnabled');
+      debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+      debugPrint('  필수 권한 허용됨: ${notificationEnabled}');
       
       if (mounted) {
         setState(() {
@@ -129,7 +135,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             icon: Icons.notifications_active,
                             iconColor: const Color(0xFFFF9800),
                             title: '알림 접근',
-                            description: '숨톡이 카카오톡 메시지를 수신하고 표시하기 위해 필요한 권한입니다',
+                            description: 'AI 톡비서가 카카오톡 메시지를 수신하고 표시하기 위해 필요한 권한입니다',
                             isRequired: true,
                             isGranted: _notificationPermissionGranted,
                             onTap: _openNotificationSettings,
@@ -142,7 +148,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             icon: Icons.battery_saver,
                             iconColor: const Color(0xFF4CAF50),
                             title: '배터리 사용량 최적화 중지',
-                            description: '숨톡이 원활하게 메시지를 수신할 수 있도록 배터리 사용 최적화 목록에서 제외해 주세요',
+                            description: 'AI 톡비서가 원활하게 메시지를 수신할 수 있도록 배터리 사용 최적화 목록에서 제외해 주세요',
                             isRequired: false,
                             isGranted: _batteryOptimizationDisabled,
                             onTap: _openBatteryOptimizationSettings,
@@ -168,7 +174,33 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _allRequiredPermissionsGranted ? widget.onComplete : null,
+                  onPressed: _allRequiredPermissionsGranted
+                      ? () async {
+                          debugPrint('✅ 시작하기 버튼 클릭 - 메인 화면으로 이동');
+                          if (!mounted) return;
+                          
+                          // 권한 상태 재확인
+                          await _checkPermissions();
+                          
+                          if (!mounted) return;
+                          
+                          // 권한이 모두 허용되었는지 최종 확인
+                          if (_allRequiredPermissionsGranted) {
+                            debugPrint('✅ 모든 권한 허용 확인됨 - 메인 화면으로 이동');
+                            // onComplete 콜백 호출
+                            widget.onComplete();
+                          } else {
+                            debugPrint('⚠️ 권한이 아직 허용되지 않음');
+                            // 권한이 없으면 다시 확인하도록 안내
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('필수 권한을 모두 허용해주세요.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF9800),
                     disabledBackgroundColor: Colors.grey[300],
