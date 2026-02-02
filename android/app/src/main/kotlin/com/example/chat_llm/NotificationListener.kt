@@ -290,15 +290,20 @@ class NotificationListener : NotificationListenerService() {
         val isEmojiOrSticker = messageText.contains("이모티콘", ignoreCase = true) || 
                                messageText.contains("스티커", ignoreCase = true)
         
+        // 이모티콘/스티커를 먼저 시도 (더 구체적이므로)
         if (isEmojiOrSticker) {
             Log.d(TAG, "--- 이모티콘/스티커 이미지 추출 모드 ---")
-            // 이모티콘/스티커는 Message Bundle의 URI에서 직접 추출
-            return extractEmojiOrStickerImage(extras)
-        } else {
-            Log.d(TAG, "--- 일반 사진 이미지 추출 모드 ---")
-            // 일반 사진은 EXTRA_PICTURE, largeIcon 등에서 추출
-            return extractPhotoImage(notification, extras)
+            val emojiBitmap = extractEmojiOrStickerImage(extras)
+            if (emojiBitmap != null) {
+                return emojiBitmap
+            }
+            // 이모티콘 추출 실패 시 일반 사진 추출도 시도
+            Log.d(TAG, "이모티콘 추출 실패, 일반 사진 추출 시도...")
         }
+        
+        // 일반 사진 이미지 추출 (이모티콘 추출 실패했거나 일반 사진인 경우)
+        Log.d(TAG, "--- 일반 사진 이미지 추출 모드 ---")
+        return extractPhotoImage(notification, extras)
     }
     
     /**
@@ -321,7 +326,16 @@ class NotificationListener : NotificationListenerService() {
                         Log.d(TAG, "  키: '$key' = ${value?.javaClass?.simpleName ?: "null"}")
                     }
                     
-                    // URI 직접 확인 (이모티콘은 Message Bundle의 uri 키에 있음)
+                    // 1. 먼저 Bundle에서 직접 Bitmap 찾기
+                    for (key in latestMessage.keySet()) {
+                        val value = latestMessage.get(key)
+                        if (value is Bitmap) {
+                            Log.i(TAG, "✅ 이모티콘 Bundle에서 직접 Bitmap 발견: 키='$key' (크기: ${value.width}x${value.height})")
+                            return value
+                        }
+                    }
+                    
+                    // 2. URI 확인 (이모티콘은 Message Bundle의 uri 키에 있음)
                     var uri: android.net.Uri? = null
                     
                     // Uri 객체로 시도
@@ -365,6 +379,29 @@ class NotificationListener : NotificationListenerService() {
                                 return bitmap
                             } else {
                                 Log.w(TAG, "❌ 이모티콘 URI에서 Bitmap 로드 실패: $uri")
+                                // URI 로드 실패 시 파일 경로로 직접 접근 시도
+                                val filePath = extractFilePathFromFileProviderUri(uri)
+                                if (filePath != null) {
+                                    Log.d(TAG, "파일 경로로 직접 접근 시도: $filePath")
+                                    try {
+                                        val file = java.io.File(filePath)
+                                        if (file.exists() && file.canRead()) {
+                                            val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                                val source = android.graphics.ImageDecoder.createSource(file)
+                                                android.graphics.ImageDecoder.decodeBitmap(source)
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                android.graphics.BitmapFactory.decodeFile(filePath)
+                                            }
+                                            if (bitmap != null) {
+                                                Log.i(TAG, "✅ 파일 경로에서 이모티콘 이미지 로드 성공 (크기: ${bitmap.width}x${bitmap.height})")
+                                                return bitmap
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
+                                    }
+                                }
                             }
                         } else {
                             Log.d(TAG, "MIME 타입이 image가 아님: '$mimeType'")
@@ -389,6 +426,11 @@ class NotificationListener : NotificationListenerService() {
         Log.d(TAG, "일반 사진 이미지 추출 시작...")
         
         // 0. LargeIcon 확인 (일부 경우에 사진이 largeIcon에 있을 수 있음)
+        // ⚠️ 주의: LargeIcon은 대화방 프로필 이미지일 가능성이 높으므로, 
+        // EXTRA_PICTURE나 메시지 Bundle의 URI에서 이미지를 찾지 못한 경우에만 확인
+        // 일반적으로 LargeIcon은 프로필 이미지이므로 사진 추출에서는 제외하는 것이 안전함
+        // 따라서 LargeIcon 확인은 주석 처리 (필요시 나중에 활성화 가능)
+        /*
         val largeIcon = notification.getLargeIcon()
         if (largeIcon != null) {
             try {
@@ -404,7 +446,8 @@ class NotificationListener : NotificationListenerService() {
                     drawable.setBounds(0, 0, canvas.width, canvas.height)
                     drawable.draw(canvas)
                     // 프로필 이미지보다 큰 경우에만 사진으로 간주 (프로필은 보통 작음)
-                    if (bitmap.width > 200 || bitmap.height > 200) {
+                    // 하지만 LargeIcon은 거의 항상 프로필 이미지이므로 사진으로 간주하지 않음
+                    if (bitmap.width > 500 || bitmap.height > 500) {
                         Log.i(TAG, "✅ LargeIcon에서 사진 발견 (크기: ${bitmap.width}x${bitmap.height})")
                         return bitmap
                     }
@@ -413,6 +456,7 @@ class NotificationListener : NotificationListenerService() {
                 Log.w(TAG, "LargeIcon에서 이미지 추출 실패: ${e.message}")
             }
         }
+        */
         
         // Bundle의 모든 키 확인 (디버깅용)
         val hasReducedImages = extras.getBoolean("android.reduced.images", false)
@@ -691,23 +735,45 @@ class NotificationListener : NotificationListenerService() {
                         
                         if (isEmoticonPath) {
                             Log.d(TAG, "⚠️ 이모티콘/스티커 경로 감지 - 사진 추출에서 제외: $uri")
-                        } else if (mimeType.startsWith("image/")) {
+                        } else if (mimeType.startsWith("image/") || mimeType.isEmpty()) {
                             // content:// URI에서 Bitmap 로드
-                            Log.d(TAG, "URI에서 사진 Bitmap 로드 시도: $uri")
+                            Log.d(TAG, "URI에서 사진 Bitmap 로드 시도: $uri (MIME: '$mimeType')")
                             val bitmap = loadBitmapFromUri(uri)
                             if (bitmap != null) {
-                                Log.i(TAG, "✅ MessagingStyle 메시지에서 사진 추출 성공 (크기: ${bitmap.width}x${bitmap.height})")
-                                return bitmap
+                                // 사진은 보통 크기가 큼 (200x200 이상)
+                                if (bitmap.width >= 200 || bitmap.height >= 200) {
+                                    Log.i(TAG, "✅ MessagingStyle 메시지에서 사진 추출 성공 (크기: ${bitmap.width}x${bitmap.height})")
+                                    return bitmap
+                                } else {
+                                    Log.d(TAG, "⚠️ 이미지 크기가 작아서 프로필 이미지로 간주: ${bitmap.width}x${bitmap.height}")
+                                }
                             } else {
                                 Log.w(TAG, "❌ URI에서 Bitmap 로드 실패: $uri")
-                            }
-                        } else if (mimeType.isEmpty()) {
-                            // MIME 타입이 없지만 이모티콘 경로가 아니면 시도
-                            Log.w(TAG, "⚠️ URI는 있지만 MIME 타입이 없음 - 사진으로 시도: $uri")
-                            val bitmap = loadBitmapFromUri(uri)
-                            if (bitmap != null) {
-                                Log.i(TAG, "✅ MIME 타입 없지만 사진 로드 성공 (크기: ${bitmap.width}x${bitmap.height})")
-                                return bitmap
+                                // URI 로드 실패 시 파일 경로로 직접 접근 시도
+                                val filePath = extractFilePathFromFileProviderUri(uri)
+                                if (filePath != null) {
+                                    Log.d(TAG, "파일 경로로 직접 접근 시도: $filePath")
+                                    try {
+                                        val file = java.io.File(filePath)
+                                        if (file.exists() && file.canRead()) {
+                                            val directBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                                val source = android.graphics.ImageDecoder.createSource(file)
+                                                android.graphics.ImageDecoder.decodeBitmap(source)
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                android.graphics.BitmapFactory.decodeFile(filePath)
+                                            }
+                                            if (directBitmap != null && (directBitmap.width >= 200 || directBitmap.height >= 200)) {
+                                                Log.i(TAG, "✅ 파일 경로에서 사진 이미지 로드 성공 (크기: ${directBitmap.width}x${directBitmap.height})")
+                                                return directBitmap
+                                            }
+                                        } else {
+                                            Log.w(TAG, "⚠️ 파일이 존재하지 않거나 읽을 수 없음: $filePath")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
+                                    }
+                                }
                             }
                         } else {
                             Log.d(TAG, "❌ MIME 타입이 image가 아님: '$mimeType'")
@@ -819,8 +885,10 @@ class NotificationListener : NotificationListenerService() {
     
     /**
      * FileProvider URI에서 실제 파일 경로 추출
-     * 카카오톡 FileProvider URI: content://com.kakao.talk.FileProvider/external_files/emulated/0/...
-     * 실제 경로: /storage/emulated/0/...
+     * 카카오톡 FileProvider URI: 
+     *   - content://com.kakao.talk.FileProvider/external_files/emulated/0/...
+     *   - content://com.kakao.talk.FileProvider/external_cache/emoticon_dir/...
+     * 실제 경로: /storage/emulated/0/... 또는 /storage/emulated/0/Android/data/com.kakao.talk/cache/...
      */
     private fun extractFilePathFromFileProviderUri(uri: android.net.Uri): String? {
         val uriString = uri.toString()
@@ -828,6 +896,31 @@ class NotificationListener : NotificationListenerService() {
         // FileProvider URI 패턴 확인
         if (uriString.contains("FileProvider")) {
             try {
+                // external_cache/emoticon_dir/... 형식 처리
+                val cachePattern = Regex("content://[^/]+/FileProvider/external_cache/(.+)")
+                val cacheMatch = cachePattern.find(uriString)
+                if (cacheMatch != null && cacheMatch.groupValues.size >= 2) {
+                    val cachePath = cacheMatch.groupValues[1]
+                    // 여러 가능한 경로 시도
+                    val possiblePaths = listOf(
+                        "/storage/emulated/0/Android/data/com.kakao.talk/cache/$cachePath",
+                        "/data/data/com.kakao.talk/cache/$cachePath"
+                    )
+                    
+                    for (filePath in possiblePaths) {
+                        val file = java.io.File(filePath)
+                        if (file.exists() && file.canRead()) {
+                            Log.d(TAG, "FileProvider URI에서 경로 추출 (external_cache): $uriString -> $filePath")
+                            return filePath
+                        }
+                    }
+                    
+                    // 경로가 존재하지 않아도 첫 번째 경로 반환 (시도해볼 수 있도록)
+                    val defaultPath = "/storage/emulated/0/Android/data/com.kakao.talk/cache/$cachePath"
+                    Log.d(TAG, "FileProvider URI에서 경로 추출 시도 (external_cache, 기본 경로): $uriString -> $defaultPath")
+                    return defaultPath
+                }
+                
                 // content://com.kakao.talk.FileProvider/external_files/emulated/0/... 형식
                 // 또는 content://com.kakao.talk.FileProvider/external_files/0/... 형식
                 val pattern = Regex("content://[^/]+/external_files/(?:emulated/)?(\\d+)/(.+)")
@@ -1358,6 +1451,9 @@ class NotificationListener : NotificationListenerService() {
                     }
 
                     // 이미지 처리
+                    // savedImagePath를 상위 스코프에 선언 (일반 메시지 저장 부분에서도 접근 가능하도록)
+                    var savedImagePath: String? = null
+                    
                     if (roomName.isNotEmpty()) {
                         Log.d(TAG, "========== 프로필 이미지 처리 시작 ==========")
                         Log.d(TAG, "roomName: '$roomName'")
@@ -1384,7 +1480,6 @@ class NotificationListener : NotificationListenerService() {
                         }
 
                         // 3. 공유된 사진/이모티콘이 있으면 앱 내부 저장소에 저장
-                        var savedImagePath: String? = null
                         
                         // 이미지가 있을 가능성이 있는 메시지인지 확인 (시스템 메시지 패턴 체크)
                         val systemMessagePatterns = listOf(
@@ -1456,95 +1551,92 @@ class NotificationListener : NotificationListenerService() {
                             Log.e(TAG, "메시지 배열 분석 실패: ${e.message}", e)
                         }
                         
-                        // 이미지 추출을 더 적극적으로 시도
-                        // 1. 시스템 메시지인 경우
-                        // 2. 그룹톡/오픈채팅인 경우
-                        // 3. 메시지가 비어있는 경우
-                        // 4. 메시지가 매우 짧은 경우 (이미지일 가능성)
-                        // 5. 링크 메시지도 이미지 추출 시도 (링크 미리보기 이미지 포함)
-                        val shouldExtractImage = isSystemMessage || 
-                            isGroupConversation || 
-                            message.isEmpty() ||
-                            message.length <= 10 ||  // 매우 짧은 메시지는 이미지일 수 있음
-                            isLinkMessage  // 링크 메시지도 이미지 추출 시도 (미리보기 이미지)
+                        // savedImagePath를 명시적으로 null로 초기화 (이전 값이 남아있지 않도록)
+                        savedImagePath = null
                         
-                        // 이미지 추출 시도
-                        val sharedImage = if (shouldExtractImage) {
-                            extractSharedImage(noti, bundle, message)
-                        } else {
-                            // 일반 텍스트 메시지는 이미지 추출 시도하지 않음 (성능 최적화)
-                            null
-                        }
+                        // ⚠️ 이미지 추출은 항상 시도하되, 크기 검증을 엄격하게 함
+                        // 일반 텍스트 메시지에서도 이미지가 포함될 수 있으므로 추출은 시도
+                        // 하지만 프로필 이미지(작은 크기)는 사진으로 저장하지 않음
+                        Log.d(TAG, ">>> 이미지 추출 시도: message='$message', isSystemMessage=$isSystemMessage, isLinkMessage=$isLinkMessage")
+                        
+                        val sharedImage = extractSharedImage(noti, bundle, message)
                         
                         if (sharedImage != null) {
-                            Log.i(TAG, "📷 공유 이미지 발견! 저장 시도... (크기: ${sharedImage.width}x${sharedImage.height})")
-                            savedImagePath = saveNotificationImage(roomName, sharedImage, notification.postTime)
-                            if (savedImagePath != null) {
-                                Log.i(TAG, "✅ 이미지 저장 성공: $savedImagePath")
-                            } else {
-                                Log.e(TAG, "❌ 이미지 저장 실패: 추출은 성공했지만 저장 실패")
-                                // 이미지 저장 실패 시 시스템 메시지도 저장하지 않음
-                                if (isSystemMessage) {
-                                    Log.d(TAG, ">>> 이미지 저장 실패 + 시스템 메시지 -> 메시지 저장 건너뜀")
-                                    return
-                                }
-                            }
-                        } else if (isSystemMessage) {
-                            // 시스템 메시지인데 이미지 추출 실패 - WARNING 로그
-                            Log.w(TAG, "⚠️ 공유 이미지 추출 실패 (시스템 메시지: '$message')")
-                            Log.w(TAG, "   가능한 원인:")
-                            if (isEmojiOrStickerMessage) {
-                                Log.w(TAG, "   (이모티콘/스티커) Message Bundle의 URI에서 이미지를 찾을 수 없음")
-                                Log.w(TAG, "   또는 URI는 있지만 Bitmap 로드 실패 (권한 문제 등)")
-                            } else {
-                                Log.w(TAG, "   (사진) EXTRA_PICTURE에 이미지가 없음")
-                                Log.w(TAG, "   또는 MessagingStyle의 EXTRA_MESSAGES에 이미지 URI가 없음")
-                                Log.w(TAG, "   또는 이미지 URI는 있지만 Bitmap 로드 실패 (권한 문제 등)")
-                            }
+                            // ⚠️ 이미지 크기 검증을 엄격하게: 프로필 이미지가 아닌 실제 사진인지 확인
+                            // 프로필 이미지는 보통 200x200 이하이므로, 300x300 이상만 사진으로 간주
+                            // 단, 시스템 메시지나 링크 메시지인 경우에는 200x200 이상도 허용
+                            val minSize = if (isSystemMessage || isLinkMessage) 200 else 300
+                            val isLargeEnough = sharedImage.width >= minSize || sharedImage.height >= minSize
                             
-                            // 이모티콘/스티커 시스템 메시지인데 이미지 추출 실패한 경우, 원본 메시지도 저장하지 않음
-                            // (이모티콘을 보낼 때 원본 텍스트와 시스템 메시지가 따로 올 수 있으므로)
-                            if (isEmojiOrStickerMessage) {
-                                Log.d(TAG, ">>> 이모티콘/스티커 시스템 메시지 + 이미지 추출 실패 -> 메시지 저장 건너뜀: '$message'")
-                                return
+                            if (isLargeEnough) {
+                                Log.i(TAG, "📷 공유 이미지 발견! 저장 시도... (크기: ${sharedImage.width}x${sharedImage.height}, 최소크기: $minSize)")
+                                savedImagePath = saveNotificationImage(roomName, sharedImage, notification.postTime)
+                                if (savedImagePath != null) {
+                                    // 저장된 파일이 실제로 존재하는지 확인
+                                    val imageFile = java.io.File(savedImagePath)
+                                    if (imageFile.exists() && imageFile.length() > 0) {
+                                        Log.i(TAG, "✅ 이미지 저장 성공: $savedImagePath (파일 크기: ${imageFile.length()} bytes)")
+                                    } else {
+                                        Log.e(TAG, "❌ 이미지 파일이 존재하지 않거나 비어있음: $savedImagePath")
+                                        savedImagePath = null // 저장 실패로 간주
+                                    }
+                                } else {
+                                    Log.e(TAG, "❌ 이미지 저장 실패: 추출은 성공했지만 저장 실패")
+                                }
+                            } else {
+                                Log.d(TAG, "⚠️ 이미지 크기가 작아서 프로필 이미지로 간주 (크기: ${sharedImage.width}x${sharedImage.height}, 최소크기: $minSize) - 사진으로 저장하지 않음")
                             }
                         } else {
-                            // 일반 텍스트 메시지 - 이미지 추출 시도하지 않았으므로 로그 없음 (정상 동작)
-                            Log.d(TAG, "일반 텍스트 메시지 - 이미지 추출 시도 안 함: '$message'")
+                            // 이미지 추출 실패
+                            if (isSystemMessage) {
+                                Log.w(TAG, "⚠️ 시스템 메시지인데 이미지 추출 실패: '$message' (시스템 메시지로 필터링됨)")
+                            } else if (isLinkMessage) {
+                                Log.d(TAG, "링크 메시지인데 이미지 추출 실패: '$message' (링크 메시지로 저장)")
+                            } else {
+                                Log.d(TAG, "일반 텍스트 메시지 또는 이미지 없음: '$message'")
+                            }
                         }
                         
                         Log.d(TAG, "========== 프로필 이미지 처리 완료 ==========")
                         
-                        // 이미지가 저장되었으면 메시지에 이미지 경로 포함
+                        // 이미지 메시지 처리
+                        // ⚠️ 중요: savedImagePath가 null이 아니고 실제로 파일이 존재할 때만 이미지 메시지로 처리
                         var imageMessage: String? = null
                         if (savedImagePath != null) {
-                            // 링크 메시지인 경우 이미지와 원본 메시지 텍스트를 함께 저장
-                            if (isLinkMessage) {
-                                // 링크 메시지: 이미지와 원본 메시지를 함께 저장 [LINK:이미지경로]원본메시지 형식
-                                imageMessage = "[LINK:$savedImagePath]$message"
-                                Log.d(TAG, ">>> 링크 메시지 감지: 원본텍스트='$message', 이미지와 함께 저장: '$imageMessage'")
-                            } else {
-                                // 일반 이미지 메시지: 이미지만 저장 (시스템 메시지 "사진을 보냈습니다" 등 무시)
-                                // 카카오톡에서 이미지만 보낼 때 알림의 text 필드에 "사진을 보냈습니다." 같은 시스템 메시지가 들어옴
-                                // 실제로 이미지와 함께 사용자 텍스트를 보내는 경우는 매우 드뭄
-                                
-                                // 원본 메시지 텍스트에서 이모티콘/스티커 여부 확인
-                                val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) || 
-                                                       message.contains("스티커", ignoreCase = true)
-                                
-                                // 이모티콘/스티커인 경우 메시지에 표시할 텍스트 추가
-                                imageMessage = if (isEmojiOrSticker) {
-                                    "[IMAGE:$savedImagePath]이모티콘을 보냈습니다"
+                            // 저장된 파일이 실제로 존재하는지 다시 한 번 확인
+                            val imageFile = java.io.File(savedImagePath)
+                            if (imageFile.exists() && imageFile.length() > 0) {
+                                // 이미지가 저장된 경우
+                                if (isLinkMessage) {
+                                    // 링크 메시지: 이미지와 원본 메시지를 함께 저장 [LINK:이미지경로]원본메시지 형식
+                                    imageMessage = "[LINK:$savedImagePath]$message"
+                                    Log.d(TAG, ">>> 링크 메시지 감지: 원본텍스트='$message', 이미지와 함께 저장: '$imageMessage'")
                                 } else {
-                                    "[IMAGE:$savedImagePath]사진을 보냈습니다"
+                                    // 일반 이미지 메시지: 이미지만 저장 (시스템 메시지 "사진을 보냈습니다" 등 무시)
+                                    val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) || 
+                                                           message.contains("스티커", ignoreCase = true)
+                                    
+                                    imageMessage = if (isEmojiOrSticker) {
+                                        "[IMAGE:$savedImagePath]이모티콘을 보냈습니다"
+                                    } else {
+                                        "[IMAGE:$savedImagePath]사진을 보냈습니다"
+                                    }
+                                    
+                                    Log.d(TAG, ">>> 이미지 메시지 저장: 원본텍스트='$message', 이미지타입=${if (isEmojiOrSticker) "이모티콘" else "사진"}, 저장메시지='$imageMessage'")
                                 }
-                                
-                                Log.d(TAG, ">>> 이미지 메시지 저장: 원본텍스트='$message', 이미지타입=${if (isEmojiOrSticker) "이모티콘" else "사진"}, 저장메시지='$imageMessage'")
+                            } else {
+                                Log.e(TAG, "❌ 이미지 파일이 존재하지 않음: $savedImagePath - 일반 메시지로 처리")
+                                savedImagePath = null // null로 설정하여 일반 메시지로 처리되도록
                             }
+                        } else if (isLinkMessage) {
+                            // 링크 메시지인데 이미지가 없는 경우 - 링크만 저장
+                            imageMessage = message
+                            Log.d(TAG, ">>> 링크 메시지 감지 (이미지 없음): 원본텍스트='$message' 그대로 저장")
                         }
                         
-                        // 이미지가 저장되었고 이미지 메시지가 있는 경우 저장
-                        if (savedImagePath != null && imageMessage != null) {
+                        // 이미지 메시지가 있는 경우 저장 (이미지가 있거나 링크 메시지인 경우)
+                        if (imageMessage != null) {
+                            Log.d(TAG, ">>> 이미지 메시지 저장 진행: imageMessage='$imageMessage', savedImagePath=$savedImagePath")
                             
                             // 음소거 여부 (알림은 이미 위에서 즉시 취소됨, API는 계속 호출)
                             val isMuted = roomName.isNotEmpty() && isRoomMuted(roomName)
@@ -1594,7 +1686,11 @@ class NotificationListener : NotificationListenerService() {
                                                 createTime = postTime,
                                                 roomName = roomName
                                             )
-                                            Log.i(TAG, ">>> [$messengerName] ✅ 이미지 메시지 SQLite 저장 완료: roomId=$roomId, sender='$sender', imagePath=$savedImagePath, roomName='$roomName'")
+                                            if (savedImagePath != null) {
+                                                Log.i(TAG, ">>> [$messengerName] ✅ 이미지 메시지 SQLite 저장 완료: roomId=$roomId, sender='$sender', imagePath=$savedImagePath, roomName='$roomName'")
+                                            } else {
+                                                Log.i(TAG, ">>> [$messengerName] ✅ 링크 메시지 SQLite 저장 완료: roomId=$roomId, sender='$sender', message='$imageMessage', roomName='$roomName'")
+                                            }
                                             
                                             // 업데이트된 unreadCount 가져오기
                                             val updatedUnreadCount = db.getUnreadCount(roomId)
@@ -1621,8 +1717,15 @@ class NotificationListener : NotificationListenerService() {
                                     Log.e(TAG, "이미지 메시지 SQLite 저장 실패: ${e.message}", e)
                                 }
                             }
-                            return // 이미지 메시지 처리 완료, 일반 메시지 저장은 건너뜀
+                            
+                            // 이미지 메시지 저장 완료 - 일반 메시지 저장은 건너뜀
+                            Log.d(TAG, ">>> 이미지 메시지 저장 완료 - 일반 메시지 저장 건너뜀")
+                            return
+                        } else {
+                            Log.d(TAG, ">>> 이미지 메시지 없음 (imageMessage=null) - 일반 메시지 저장 진행: message='$message'")
                         }
+                    } else {
+                        Log.d(TAG, ">>> roomName이 비어있음 - 일반 메시지 저장 진행: message='$message'")
                     }
 
                     // 음소거 여부 (알림은 이미 위에서 즉시 취소됨, API는 계속 호출)
@@ -1659,9 +1762,9 @@ class NotificationListener : NotificationListenerService() {
                                 message.contains(pattern, ignoreCase = true)
                             }
                             
-                            // 시스템 메시지인 경우 저장하지 않음 (이미지 추출 실패로 인한 경우)
+                            // 시스템 메시지 필터링 (이미지 추출 실패한 경우만)
                             // 이미지가 추출되었으면 위에서 이미 처리되었으므로 여기서는 무시
-                            if (isSystemMessage) {
+                            if (isSystemMessage && savedImagePath == null) {
                                 Log.d(TAG, ">>> 시스템 메시지 필터링 (저장 안 함): '$message'")
                                 return // 시스템 메시지는 저장하지 않음
                             }
