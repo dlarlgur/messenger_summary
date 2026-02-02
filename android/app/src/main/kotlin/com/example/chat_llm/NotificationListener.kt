@@ -378,7 +378,7 @@ class NotificationListener : NotificationListenerService() {
                                 Log.i(TAG, "✅ 이모티콘/스티커 이미지 추출 성공 (크기: ${bitmap.width}x${bitmap.height})")
                                 return bitmap
                             } else {
-                                Log.w(TAG, "❌ 이모티콘 URI에서 Bitmap 로드 실패: $uri")
+                                Log.d(TAG, "⚠️ 이모티콘 URI에서 Bitmap 로드 실패: $uri")
                                 // URI 로드 실패 시 파일 경로로 직접 접근 시도
                                 val filePath = extractFilePathFromFileProviderUri(uri)
                                 if (filePath != null) {
@@ -398,8 +398,10 @@ class NotificationListener : NotificationListenerService() {
                                                 return bitmap
                                             }
                                         }
+                                    } catch (e: SecurityException) {
+                                        // SecurityException은 조용히 스킵
                                     } catch (e: Exception) {
-                                        Log.w(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
+                                        Log.d(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
                                     }
                                 }
                             }
@@ -748,7 +750,7 @@ class NotificationListener : NotificationListenerService() {
                                     Log.d(TAG, "⚠️ 이미지 크기가 작아서 프로필 이미지로 간주: ${bitmap.width}x${bitmap.height}")
                                 }
                             } else {
-                                Log.w(TAG, "❌ URI에서 Bitmap 로드 실패: $uri")
+                                Log.d(TAG, "⚠️ URI에서 Bitmap 로드 실패: $uri")
                                 // URI 로드 실패 시 파일 경로로 직접 접근 시도
                                 val filePath = extractFilePathFromFileProviderUri(uri)
                                 if (filePath != null) {
@@ -768,10 +770,12 @@ class NotificationListener : NotificationListenerService() {
                                                 return directBitmap
                                             }
                                         } else {
-                                            Log.w(TAG, "⚠️ 파일이 존재하지 않거나 읽을 수 없음: $filePath")
+                                            Log.d(TAG, "⚠️ 파일이 존재하지 않거나 읽을 수 없음: $filePath")
                                         }
+                                    } catch (e: SecurityException) {
+                                        // SecurityException은 조용히 스킵
                                     } catch (e: Exception) {
-                                        Log.w(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
+                                        Log.d(TAG, "파일 경로에서 이미지 로드 실패: ${e.message}")
                                     }
                                 }
                             }
@@ -984,10 +988,10 @@ class NotificationListener : NotificationListenerService() {
                         return bitmap
                     }
                 } else {
-                    Log.w(TAG, "⚠️ 파일이 존재하지 않거나 읽을 수 없음: $filePath")
+                    Log.d(TAG, "⚠️ 파일이 존재하지 않거나 읽을 수 없음: $filePath")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ 파일 경로에서 Bitmap 로드 실패: $filePath, ${e.message}")
+                Log.d(TAG, "⚠️ 파일 경로에서 Bitmap 로드 실패: $filePath, ${e.message}")
             }
         }
         
@@ -1003,22 +1007,19 @@ class NotificationListener : NotificationListenerService() {
             }
             
             if (bitmap != null) {
-                Log.d(TAG, "URI에서 Bitmap 로드 성공: $uri (크기: ${bitmap.width}x${bitmap.height})")
+                Log.d(TAG, "✅ URI에서 Bitmap 로드 성공: $uri (크기: ${bitmap.width}x${bitmap.height})")
             } else {
-                Log.w(TAG, "URI에서 Bitmap 로드 실패: $uri (bitmap이 null)")
+                Log.d(TAG, "⚠️ URI에서 Bitmap 로드 실패: $uri (bitmap이 null)")
             }
             bitmap
         } catch (e: SecurityException) {
-            Log.e(TAG, "❌ URI에서 Bitmap 로드 실패 (권한 없음): $uri, ${e.message}")
-            e.printStackTrace()
+            // SecurityException은 조용히 스킵 (에러 로그 출력 안 함)
             null
         } catch (e: java.io.FileNotFoundException) {
-            Log.e(TAG, "❌ URI에서 Bitmap 로드 실패 (파일 없음): $uri, ${e.message}")
-            e.printStackTrace()
+            Log.d(TAG, "⚠️ URI에서 Bitmap 로드 실패 (파일 없음): $uri")
             null
         } catch (e: Exception) {
-            Log.e(TAG, "❌ URI에서 Bitmap 로드 실패: $uri, ${e.message}", e)
-            e.printStackTrace()
+            Log.d(TAG, "⚠️ URI에서 Bitmap 로드 실패: $uri, ${e.message}")
             null
         }
     }
@@ -1695,7 +1696,7 @@ class NotificationListener : NotificationListenerService() {
                                             // 업데이트된 unreadCount 가져오기
                                             val updatedUnreadCount = db.getUnreadCount(roomId)
                                             
-                                            // 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용)
+                                            // 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용) - 메시지 저장 후 즉시 동기화
                                             val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
                                                 putExtra("roomId", roomId)
                                                 putExtra("roomName", roomName)
@@ -1704,9 +1705,16 @@ class NotificationListener : NotificationListenerService() {
                                                 putExtra("lastMessageTime", postTime.toString())
                                                 putExtra("unreadCount", updatedUnreadCount)
                                                 setPackage(this@NotificationListener.packageName)
+                                                // 명시적으로 플래그 추가하여 백그라운드에서도 전달되도록
+                                                addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                                             }
+                                            // 브로드캐스트 전송 (여러 번 전송하여 확실하게 전달)
                                             sendBroadcast(roomUpdateIntent)
-                                            Log.d(TAG, ">>> 이미지 메시지 채팅방 업데이트 브로드캐스트 전송: roomName=$roomName, unreadCount=$updatedUnreadCount")
+                                            // 약간의 지연 후 한 번 더 전송 (MainActivity가 백그라운드일 경우 대비)
+                                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                                sendBroadcast(roomUpdateIntent)
+                                            }, 100)
+                                            Log.i(TAG, ">>> ✅ 이미지 메시지 채팅방 업데이트 브로드캐스트 전송 (2회): roomName=$roomName, unreadCount=$updatedUnreadCount, roomId=$roomId")
                                         } catch (e: Exception) {
                                             Log.e(TAG, ">>> [$messengerName] ❌ 이미지 메시지 저장 중 예외 발생: ${e.message}", e)
                                         }
@@ -1739,8 +1747,10 @@ class NotificationListener : NotificationListenerService() {
                     }
 
                     // ★★★ SQLite에 직접 저장 (백그라운드에서도 동작) ★★★
+                    Log.d(TAG, ">>> [$messengerName] 일반 메시지 저장 조건 확인: sender='$sender' (비어있음=${sender.isEmpty()}), message='$message' (비어있음=${message.isEmpty()}), roomName='$roomName' (비어있음=${roomName.isEmpty()})")
+                    
                     if (sender.isNotEmpty() && message.isNotEmpty() && roomName.isNotEmpty()) {
-                        Log.d(TAG, ">>> [$messengerName] 메시지 저장 시도: sender='$sender', message='$message', roomName='$roomName'")
+                        Log.i(TAG, ">>> [$messengerName] ✅ 일반 메시지 저장 시도: sender='$sender', message='$message', roomName='$roomName'")
                         try {
                             val db = ChatDatabase.getInstance(applicationContext)
                             val postTime = notification.postTime
@@ -1762,12 +1772,16 @@ class NotificationListener : NotificationListenerService() {
                                 message.contains(pattern, ignoreCase = true)
                             }
                             
+                            Log.d(TAG, ">>> 시스템 메시지 체크: isSystemMessage=$isSystemMessage, savedImagePath=$savedImagePath")
+                            
                             // 시스템 메시지 필터링 (이미지 추출 실패한 경우만)
                             // 이미지가 추출되었으면 위에서 이미 처리되었으므로 여기서는 무시
                             if (isSystemMessage && savedImagePath == null) {
                                 Log.d(TAG, ">>> 시스템 메시지 필터링 (저장 안 함): '$message'")
                                 return // 시스템 메시지는 저장하지 않음
                             }
+                            
+                            Log.d(TAG, ">>> 일반 메시지로 저장 진행: message='$message'")
                             
                             // 이모티콘/스티커를 보낼 때 원본 텍스트가 함께 오는 경우 필터링
                             // 시스템 메시지 필터링에서 이미 처리되지만, 혹시 모를 경우를 대비
@@ -1813,7 +1827,7 @@ class NotificationListener : NotificationListenerService() {
                                     // 업데이트된 unreadCount 가져오기
                                     val updatedUnreadCount = db.getUnreadCount(roomId)
                                     
-                                    // 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용)
+                                    // 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용) - 메시지 저장 후 즉시 동기화
                                     val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
                                         putExtra("roomId", roomId)
                                         putExtra("roomName", roomName)
@@ -1822,9 +1836,16 @@ class NotificationListener : NotificationListenerService() {
                                         putExtra("lastMessageTime", postTime.toString())
                                         putExtra("unreadCount", updatedUnreadCount)
                                         setPackage(this@NotificationListener.packageName)
+                                        // 명시적으로 플래그 추가하여 백그라운드에서도 전달되도록
+                                        addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                                     }
+                                    // 브로드캐스트 전송 (여러 번 전송하여 확실하게 전달)
                                     sendBroadcast(roomUpdateIntent)
-                                    Log.d(TAG, ">>> 채팅방 업데이트 브로드캐스트 전송: roomName=$roomName, unreadCount=$updatedUnreadCount")
+                                    // 약간의 지연 후 한 번 더 전송 (MainActivity가 백그라운드일 경우 대비)
+                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                        sendBroadcast(roomUpdateIntent)
+                                    }, 100)
+                                    Log.i(TAG, ">>> ✅ 일반 메시지 채팅방 업데이트 브로드캐스트 전송 (2회): roomName=$roomName, unreadCount=$updatedUnreadCount, roomId=$roomId")
                                 } catch (e: Exception) {
                                     Log.e(TAG, ">>> [$messengerName] ❌ 메시지 저장 중 예외 발생: ${e.message}", e)
                                 }

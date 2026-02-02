@@ -246,18 +246,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// 채팅방 업데이트 처리
   Future<void> _handleRoomUpdate(Map<String, dynamic> data) async {
-    debugPrint('=== 채팅방 업데이트 수신 ===');
+    debugPrint('=== ✅ 채팅방 업데이트 수신 ===');
     debugPrint('  roomName: ${data['roomName']}');
+    debugPrint('  roomId: ${data['roomId']}');
     debugPrint('  unreadCount: ${data['unreadCount']}');
     debugPrint('  lastMessage: ${data['lastMessage']}');
+    debugPrint('  lastMessageTime: ${data['lastMessageTime']}');
 
     // ChatRoomListScreen에 업데이트 전달
     // 즉시 실행하여 빠른 동기화 보장
-    if (mounted && _chatRoomListKey.currentState != null) {
-      debugPrint('🔄 대화방 목록 새로고침 요청');
-      _chatRoomListKey.currentState!.refreshRooms();
+    if (mounted) {
+      if (_chatRoomListKey.currentState != null) {
+        debugPrint('🔄 대화방 목록 새로고침 요청 (ChatRoomListScreen 상태: 활성)');
+        _chatRoomListKey.currentState!.refreshRooms();
+      } else {
+        debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 - 나중에 다시 시도');
+        // 위젯이 아직 초기화되지 않았을 수 있으므로 잠시 후 다시 시도
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && _chatRoomListKey.currentState != null) {
+            debugPrint('🔄 대화방 목록 새로고침 재시도');
+            _chatRoomListKey.currentState!.refreshRooms();
+          }
+        });
+      }
     } else {
-      debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 또는 위젯이 dispose됨');
+      debugPrint('⚠️ 위젯이 dispose됨 - 새로고침 스킵');
     }
   }
 

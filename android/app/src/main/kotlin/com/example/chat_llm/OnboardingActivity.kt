@@ -367,7 +367,9 @@ class OnboardingActivity : Activity() {
     private fun proceedToMainActivity() {
         Log.d(TAG, "✅ 모든 설정 완료 - MainActivity로 이동")
         val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        // FLAG_ACTIVITY_CLEAR_TOP만 사용하여 같은 태스크에서 MainActivity를 시작
+        // FLAG_ACTIVITY_NEW_TASK를 제거하여 새로운 태스크가 생성되지 않도록 함
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         startActivity(intent)
         finish()
     }

@@ -165,8 +165,13 @@ class MainActivity : FlutterActivity() {
                                 "pinned" to it.getBooleanExtra("pinned", false),
                                 "category" to (it.getStringExtra("category") ?: "DAILY")
                             )
-                            Log.d(TAG, "채팅방 업데이트 브로드캐스트 수신: $data")
-                            eventSink?.success(data)
+                            Log.d(TAG, "✅ 채팅방 업데이트 브로드캐스트 수신: $data")
+                            if (eventSink != null) {
+                                eventSink?.success(data)
+                                Log.d(TAG, "✅ Flutter로 채팅방 업데이트 이벤트 전송 완료")
+                            } else {
+                                Log.w(TAG, "⚠️ eventSink가 null - Flutter로 이벤트 전송 실패")
+                            }
                         }
                     }
                 }
