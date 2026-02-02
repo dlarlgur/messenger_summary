@@ -674,7 +674,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   color: Color(0xFF2A2A2A),
                                   fontWeight: FontWeight.w400,
                                 ),
-                                pPadding: const EdgeInsets.only(bottom: 8),
+                                pPadding: const EdgeInsets.only(bottom: 8, left: 0, right: 0),
                                 h1: const TextStyle(
                                   fontSize: 19,
                                   fontWeight: FontWeight.w700,
@@ -702,6 +702,8 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                 ),
                                 blockSpacing: 10,
                                 listIndent: 24,
+                                blockquotePadding: EdgeInsets.zero,
+                                blockquoteDecoration: BoxDecoration(),
                               ),
                             ),
                           ],

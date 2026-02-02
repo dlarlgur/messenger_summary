@@ -1304,64 +1304,23 @@ class NotificationListener : NotificationListenerService() {
                     val roomName = if (subText.isEmpty()) title else subText
                     
                     // 음소거 또는 차단된 채팅방인지 확인 (최우선 처리)
+                    // 화면 켜짐 방지를 위해 최대한 빠르게 처리: 로그 출력 없이 즉시 취소
                     if (roomName.isNotEmpty()) {
-                        val isMuted = isRoomMuted(roomName)
+                        // 차단 확인 (더 빠른 DB 조회)
                         val isBlocked = isRoomBlocked(roomName, packageName)
                         
-                        // 차단된 채팅방: 알림 취소 + 메시지 저장 안 함
+                        // 차단된 채팅방: 즉시 알림 취소 (로그 없이 최우선 처리)
                         if (isBlocked) {
-                            // 즉시 알림 취소 - 화면 켜짐 방지를 위해 최우선 처리
-                            try {
-                                cancelNotification(notification.key)
-                            } catch (e: Exception) {
-                                // 실패 시에만 로그 (샘플링)
-                                logCounter++
-                                if (logCounter >= logResetThreshold) {
-                                    logCounter = 0L
-                                }
-                                if (logCounter % logSampleRate == 0L) {
-                                    Log.w(TAG, "알림 취소 실패: ${e.message}")
-                                }
-                            }
-                            
-                            // 로그 샘플링 (성능 최적화) + 주기적 reset (overflow 방지)
-                            logCounter++
-                            if (logCounter >= logResetThreshold) {
-                                logCounter = 0L
-                            }
-                            if (logCounter % logSampleRate == 0L) {
-                                Log.d(TAG, "[${SUPPORTED_MESSENGERS[packageName]}] 차단 채팅방 알림 취소 (메시지 저장 안 함): $roomName")
-                            }
-                            
-                            // 차단된 채팅방은 알림 취소 후 메시지 저장 건너뜀
+                            cancelNotification(notification.key)
                             return
                         }
                         
-                        // 음소거된 채팅방: 알림만 취소하고 메시지는 저장 (계속 진행)
+                        // 음소거 확인
+                        val isMuted = isRoomMuted(roomName)
+                        
+                        // 음소거된 채팅방: 즉시 알림 취소 (로그 없이 최우선 처리)
                         if (isMuted) {
-                            // 즉시 알림 취소 - 화면 켜짐 방지를 위해 최우선 처리
-                            try {
-                                cancelNotification(notification.key)
-                            } catch (e: Exception) {
-                                // 실패 시에만 로그 (샘플링)
-                                logCounter++
-                                if (logCounter >= logResetThreshold) {
-                                    logCounter = 0L
-                                }
-                                if (logCounter % logSampleRate == 0L) {
-                                    Log.w(TAG, "알림 취소 실패: ${e.message}")
-                                }
-                            }
-                            
-                            // 로그 샘플링 (성능 최적화) + 주기적 reset (overflow 방지)
-                            logCounter++
-                            if (logCounter >= logResetThreshold) {
-                                logCounter = 0L
-                            }
-                            if (logCounter % logSampleRate == 0L) {
-                                Log.d(TAG, "[${SUPPORTED_MESSENGERS[packageName]}] 음소거 채팅방 알림 취소 (메시지는 저장): $roomName")
-                            }
-                            
+                            cancelNotification(notification.key)
                             // 음소거된 채팅방은 알림만 취소하고 메시지 저장은 계속 진행 (return 하지 않음)
                         }
                     }
