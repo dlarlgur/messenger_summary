@@ -11,7 +11,7 @@ class LocalDbService {
 
   // Android ChatDatabase.kt와 동일한 DB 이름 사용
   static const String _databaseName = 'chat_llm.db';
-  static const int _databaseVersion = 2; // summary_detail_message 컬럼 추가
+  static const int _databaseVersion = 3; // auto_summary 컬럼 추가
 
   // 테이블 이름 (Android와 동일)
   static const String _tableRooms = 'chat_rooms';
@@ -79,6 +79,8 @@ class LocalDbService {
         participant_count INTEGER DEFAULT 0,
         created_at INTEGER,
         updated_at INTEGER,
+        auto_summary_enabled INTEGER DEFAULT 0,
+        auto_summary_message_count INTEGER DEFAULT 50,
         UNIQUE(room_name, package_name)
       )
     ''');
@@ -128,6 +130,11 @@ class LocalDbService {
       if (version == 2) {
         // summary_detail_message 컬럼 추가
         await _ensureColumnExists(db, _tableSummaries, 'summary_detail_message', 'TEXT');
+      }
+      if (version == 3) {
+        // auto_summary_enabled, auto_summary_message_count 컬럼 추가
+        await _ensureColumnExists(db, _tableRooms, 'auto_summary_enabled', 'INTEGER DEFAULT 0');
+        await _ensureColumnExists(db, _tableRooms, 'auto_summary_message_count', 'INTEGER DEFAULT 50');
       }
     }
   }
@@ -237,6 +244,18 @@ class LocalDbService {
   }
 
   /// 모든 채팅방 조회 (차단되지 않은 것만)
+  /// 요약 기능이 켜진 채팅방 목록 조회
+  Future<List<ChatRoom>> getSummaryEnabledRooms() async {
+    final db = await database;
+    final results = await db.query(
+      _tableRooms,
+      where: 'summary_enabled = ? AND blocked = ?',
+      whereArgs: [1, 0], // summary_enabled = 1 (켜짐), blocked = 0 (차단 안됨)
+      orderBy: 'last_message_time DESC',
+    );
+    return results.map((row) => _mapToRoom(row)).toList();
+  }
+
   Future<List<ChatRoom>> getChatRooms() async {
     final db = await database;
     final results = await db.query(
@@ -277,6 +296,8 @@ class LocalDbService {
     bool? summaryEnabled,
     bool? blocked,
     bool? muted,
+    bool? autoSummaryEnabled,
+    int? autoSummaryMessageCount,
   }) async {
     final db = await database;
     final updateData = <String, dynamic>{
@@ -288,6 +309,12 @@ class LocalDbService {
     if (summaryEnabled != null) updateData['summary_enabled'] = summaryEnabled ? 1 : 0;
     if (blocked != null) updateData['blocked'] = blocked ? 1 : 0;
     if (muted != null) updateData['muted'] = muted ? 1 : 0;
+    if (autoSummaryEnabled != null) updateData['auto_summary_enabled'] = autoSummaryEnabled ? 1 : 0;
+    if (autoSummaryMessageCount != null) {
+      // 5~500 사이로 제한
+      final clampedCount = autoSummaryMessageCount.clamp(5, 500);
+      updateData['auto_summary_message_count'] = clampedCount;
+    }
 
     await db.update(
       _tableRooms,
@@ -307,6 +334,15 @@ class LocalDbService {
       {'unread_count': 0, 'updated_at': DateTime.now().millisecondsSinceEpoch},
       where: 'id = ?',
       whereArgs: [roomId],
+    );
+  }
+
+  /// 모든 채팅방을 읽음 처리
+  Future<void> markAllRoomsAsRead() async {
+    final db = await database;
+    await db.update(
+      _tableRooms,
+      {'unread_count': 0, 'updated_at': DateTime.now().millisecondsSinceEpoch},
     );
   }
 
@@ -339,6 +375,30 @@ class LocalDbService {
       'create_time': createTime.millisecondsSinceEpoch,
       'room_name': roomName,
     });
+  }
+
+  /// 메시지 삭제
+  Future<bool> deleteMessage(int messageId) async {
+    final db = await database;
+    final count = await db.delete(
+      _tableMessages,
+      where: 'id = ?',
+      whereArgs: [messageId],
+    );
+    return count > 0;
+  }
+
+  /// 여러 메시지 삭제
+  Future<int> deleteMessages(List<int> messageIds) async {
+    if (messageIds.isEmpty) return 0;
+    final db = await database;
+    final placeholders = messageIds.map((_) => '?').join(',');
+    final count = await db.delete(
+      _tableMessages,
+      where: 'id IN ($placeholders)',
+      whereArgs: messageIds,
+    );
+    return count;
   }
 
   /// 채팅방의 메시지 조회 (페이지네이션)
@@ -475,6 +535,23 @@ class LocalDbService {
     );
   }
 
+  /// summaryId로 roomId 찾기
+  Future<int?> getRoomIdBySummaryId(int summaryId) async {
+    final db = await database;
+    final results = await db.query(
+      _tableSummaries,
+      columns: ['room_id'],
+      where: 'id = ?',
+      whereArgs: [summaryId],
+      limit: 1,
+    );
+    
+    if (results.isNotEmpty) {
+      return results.first['room_id'] as int?;
+    }
+    return null;
+  }
+
   /// 요약 삭제
   Future<bool> deleteSummary(int summaryId) async {
     final db = await database;
@@ -524,6 +601,8 @@ class LocalDbService {
       category: RoomCategory.fromString(row['category'] as String?),
       packageName: row['package_name'] as String? ?? 'com.kakao.talk',
       packageAlias: row['package_alias'] as String? ?? '알 수 없음',
+      autoSummaryEnabled: (row['auto_summary_enabled'] as int? ?? 0) == 1,
+      autoSummaryMessageCount: row['auto_summary_message_count'] as int? ?? 50,
     );
   }
 

@@ -5330,11 +5330,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                 message: message),
                           ),
                         ),
-                      // 텍스트가 있으면 말풍선으로 표시 (이미지가 있을 때는 시스템 메시지 제외)
+                      // 텍스트가 있으면 말풍선으로 표시
+                      // ⚠️ 수정: 이모티콘은 이미지 경로가 없어도 "이모티콘을 보냈습니다" 텍스트 표시
+                      // 사진은 이미지가 있을 때만 시스템 메시지 제외, 이모티콘은 항상 표시
                       if (message.message.isNotEmpty &&
-                          message.message != '사진을 보냈습니다' &&
-                          message.message != '이모티콘을 보냈습니다' &&
-                          message.message.trim().isNotEmpty)
+                          (message.message == '이모티콘을 보냈습니다' ||
+                           (message.message != '사진을 보냈습니다' && message.message.trim().isNotEmpty)))
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisAlignment: isSentByMe
@@ -5477,8 +5478,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                               ),
                             ],
                           ],
-                        )
-                      else if (message.imagePath != null && showTime)
+                        ),
+                      if (message.imagePath != null && 
+                          message.message.isEmpty && 
+                          showTime)
                         // 이미지만 있고 텍스트가 없을 때 시간 표시
                         Padding(
                           padding: const EdgeInsets.only(left: 6, bottom: 2),

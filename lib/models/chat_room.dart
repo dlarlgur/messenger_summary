@@ -37,6 +37,8 @@ class ChatRoom {
   final bool blocked;  // 차단 여부
   final String packageName;  // 패키지 이름 (com.kakao.talk, org.telegram.messenger 등)
   final String packageAlias;  // 패키지 표시 이름 (카카오톡, 텔레그램, 인스타그램 등)
+  final bool autoSummaryEnabled;  // 자동 요약 활성화 여부
+  final int autoSummaryMessageCount;  // 자동 요약 메시지 개수 (5~500)
 
   ChatRoom({
     required this.id,
@@ -53,6 +55,8 @@ class ChatRoom {
     this.blocked = false,  // 기본값: 정상
     this.packageName = 'com.kakao.talk',  // 기본값: 카카오톡
     this.packageAlias = '카카오톡',  // 기본값: 카카오톡
+    this.autoSummaryEnabled = false,  // 기본값: 비활성화
+    this.autoSummaryMessageCount = 50,  // 기본값: 50개
   });
 
   factory ChatRoom.fromJson(Map<String, dynamic> json) {
@@ -71,6 +75,8 @@ class ChatRoom {
       blocked: json['blocked'] ?? false,  // 기본값: 정상
       packageName: json['packageName'] ?? 'com.kakao.talk',  // 기본값: 카카오톡
       packageAlias: json['packageAlias'] ?? '알 수 없음',  // 서버에서 반드시 제공해야 함
+      autoSummaryEnabled: json['autoSummaryEnabled'] == 1 || json['autoSummaryEnabled'] == true,  // DB에서는 INTEGER, JSON에서는 bool
+      autoSummaryMessageCount: json['autoSummaryMessageCount'] ?? 50,  // 기본값: 50개
     );
   }
 
@@ -121,10 +127,12 @@ class ChatRoom {
       'blocked': blocked,
       'packageName': packageName,
       'packageAlias': packageAlias,
+      'autoSummaryEnabled': autoSummaryEnabled,
+      'autoSummaryMessageCount': autoSummaryMessageCount,
     };
   }
 
-  /// pinned, category, summaryEnabled, blocked, packageName, packageAlias 업데이트된 새 인스턴스 반환
+  /// pinned, category, summaryEnabled, blocked, packageName, packageAlias, unreadCount, autoSummaryEnabled, autoSummaryMessageCount 업데이트된 새 인스턴스 반환
   ChatRoom copyWith({
     bool? pinned,
     RoomCategory? category,
@@ -132,6 +140,9 @@ class ChatRoom {
     bool? blocked,
     String? packageName,
     String? packageAlias,
+    int? unreadCount,
+    bool? autoSummaryEnabled,
+    int? autoSummaryMessageCount,
   }) {
     return ChatRoom(
       id: id,
@@ -139,7 +150,7 @@ class ChatRoom {
       lastMessage: lastMessage,
       lastSender: lastSender,
       lastMessageTime: lastMessageTime,
-      unreadCount: unreadCount,
+      unreadCount: unreadCount ?? this.unreadCount,
       participantCount: participantCount,
       profileImageUrl: profileImageUrl,
       pinned: pinned ?? this.pinned,
@@ -148,6 +159,8 @@ class ChatRoom {
       blocked: blocked ?? this.blocked,
       packageName: packageName ?? this.packageName,
       packageAlias: packageAlias ?? this.packageAlias,
+      autoSummaryEnabled: autoSummaryEnabled ?? this.autoSummaryEnabled,
+      autoSummaryMessageCount: autoSummaryMessageCount ?? this.autoSummaryMessageCount,
     );
   }
   

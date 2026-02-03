@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
@@ -11,6 +12,7 @@ import 'services/profile_image_service.dart';
 import 'services/auth_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
+import 'screens/summary_history_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +75,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   StreamSubscription? _subscription;
   bool _isPermissionGranted = false;
+  bool _isCheckingPermissions = true; // ⚠️ 수정: 권한 확인 중인지 여부
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
   final LocalDbService _localDb = LocalDbService();
 
@@ -81,7 +84,49 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeAndCheckPermissions();
-    _startListening();
+    _checkPendingSummaryId();
+    // ⚠️ 수정: 권한 확인 완료 전까지는 리스너 시작하지 않음
+    // _startListening();
+  }
+
+  /// 대기 중인 summaryId 확인 및 처리
+  Future<void> _checkPendingSummaryId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final summaryId = prefs.getInt('flutter.pending_summary_id');
+      
+      if (summaryId != null && summaryId > 0) {
+        // 대기 중인 summaryId 제거
+        await prefs.remove('flutter.pending_summary_id');
+        
+        // summaryId로 roomId 찾기
+        final roomId = await _localDb.getRoomIdBySummaryId(summaryId);
+        
+        if (roomId != null) {
+          // roomId로 채팅방 정보 가져오기
+          final room = await _localDb.getRoomById(roomId);
+          
+          if (room != null && mounted) {
+            // 앱이 완전히 로드된 후 요약 히스토리 화면으로 이동
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => SummaryHistoryScreen(
+                      roomId: roomId,
+                      roomName: room.roomName,
+                      initialSummaryId: summaryId,
+                    ),
+                  ),
+                );
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('대기 중인 summaryId 처리 실패: $e');
+    }
   }
   
   Future<void> _initializeAndCheckPermissions() async {
@@ -142,33 +187,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
         debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PermissionScreen(
-              onComplete: () {
-                debugPrint('✅ 권한 화면 완료 콜백 호출됨');
-                // 즉시 메인 화면으로 이동
-                if (mounted) {
-                  debugPrint('✅ 메인 화면으로 네비게이션 시작');
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const MainScreen()),
-                    (route) => false, // 모든 이전 라우트 제거
-                  );
-                  debugPrint('✅ 네비게이션 완료');
-                } else {
-                  debugPrint('⚠️ 위젯이 dispose됨 - 네비게이션 스킵');
-                }
-              },
-            ),
-          ),
-        );
+        setState(() {
+          _isPermissionGranted = false;
+          _isCheckingPermissions = false; // 권한 확인 완료
+        });
       } else {
         // 모든 필수 권한이 있으면 메인 화면 유지
         debugPrint('✅ 모든 필수 권한 허용됨 - 메인 화면 유지');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
         debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
-        // 팝업 없이 바로 권한 화면으로 이동했으므로 _checkPermission()은 호출하지 않음
+        setState(() {
+          _isPermissionGranted = true;
+          _isCheckingPermissions = false; // 권한 확인 완료
+        });
+        // ⚠️ 수정: 권한이 있으면 리스너 시작
+        _startListening();
       }
     }
   }
@@ -336,6 +370,27 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // ⚠️ 수정: 권한 확인 중이면 로딩 표시
+    if (_isCheckingPermissions) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    // ⚠️ 수정: 권한이 없으면 PermissionScreen 표시
+    if (!_isPermissionGranted) {
+      return PermissionScreen(
+        onComplete: () {
+          debugPrint('✅ 권한 화면 완료 콜백 호출됨');
+          // 권한 확인 후 상태 업데이트
+          _initializeAndCheckPermissions();
+        },
+      );
+    }
+    
+    // 권한이 있으면 대화목록 화면 표시
     return ChatRoomListScreen(key: _chatRoomListKey);
   }
 }

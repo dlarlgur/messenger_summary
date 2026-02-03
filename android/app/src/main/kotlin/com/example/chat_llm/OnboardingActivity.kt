@@ -1,15 +1,10 @@
 package com.example.chat_llm
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
-import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.view.animation.Animation
@@ -26,8 +21,6 @@ class OnboardingActivity : Activity() {
         private const val TAG = "OnboardingActivity"
         private const val PREFS_NAME = "onboarding_prefs"
         private const val KEY_AGREEMENT = "agreement_accepted"
-        private const val REQUEST_BATTERY_OPTIMIZATION = 1001
-        private const val REQUEST_NOTIFICATION_ACCESS = 1002
     }
 
     private lateinit var cbServiceAgreement: CheckBox
@@ -224,141 +217,17 @@ class OnboardingActivity : Activity() {
     }
 
     /**
-     * Step 1: 동의 여부를 SharedPreferences에 저장
-     * Step 2: 알림 접근 권한 확인
-     * Step 3: 배터리 최적화 제외 권한 확인
+     * 동의 여부를 SharedPreferences에 저장하고 MainActivity로 이동
+     * 권한 설정은 Flutter의 PermissionScreen에서 처리
      */
     private fun startPermissionFlow() {
-        // Step 1: 동의 여부 저장
+        // 동의 여부 저장
         prefs.edit().putBoolean(KEY_AGREEMENT, true).apply()
-        Log.d(TAG, "✅ Step 1: 동의 여부 저장 완료")
+        Log.d(TAG, "✅ 동의 여부 저장 완료 - MainActivity로 이동 (권한 설정은 Flutter에서 처리)")
 
-        // Step 2: 알림 접근 권한 확인 (먼저)
-        checkNotificationAccess()
-    }
-
-    /**
-     * Step 2: 알림 접근 권한 확인
-     */
-    private fun checkNotificationAccess() {
-        val enabledNotificationListeners = Settings.Secure.getString(
-            contentResolver,
-            "enabled_notification_listeners"
-        )
-
-        val packageName = packageName
-        val isNotificationAccessEnabled = if (!TextUtils.isEmpty(enabledNotificationListeners)) {
-            enabledNotificationListeners.split(":").any { listener ->
-                val componentName = android.content.ComponentName.unflattenFromString(listener)
-                componentName != null && TextUtils.equals(packageName, componentName.packageName)
-            }
-        } else {
-            false
-        }
-
-        if (isNotificationAccessEnabled) {
-            Log.d(TAG, "✅ Step 2: 알림 접근 권한 이미 설정됨")
-            Toast.makeText(this, "알림 접근 권한이 이미 설정되어 있습니다.", Toast.LENGTH_SHORT).show()
-            // Step 3로 진행
-            checkBatteryOptimization()
-        } else {
-            Log.d(TAG, "⚠️ Step 2: 알림 접근 권한 필요")
-            showNotificationAccessDialog()
-        }
-    }
-    
-    /**
-     * 알림 접근 권한 안내 다이얼로그
-     */
-    private fun showNotificationAccessDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.notification_access_title)
-            .setMessage(R.string.notification_access_message)
-            .setPositiveButton(R.string.go_to_settings) { _, _ ->
-                // 알림 접근 권한 설정 화면으로 이동
-                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                startActivityForResult(intent, REQUEST_NOTIFICATION_ACCESS)
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
-                // 취소 시에도 다음 단계로 진행 (선택적)
-                checkBatteryOptimization()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    /**
-     * Step 3: 배터리 최적화 제외 권한 확인
-     */
-    private fun checkBatteryOptimization() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        val isIgnoringBatteryOptimizations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            powerManager.isIgnoringBatteryOptimizations(packageName)
-        } else {
-            true // Android 6.0 미만은 항상 true
-        }
-
-        if (isIgnoringBatteryOptimizations) {
-            Log.d(TAG, "✅ Step 3: 배터리 최적화 제외 이미 설정됨")
-            Toast.makeText(this, "배터리 최적화 제외가 이미 설정되어 있습니다.", Toast.LENGTH_SHORT).show()
-            // 모든 권한 설정 완료 - MainActivity로 이동
-            proceedToMainActivity()
-        } else {
-            Log.d(TAG, "⚠️ Step 3: 배터리 최적화 제외 필요")
-            showBatteryOptimizationDialog()
-        }
-    }
-
-    /**
-     * 배터리 최적화 제외 안내 다이얼로그
-     */
-    private fun showBatteryOptimizationDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.battery_optimization_title)
-            .setMessage(R.string.battery_optimization_message)
-            .setPositiveButton(R.string.go_to_settings) { _, _ ->
-                // 배터리 최적화 설정 화면으로 이동
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = android.net.Uri.parse("package:$packageName")
-                    }
-                    try {
-                        startActivityForResult(intent, REQUEST_BATTERY_OPTIMIZATION)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "배터리 최적화 설정 화면 이동 실패: ${e.message}")
-                        // 대체 방법: 일반 설정 화면으로 이동
-                        val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                        startActivityForResult(fallbackIntent, REQUEST_BATTERY_OPTIMIZATION)
-                    }
-                }
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
-                // 취소 시에도 다음 단계로 진행 (선택적)
-                checkNotificationAccess()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-
-    /**
-     * 설정 화면에서 돌아온 후 처리
-     */
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        when (requestCode) {
-            REQUEST_NOTIFICATION_ACCESS -> {
-                Log.d(TAG, "알림 접근 권한 설정 화면에서 돌아옴")
-                // 알림 접근 권한 확인 후 배터리 최적화 확인
-                checkBatteryOptimization()
-            }
-            REQUEST_BATTERY_OPTIMIZATION -> {
-                Log.d(TAG, "배터리 최적화 설정 화면에서 돌아옴")
-                // 배터리 최적화 설정 후 MainActivity로 이동
-                checkBatteryOptimization()
-            }
-        }
+        // 바로 MainActivity로 이동 (권한 팝업 없이)
+        // MainActivity(Flutter)에서 권한을 확인하고 없으면 PermissionScreen으로 이동
+        proceedToMainActivity()
     }
 
     /**

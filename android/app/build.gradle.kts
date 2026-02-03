@@ -47,4 +47,7 @@ dependencies {
     // 백그라운드 API 호출용
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    
+    // Google Play Integrity API
+    implementation("com.google.android.play:integrity:1.3.0")
 }

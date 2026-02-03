@@ -10,11 +10,13 @@ import 'package:intl/intl.dart';
 class SummaryHistoryScreen extends StatefulWidget {
   final int roomId;
   final String roomName;
+  final int? initialSummaryId; // 특정 요약을 자동으로 열기 위한 ID
 
   const SummaryHistoryScreen({
     Key? key,
     required this.roomId,
     required this.roomName,
+    this.initialSummaryId,
   }) : super(key: key);
 
   @override
@@ -60,6 +62,13 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
           _summaries = sortedSummaries;
           _isLoading = false;
         });
+        
+        // initialSummaryId가 있으면 해당 요약 자동으로 열기
+        if (widget.initialSummaryId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _openInitialSummary();
+          });
+        }
       }
     } catch (e) {
       debugPrint('요약 히스토리 로딩 실패: $e');
@@ -74,6 +83,21 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// initialSummaryId에 해당하는 요약 자동으로 열기
+  void _openInitialSummary() {
+    if (widget.initialSummaryId == null) return;
+    
+    final matchingSummaries = _summaries.where(
+      (s) => s.summaryId == widget.initialSummaryId,
+    );
+    
+    if (matchingSummaries.isNotEmpty) {
+      _showSummaryDetail(matchingSummaries.first);
+    } else {
+      debugPrint('⚠️ 요약을 찾을 수 없음: summaryId=${widget.initialSummaryId}');
     }
   }
 
@@ -581,6 +605,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                           height: 1.8,
                           color: Color(0xFF2A2A2A),
                           fontWeight: FontWeight.w500,
+                          letterSpacing: -0.2,
                         ),
                         pPadding: const EdgeInsets.only(bottom: 8),
                         h1: const TextStyle(
@@ -608,8 +633,41 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF2A2A2A),
                         ),
+                        em: const TextStyle(
+                          fontStyle: FontStyle.italic,
+                        ),
                         blockSpacing: 12,
                         listIndent: 24,
+                        listBullet: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF2196F3),
+                        ),
+                        listBulletPadding: const EdgeInsets.only(right: 8),
+                        code: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'monospace',
+                          backgroundColor: Colors.grey[200],
+                          color: Colors.black87,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        codeblockPadding: const EdgeInsets.all(12),
+                        blockquote: TextStyle(
+                          fontSize: 16,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey[700],
+                        ),
+                        blockquoteDecoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                              color: const Color(0xFF2196F3),
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                        blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
                       ),
                     ),
                     // 상세 메시지 (있을 경우)
@@ -670,11 +728,12 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                               styleSheet: MarkdownStyleSheet(
                                 p: const TextStyle(
                                   fontSize: 15,
-                                  height: 1.8,
+                                  height: 1.7,
                                   color: Color(0xFF2A2A2A),
                                   fontWeight: FontWeight.w400,
+                                  letterSpacing: -0.2,
                                 ),
-                                pPadding: const EdgeInsets.only(bottom: 8, left: 0, right: 0),
+                                pPadding: const EdgeInsets.only(bottom: 8),
                                 h1: const TextStyle(
                                   fontSize: 19,
                                   fontWeight: FontWeight.w700,
@@ -700,10 +759,41 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF2A2A2A),
                                 ),
+                                em: const TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                ),
                                 blockSpacing: 10,
                                 listIndent: 24,
-                                blockquotePadding: EdgeInsets.zero,
-                                blockquoteDecoration: BoxDecoration(),
+                                listBullet: const TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFF2196F3),
+                                ),
+                                listBulletPadding: const EdgeInsets.only(right: 8),
+                                code: TextStyle(
+                                  fontSize: 13,
+                                  fontFamily: 'monospace',
+                                  backgroundColor: Colors.grey[200],
+                                  color: Colors.black87,
+                                ),
+                                codeblockDecoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                codeblockPadding: const EdgeInsets.all(12),
+                                blockquote: TextStyle(
+                                  fontSize: 15,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey[700],
+                                ),
+                                blockquoteDecoration: BoxDecoration(
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: const Color(0xFF2196F3),
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                                blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
                               ),
                             ),
                           ],
@@ -878,39 +968,73 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     softLineBreak: true,
                     styleSheet: MarkdownStyleSheet(
                       p: const TextStyle(
-                        fontSize: 15,
-                        height: 1.6,
+                        fontSize: 16,
+                        height: 1.8,
                         color: Color(0xFF2A2A2A),
                         fontWeight: FontWeight.w500,
+                        letterSpacing: -0.2,
                       ),
                       pPadding: const EdgeInsets.only(bottom: 8),
                       h1: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
+                        color: Color(0xFF2A2A2A),
+                      ),
+                      h1Padding: const EdgeInsets.only(bottom: 12, top: 8),
+                      h2: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        height: 1.4,
+                        height: 1.5,
                         color: Color(0xFF2A2A2A),
                       ),
-                      h1Padding: const EdgeInsets.only(bottom: 10, top: 6),
-                      h2: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        height: 1.4,
-                        color: Color(0xFF2A2A2A),
-                      ),
-                      h2Padding: const EdgeInsets.only(bottom: 8, top: 6),
+                      h2Padding: const EdgeInsets.only(bottom: 10, top: 8),
                       h3: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        height: 1.4,
+                        height: 1.5,
                         color: Color(0xFF2A2A2A),
                       ),
-                      h3Padding: const EdgeInsets.only(bottom: 6, top: 4),
+                      h3Padding: const EdgeInsets.only(bottom: 8, top: 6),
                       strong: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF2A2A2A),
                       ),
-                      blockSpacing: 8,
-                      listIndent: 20,
+                      em: const TextStyle(
+                        fontStyle: FontStyle.italic,
+                      ),
+                      blockSpacing: 12,
+                      listIndent: 24,
+                      listBullet: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2196F3),
+                      ),
+                      listBulletPadding: const EdgeInsets.only(right: 8),
+                      code: TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'monospace',
+                        backgroundColor: Colors.grey[200],
+                        color: Colors.black87,
+                      ),
+                      codeblockDecoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      codeblockPadding: const EdgeInsets.all(12),
+                      blockquote: TextStyle(
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[700],
+                      ),
+                      blockquoteDecoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: const Color(0xFF2196F3),
+                            width: 4,
+                          ),
+                        ),
+                      ),
+                      blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
                     ),
                   ),
                   // 상세보기 버튼 (상세 메시지가 있을 때만)

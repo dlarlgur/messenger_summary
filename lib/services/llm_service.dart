@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+import '../interceptors/auth_interceptor.dart';
+import '../services/privacy_masking_service.dart';
 
-/// LLM 요약 서비스 (JWT 없이 Device ID + App Signature 기반 인증)
+/// LLM 요약 서비스 (JWT 기반 인증)
 class LlmService {
   static final LlmService _instance = LlmService._internal();
   factory LlmService() => _instance;
@@ -21,15 +19,7 @@ class LlmService {
   // Dio 인스턴스
   late final Dio _dio;
 
-  // 캐싱된 디바이스 정보
-  String? _deviceId;
-  String? _appSignature;
-  
-  // Rate limiting: 1분당 5회 제한
-  static const int _maxRequestsPerMinute = 5;
-  final List<DateTime> _requestHistory = [];
-
-  /// Dio 초기화 (SSL 인증서 검증 활성화)
+  /// Dio 초기화 (JWT 인터셉터 추가)
   void _initDio() {
     _dio = Dio(BaseOptions(
       baseUrl: _baseUrl,
@@ -40,126 +30,49 @@ class LlmService {
       },
     ));
 
-    // SSL 인증서 검증 활성화 (기본값 사용)
-    // 도메인(api.dksw4.com)을 사용하므로 정상적인 SSL 인증서 검증 수행
+    // JWT 인증 인터셉터 추가
+    _dio.interceptors.add(AuthInterceptor());
   }
 
-  /// 디바이스 ID 가져오기
-  Future<String> _getDeviceId() async {
-    if (_deviceId != null) return _deviceId!;
-
-    final deviceInfo = DeviceInfoPlugin();
-
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      _deviceId = androidInfo.id; // Android ID
-    } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      _deviceId = iosInfo.identifierForVendor ?? 'unknown';
-    } else {
-      _deviceId = 'unknown';
-    }
-
-    return _deviceId!;
-  }
-
-  /// 앱 서명 생성 (패키지명 + 버전 + 디바이스ID의 해시)
-  Future<String> _getAppSignature() async {
-    if (_appSignature != null) return _appSignature!;
-
-    final packageInfo = await PackageInfo.fromPlatform();
-    final deviceId = await _getDeviceId();
-
-    // 패키지명 + 버전 + 디바이스ID를 조합하여 SHA256 해시 생성
-    final signatureData = '${packageInfo.packageName}:${packageInfo.version}:$deviceId';
-    final bytes = utf8.encode(signatureData);
-    final hash = sha256.convert(bytes);
-
-    _appSignature = hash.toString();
-    return _appSignature!;
-  }
-
-  /// Rate limiting 체크 (1분당 5회 제한)
-  void _checkRateLimit() {
-    final now = DateTime.now();
-    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
-    
-    // 1분 이전의 요청 기록 제거
-    _requestHistory.removeWhere((timestamp) => timestamp.isBefore(oneMinuteAgo));
-    
-    // 1분 내 요청 횟수 확인
-    if (_requestHistory.length >= _maxRequestsPerMinute) {
-      final oldestRequest = _requestHistory.first;
-      final waitSeconds = 60 - now.difference(oldestRequest).inSeconds;
-      throw RateLimitException(
-        '1분당 요청 횟수를 초과했습니다. ${waitSeconds}초 후 다시 시도해주세요.',
-        retryAfterSeconds: waitSeconds,
-      );
-    }
-    
-    // 현재 요청 시간 기록
-    _requestHistory.add(now);
-  }
 
   /// 메시지 요약 요청
   ///
-  /// [messages] - 요약할 메시지 목록 (시간순 정렬 권장)
+  /// [messages] - 요약할 메시지 목록 (시간순 정렬 권장, 최대 300개)
   /// [roomName] - 채팅방 이름
   ///
   /// Returns: 요약 결과 Map 또는 에러 시 null
-  /// Throws: [RateLimitException] 분당 요청 초과 시
+  /// Throws: [RateLimitException] 사용량 초과 시
   Future<Map<String, dynamic>?> summarizeMessages({
     required List<Map<String, dynamic>> messages,
     required String roomName,
   }) async {
-    // 클라이언트 측 rate limiting 체크
-    _checkRateLimit();
-    
     try {
-      final deviceId = await _getDeviceId();
-      final appSignature = await _getAppSignature();
-      final packageInfo = await PackageInfo.fromPlatform();
+      // 민감 정보 마스킹 처리
+      final maskedMessages = messages.map((msg) {
+        final maskedMsg = Map<String, dynamic>.from(msg);
+        if (maskedMsg['message'] != null) {
+          maskedMsg['message'] = PrivacyMaskingService.maskSensitiveInfo(
+            maskedMsg['message'] as String,
+          );
+        }
+        return maskedMsg;
+      }).toList();
 
       debugPrint('========== LLM 요약 요청 시작 ==========');
       debugPrint('📌 요청 URL: $_baseUrl$_summaryEndpoint');
       debugPrint('📌 대화방: $roomName');
-      debugPrint('📌 메시지 개수: ${messages.length}');
-      debugPrint('📌 인증 헤더:');
-      debugPrint('   X-Device-Id: $deviceId');
-      debugPrint('   X-App-Signature: $appSignature');
-      debugPrint('   X-Package-Name: ${packageInfo.packageName}');
-      debugPrint('   X-App-Version: ${packageInfo.version}');
+      debugPrint('📌 메시지 개수: ${maskedMessages.length}');
       
-      // 요청 데이터 상세 로깅
+      // 요청 데이터 (JWT는 인터셉터에서 자동 추가)
       final requestData = <String, dynamic>{
         'roomName': roomName,
-        'messages': messages,
-        'messageCount': messages.length,
-        // 카테고리는 제거되었지만, 서버가 요구할 경우를 대비해 주석 처리
-        // 'category': 'DAILY', // 서버가 카테고리를 필수로 요구한다면 이 줄의 주석을 해제
+        'messages': maskedMessages,
+        'messageCount': maskedMessages.length,
       };
-      debugPrint('📌 요청 데이터 (JSON):');
-      debugPrint('   roomName: $roomName');
-      debugPrint('   messageCount: ${messages.length}');
-      debugPrint('   category: (제거됨)');
-      debugPrint('📌 메시지 목록:');
-      for (int i = 0; i < messages.length; i++) {
-        final msg = messages[i];
-        debugPrint('   [$i] sender: ${msg['sender']}, message: ${msg['message']?.toString().substring(0, (msg['message']?.toString().length ?? 0) > 50 ? 50 : msg['message']?.toString().length ?? 0)}...');
-        debugPrint('       createTime: ${msg['createTime']}');
-      }
 
       final response = await _dio.post(
         _summaryEndpoint,
         data: requestData,
-        options: Options(
-          headers: {
-            'X-Device-Id': deviceId,
-            'X-App-Signature': appSignature,
-            'X-Package-Name': packageInfo.packageName,
-            'X-App-Version': packageInfo.version,
-          },
-        ),
       );
 
       debugPrint('📌 LLM 응답 코드: ${response.statusCode}');
@@ -218,9 +131,38 @@ class LlmService {
       debugPrint('==========================================');
       
       if (e.response?.statusCode == 429) {
+        // 429 응답에서 플랜 정보 추출
+        final responseData = e.response?.data;
+        String planType = 'free';
+        int currentUsage = 0;
+        int limit = 0;
+        String? nextResetDate;
+        
+        if (responseData is Map<String, dynamic>) {
+          planType = responseData['planType'] as String? ?? 'free';
+          currentUsage = responseData['currentUsage'] as int? ?? 0;
+          limit = responseData['limit'] as int? ?? 0;
+          dynamic nextResetDateValue = responseData['nextResetDate'];
+          if (nextResetDateValue is String) {
+            nextResetDate = nextResetDateValue;
+          } else if (nextResetDateValue != null) {
+            nextResetDate = nextResetDateValue.toString();
+          }
+        }
+        
+        // 플랜별 에러 메시지 생성
+        // 사용량이 제한을 초과하면 제한값으로 표시 (예: 4/3 → 3/3)
+        final displayUsage = currentUsage > limit ? limit : currentUsage;
+        String message;
+        if (planType == 'free') {
+          message = '오늘 무료 요약 $displayUsage/$limit회 사용 완료';
+        } else {
+          message = '이번 달 요약 $displayUsage/$limit회 사용 완료';
+        }
+        
         final retryAfter = e.response?.headers.value('retry-after');
         throw RateLimitException(
-          '요청 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.',
+          message,
           retryAfterSeconds: int.tryParse(retryAfter ?? '60') ?? 60,
         );
       } else if (e.response?.statusCode == 401) {

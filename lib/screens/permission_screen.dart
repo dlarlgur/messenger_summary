@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../main.dart';
 
 /// 권한 설정 화면
 class PermissionScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
   
   bool _notificationPermissionGranted = false;
   bool _batteryOptimizationDisabled = false;
+  bool _canDrawOverlays = false;
   bool _isChecking = true;
 
   @override
@@ -35,7 +37,12 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // 앱이 다시 포그라운드로 돌아오면 권한 상태 재확인
     if (state == AppLifecycleState.resumed) {
-      _checkPermissions();
+      // 약간의 지연을 주어 설정 화면에서 돌아온 후 권한 상태가 반영되도록 함
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _checkPermissions();
+        }
+      });
     }
   }
 
@@ -46,19 +53,25 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
     try {
       // 알림 접근 권한 확인
       final notificationEnabled = await _methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
-      
+
       // 배터리 최적화 제외 확인
       final batteryOptimizationDisabled = await _methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
-      
+
+      // 다른 앱 위에 표시 권한 확인
+      final canDrawOverlays = await _methodChannel.invokeMethod<bool>('canDrawOverlays') ?? false;
+
       debugPrint('📋 권한 상태 확인:');
       debugPrint('  알림 권한: $notificationEnabled');
       debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
-      debugPrint('  필수 권한 허용됨: ${notificationEnabled}');
-      
+      debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
+      final allGranted = notificationEnabled && batteryOptimizationDisabled && canDrawOverlays;
+      debugPrint('  필수 권한 모두 허용됨: $allGranted');
+
       if (mounted) {
         setState(() {
           _notificationPermissionGranted = notificationEnabled;
           _batteryOptimizationDisabled = batteryOptimizationDisabled;
+          _canDrawOverlays = canDrawOverlays;
           _isChecking = false;
         });
       }
@@ -86,7 +99,18 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
     }
   }
 
-  bool get _allRequiredPermissionsGranted => _notificationPermissionGranted;
+  Future<void> _openOverlaySettings() async {
+    try {
+      await _methodChannel.invokeMethod('openOverlaySettings');
+    } catch (e) {
+      debugPrint('오버레이 설정 열기 실패: $e');
+    }
+  }
+
+  bool get _allRequiredPermissionsGranted => 
+      _notificationPermissionGranted && 
+      _batteryOptimizationDisabled && 
+      _canDrawOverlays;
   
   bool get _allPermissionsGranted => _notificationPermissionGranted && _batteryOptimizationDisabled;
 
@@ -153,6 +177,19 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             isGranted: _batteryOptimizationDisabled,
                             onTap: _openBatteryOptimizationSettings,
                           ),
+
+                          const SizedBox(height: 16),
+
+                          // 다른 앱 위에 표시 (필수)
+                          _buildPermissionItem(
+                            icon: Icons.layers,
+                            iconColor: const Color(0xFF2196F3),
+                            title: '다른 앱 위에 표시',
+                            description: '다른 앱 위에 표시되도록 허용하여 더욱 편리한 사용자 경험을 제공합니다.',
+                            isRequired: true,
+                            isGranted: _canDrawOverlays,
+                            onTap: _openOverlaySettings,
+                          ),
                         ],
                       ),
               ),
@@ -179,18 +216,34 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                           debugPrint('✅ 시작하기 버튼 클릭 - 메인 화면으로 이동');
                           if (!mounted) return;
                           
-                          // 권한 상태 재확인
+                          // 권한 상태 재확인 (설정에서 돌아왔을 수 있으므로)
                           await _checkPermissions();
                           
                           if (!mounted) return;
                           
                           // 권한이 모두 허용되었는지 최종 확인
+                          // 약간의 지연을 주어 상태 업데이트가 완료되도록 함
+                          await Future.delayed(const Duration(milliseconds: 300));
+                          
+                          if (!mounted) return;
+                          
                           if (_allRequiredPermissionsGranted) {
                             debugPrint('✅ 모든 권한 허용 확인됨 - 메인 화면으로 이동');
-                            // onComplete 콜백 호출
+                            // PermissionScreen 내부에서 직접 메인 화면으로 이동
+                            if (mounted) {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (_) => const MainScreen()),
+                                (route) => false, // 모든 이전 라우트 제거
+                              );
+                              debugPrint('✅ 메인 화면으로 네비게이션 완료');
+                            }
+                            // onComplete 콜백도 호출 (호환성을 위해)
                             widget.onComplete();
                           } else {
                             debugPrint('⚠️ 권한이 아직 허용되지 않음');
+                            debugPrint('  알림 권한: $_notificationPermissionGranted');
+                            debugPrint('  배터리 최적화 제외: $_batteryOptimizationDisabled');
+                            debugPrint('  다른 앱 위에 표시: $_canDrawOverlays');
                             // 권한이 없으면 다시 확인하도록 안내
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -202,7 +255,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF9800),
+                    backgroundColor: const Color(0xFF2196F3),
                     disabledBackgroundColor: Colors.grey[300],
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -240,10 +293,10 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isGranted ? Colors.grey[50] : const Color(0xFFFFF8E1),
+          color: isGranted ? const Color(0xFFE3F2FD) : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isGranted ? Colors.grey[200]! : const Color(0xFFFFE0B2),
+            color: isGranted ? const Color(0xFF64B5F6) : Colors.grey[200]!,
             width: 1,
           ),
         ),

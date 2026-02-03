@@ -5,6 +5,12 @@ class PrivacyMaskingService {
   factory PrivacyMaskingService() => _instance;
   PrivacyMaskingService._internal();
 
+  /// 텍스트에서 민감 정보 마스킹 (전화번호, 계좌번호 등)
+  static String maskSensitiveInfo(String text) {
+    if (text.isEmpty) return text;
+    return PrivacyMaskingService().maskPersonalInfo(text);
+  }
+
   /// 텍스트에서 개인정보 마스킹
   String maskPersonalInfo(String text) {
     if (text.isEmpty) return text;

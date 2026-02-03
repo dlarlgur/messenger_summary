@@ -21,6 +21,7 @@ dependencies:
   shared_preferences: ^2.2.2
   sqflite: ^2.3.0
   path: ^1.8.3
+  flutter_secure_storage: ^9.0.0
 
   # UI
   cupertino_icons: ^1.0.6
@@ -44,6 +45,9 @@ dependencies:
   # 위치
   geolocator: ^14.0.2
   geocoding: ^4.0.0
+
+  # 이미지 저장
+  gal: ^2.3.0
 
 dev_dependencies:
   flutter_test:

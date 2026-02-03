@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- 배터리 최적화 제외 요청 권한 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 알림 표시 권한 (Android 13 이상) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 다른 앱 위에 표시 권한 (오버레이 권한) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:label="AI 톡비서"

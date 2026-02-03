@@ -14,11 +14,14 @@ class NotificationSettingsService extends ChangeNotifier {
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // 음소거 목록 로드
       final mutedRoomsJson = prefs.getString(_mutedRoomsKey);
       if (mutedRoomsJson != null) {
         final List<dynamic> list = jsonDecode(mutedRoomsJson);
         _mutedRooms = list.cast<String>().toSet();
       }
+
       notifyListeners();
     } catch (e) {
       debugPrint('알림 설정 로드 오류: $e');

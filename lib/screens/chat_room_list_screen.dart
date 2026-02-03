@@ -43,9 +43,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // 플랜 타입 캐시
   String? _cachedPlanType;
   
-  // ⚠️ 보수적 수정: 이벤트 리스너 구독 추가 (상세화면에서 나와도 동기화 유지)
-  static const eventChannel = EventChannel('com.example.chat_llm/notification_stream');
-  StreamSubscription? _eventSubscription;
+  // ✅ 핵심 수정: EventChannel 대신 DB Observer 사용
+  // Native에서 DB에 저장 → Flutter가 주기적으로 DB 확인
+  Timer? _dbObserverTimer;
+  DateTime? _lastCheckTime;
 
   @override
   void initState() {
@@ -53,74 +54,70 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     WidgetsBinding.instance.addObserver(this);
     _initProfileService();
     _loadChatRooms();
-    _startListeningEvents(); // ⚠️ 보수적 수정: 이벤트 리스너 구독 시작
+    _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // 앱이 포그라운드로 돌아올 때 대화목록 자동 새로고침
+    // 앱이 포그라운드로 돌아올 때 대화목록 자동 새로고침 및 DB Observer 재시작
     if (state == AppLifecycleState.resumed) {
-      debugPrint('🔄 ChatRoomListScreen: 앱 포그라운드 복귀 - 대화목록 새로고침');
+      debugPrint('🔄 ChatRoomListScreen: 앱 포그라운드 복귀 - 대화목록 새로고침 및 DB Observer 재시작');
       _loadChatRooms();
+      // ✅ 핵심 수정: 포그라운드 복귀 시 DB Observer 재시작
+      _startDbObserver();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _eventSubscription?.cancel(); // ⚠️ 보수적 수정: 이벤트 리스너 구독 해제
+    _dbObserverTimer?.cancel(); // ✅ 핵심 수정: DB Observer 중지
     super.dispose();
   }
   
-  /// ⚠️ 보수적 수정: 이벤트 리스너 구독 시작 (상세화면에서 나와도 동기화 유지)
-  void _startListeningEvents() {
-    _eventSubscription?.cancel(); // 기존 구독 취소
-    _eventSubscription = eventChannel.receiveBroadcastStream().listen(
-      (event) {
-        if (event is Map) {
-          final data = Map<String, dynamic>.from(event);
-          final eventType = data['type'] ?? 'notification';
-          
-          if (eventType == 'room_updated') {
-            debugPrint('📩 대화목록 화면에서 room_updated 이벤트 수신');
-            // 채팅방 업데이트 이벤트 처리
-            _handleRoomUpdateEvent(data);
-          }
-        }
-      },
-      onError: (error) {
-        debugPrint('❌ 대화목록 화면 이벤트 스트림 에러: $error');
-        // 에러 발생 시 재구독 시도
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            debugPrint('🔄 대화목록 화면 이벤트 스트림 에러 후 재구독 시도...');
-            _startListeningEvents();
-          }
-        });
-      },
-      cancelOnError: false, // 에러 발생해도 구독 유지
-    );
-    debugPrint('✅ 대화목록 화면 이벤트 리스너 구독 시작');
+  /// ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
+  /// Native에서 DB에 저장 → Flutter가 주기적으로 DB 확인
+  void _startDbObserver() {
+    _dbObserverTimer?.cancel();
+    _lastCheckTime = DateTime.now();
+    
+    // 1초마다 DB 변경 확인
+    _dbObserverTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      _checkDbChanges();
+    });
+    
+    debugPrint('✅ DB Observer 시작 (1초마다 확인)');
   }
   
-  /// 채팅방 업데이트 이벤트 처리 (대화목록 화면에서 직접 처리)
-  void _handleRoomUpdateEvent(Map<String, dynamic> data) {
-    final roomName = data['roomName'] as String? ?? '';
-    final roomId = data['roomId'] as int? ?? 0;
-    final unreadCount = data['unreadCount'] as int? ?? 0;
-    final lastMessage = data['lastMessage'] as String? ?? '';
-    
-    debugPrint('=== ✅ 대화목록 화면에서 채팅방 업데이트 수신 ===');
-    debugPrint('  roomName: $roomName');
-    debugPrint('  roomId: $roomId');
-    debugPrint('  unreadCount: $unreadCount');
-    debugPrint('  lastMessage: ${lastMessage.length > 50 ? lastMessage.substring(0, 50) + "..." : lastMessage}');
-    
-    // 즉시 새로고침하여 동기화 보장
-    if (mounted) {
-      debugPrint('🔄 대화목록 화면에서 즉시 새로고침 실행');
-      _loadChatRooms(silent: true);
+  /// ✅ 핵심: DB 변경 확인 (updated_at 기준)
+  Future<void> _checkDbChanges() async {
+    try {
+      final db = await _localDb.database;
+      
+      // 마지막 확인 시간 이후 업데이트된 채팅방 확인
+      final lastCheckTimestamp = _lastCheckTime?.millisecondsSinceEpoch ?? 0;
+      
+      final updatedRooms = await db.query(
+        'chat_rooms',
+        columns: ['id', 'updated_at'],
+        where: 'updated_at > ?',
+        whereArgs: [lastCheckTimestamp],
+      );
+      
+      if (updatedRooms.isNotEmpty) {
+        debugPrint('🔄 DB 변경 감지: ${updatedRooms.length}개 채팅방 업데이트됨');
+        // 변경이 있으면 목록 새로고침
+        await _loadChatRooms(silent: true);
+      }
+      
+      _lastCheckTime = DateTime.now();
+    } catch (e) {
+      debugPrint('❌ DB 변경 확인 실패: $e');
     }
   }
 
@@ -336,11 +333,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   }
                 },
               ),
-              // 자동 요약 설정 (베이직 플랜 전용 - 베이직일 때만 표시)
+              // 자동요약기능설정 (베이직 플랜 전용 - 베이직일 때만 표시)
               if (isBasicPlan)
                 _buildMenuItem(
                   icon: Icons.schedule,
-                  title: '자동 요약 설정',
+                  title: '자동요약기능설정',
                   subtitle: '베이직 플랜 전용',
                   onTap: () {
                     Navigator.pop(context);
@@ -866,11 +863,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                         }
                                       });
                                     }
-                                    // ⚠️ 보수적 수정: 상세화면에서 나올 때 무조건 새로고침하여 읽음 상태 등 최신 정보 반영
-                                    debugPrint('🔄 상세화면에서 복귀 - 대화목록 새로고침 및 이벤트 구독 재시작');
+                                    // ✅ 핵심 수정: 상세화면에서 나올 때 무조건 새로고침하여 읽음 상태 등 최신 정보 반영
+                                    debugPrint('🔄 상세화면에서 복귀 - 대화목록 새로고침 및 DB Observer 재시작');
                                     _loadChatRooms(silent: true);
-                                    // ⚠️ 핵심 수정: 상세화면 dispose 시 EventChannel 구독이 끊길 수 있으므로 재구독
-                                    _startListeningEvents();
+                                    // ✅ 핵심 수정: DB Observer 재시작 (EventChannel 대신)
+                                    _startDbObserver();
                                   },
                                   onLongPress: () => _showRoomContextMenu(context, room),
                                   child: Container(
