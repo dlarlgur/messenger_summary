@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:gal/gal.dart';
 import '../models/chat_room.dart';
 import '../models/chat_message.dart';
 import '../services/local_db_service.dart';
@@ -16,6 +18,23 @@ import '../services/privacy_masking_service.dart';
 import '../config/constants.dart';
 import 'summary_history_screen.dart';
 
+/// 텍스트 세그먼트 정보
+class _TextSegment {
+  final int start;
+  final int end;
+  final bool isUrl;
+  final bool isHighlight;
+  final String? url;
+
+  _TextSegment({
+    required this.start,
+    required this.end,
+    required this.isUrl,
+    required this.isHighlight,
+    this.url,
+  });
+}
+
 class ChatRoomDetailScreen extends StatefulWidget {
   final ChatRoom room;
 
@@ -25,14 +44,17 @@ class ChatRoomDetailScreen extends StatefulWidget {
   State<ChatRoomDetailScreen> createState() => _ChatRoomDetailScreenState();
 }
 
-class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with WidgetsBindingObserver {
+class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
+    with WidgetsBindingObserver {
   final LocalDbService _localDb = LocalDbService();
   final ProfileImageService _profileService = ProfileImageService();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _chatInputBarKey = GlobalKey();
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/notification');
-  static const EventChannel _eventChannel = EventChannel('com.example.chat_llm/notification_stream');
-  
+  static const MethodChannel _methodChannel =
+      MethodChannel('com.example.chat_llm/notification');
+  static const EventChannel _eventChannel =
+      EventChannel('com.example.chat_llm/notification_stream');
+
   double _chatInputBarHeight = 0;
 
   List<MessageItem> _messages = [];
@@ -44,33 +66,37 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
   // 실시간 메시지 동기화
   StreamSubscription? _notificationSubscription;
-  int _newMessageCount = 0;  // 새로 온 메시지 개수
-  String? _latestNewMessageSender;  // 가장 최근 새 메시지 보낸사람
-  String? _latestNewMessageContent;  // 가장 최근 새 메시지 내용
-  bool _isAtBottom = true;   // 스크롤이 맨 아래에 있는지
-  bool _hasReceivedNewMessage = false;  // 화면에 있는 동안 새 메시지를 받았는지 여부
-  
+  int _newMessageCount = 0; // 새로 온 메시지 개수
+  String? _latestNewMessageSender; // 가장 최근 새 메시지 보낸사람
+  String? _latestNewMessageContent; // 가장 최근 새 메시지 내용
+  bool _isAtBottom = true; // 스크롤이 맨 아래에 있는지
+  bool _hasReceivedNewMessage = false; // 화면에 있는 동안 새 메시지를 받았는지 여부
+
   // 스크롤 날짜 인디케이터
-  DateTime? _visibleDate;  // 현재 화면에 보이는 메시지의 날짜
+  DateTime? _visibleDate; // 현재 화면에 보이는 메시지의 날짜
 
   // 요약 모드 상태
-  bool _isSummaryMode = false;  // 요약 모드 활성화 여부
-  int _selectedMessageCount = 0;  // 선택된 메시지 개수 (최신 메시지부터 위로 N개)
-  int _defaultSummaryCount = 5;  // 기본 요약 개수
+  bool _isSummaryMode = false; // 요약 모드 활성화 여부
+  int _selectedMessageCount = 0; // 선택된 메시지 개수 (최신 메시지부터 위로 N개)
+  int _defaultSummaryCount = 5; // 기본 요약 개수
 
   // 카톡 스타일 메시지 선택 상태
-  int? _selectionStartIndex;  // 선택 시작 메시지 인덱스
-  bool _isDraggingSelection = false;  // 드래그 중인지 여부
-  bool _isDragHandleVisible = false;  // 드래그 핸들 표시 여부
+  int? _selectionStartIndex; // 선택 시작 메시지 인덱스
+  bool _isDraggingSelection = false; // 드래그 중인지 여부
+  bool _isDragHandleVisible = false; // 드래그 핸들 표시 여부
+
+  // 메시지 삭제 모드 상태
+  bool _isDeleteMode = false; // 삭제 모드 활성화 여부
+  Set<int> _selectedMessageIds = {}; // 선택된 메시지 ID 집합
 
   // 검색 모드 상태
-  bool _isSearchMode = false;  // 검색 모드 활성화 여부
-  String? _selectedSender;  // 선택된 사용자 (null이면 전체 검색)
+  bool _isSearchMode = false; // 검색 모드 활성화 여부
+  String? _selectedSender; // 선택된 사용자 (null이면 전체 검색)
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  List<int> _searchResults = [];  // 검색 결과 인덱스 리스트
-  int _currentSearchIndex = -1;  // 현재 검색 결과 인덱스
-  DateTime? _lastSelectedDate;  // 마지막으로 선택한 날짜 (날짜 선택 다이얼로그에서 사용)
+  List<int> _searchResults = []; // 검색 결과 인덱스 리스트
+  int _currentSearchIndex = -1; // 현재 검색 결과 인덱스
+  DateTime? _lastSelectedDate; // 마지막으로 선택한 날짜 (날짜 선택 다이얼로그에서 사용)
 
   // 채팅 입력창
   final TextEditingController _chatInputController = TextEditingController();
@@ -110,20 +136,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     _scrollController.addListener(_checkScrollPosition);
     _loadMessages();
     _startListeningNotifications();
-    
+
     // 개인정보 마스킹 서비스 세션 초기화 (채팅방이 바뀔 때마다)
     PrivacyMaskingService().resetSession();
-    
+
     // 채팅 입력창 높이 측정
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _measureChatInputBarHeight();
     });
   }
-  
+
   void _measureChatInputBarHeight() {
     if (!mounted) return;
     if (_chatInputBarKey.currentContext != null) {
-      final RenderBox? renderBox = _chatInputBarKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? renderBox =
+          _chatInputBarKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final height = renderBox.size.height;
         if (height != _chatInputBarHeight) {
@@ -160,7 +187,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     }).catchError((e) {
       debugPrint('❌ dispose 시 읽음 처리 실패: $e');
     });
-    
+
     _notificationSubscription?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_checkScrollPosition);
@@ -183,48 +210,49 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 스크롤 위치 확인 (맨 아래인지, 현재 보이는 날짜)
   void _checkScrollPosition() {
     if (!_scrollController.hasClients || _messages.isEmpty) return;
-    
+
     // reverse: true이므로 position.pixels가 0에 가까우면 맨 아래(최신 메시지)
     final isAtBottom = _scrollController.position.pixels < 100;
-    
+
     // 현재 스크롤 위치에서 보이는 메시지 인덱스 계산
     // reverse: true이므로 offset이 클수록 위로 스크롤 (오래된 메시지)
     // 화면 중앙에 보이는 메시지를 찾기 위해 화면 높이의 절반을 더함
     final scrollOffset = _scrollController.position.pixels;
     final screenHeight = MediaQuery.of(context).size.height;
     final viewportCenter = scrollOffset + (screenHeight * 0.5);
-    
+
     int visibleIndex = 0;
     double accumulatedHeight = 0.0;
-    
+
     // reverse: true이므로 index 0부터 시작하여 누적 높이 계산
     for (int i = 0; i < _messages.length; i++) {
       final messageHeight = _estimateMessageHeight(_messages[i]);
       final dateHeight = _shouldShowDate(i) ? 40.0 : 0.0;
       final totalHeight = messageHeight + dateHeight;
-      
+
       accumulatedHeight += totalHeight;
-      
+
       // 누적 높이가 뷰포트 중앙을 넘으면 해당 메시지가 화면 중앙에 보임
       if (accumulatedHeight >= viewportCenter) {
         visibleIndex = i;
         break;
       }
-      
+
       // 마지막 메시지까지 도달한 경우
       if (i == _messages.length - 1) {
         visibleIndex = i;
       }
     }
-    
+
     // 보이는 메시지의 날짜 추출
-    final visibleMessage = _messages[visibleIndex.clamp(0, _messages.length - 1)];
+    final visibleMessage =
+        _messages[visibleIndex.clamp(0, _messages.length - 1)];
     final newVisibleDate = DateTime(
       visibleMessage.createTime.year,
       visibleMessage.createTime.month,
       visibleMessage.createTime.day,
     );
-    
+
     if (isAtBottom != _isAtBottom || _visibleDate != newVisibleDate) {
       if (!mounted) return;
       final wasAtBottom = _isAtBottom;
@@ -238,7 +266,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           _latestNewMessageContent = null;
         }
       });
-      
+
       // 스크롤이 맨 아래로 내려갔을 때 읽음 처리
       if (!wasAtBottom && isAtBottom) {
         _checkAndMarkAsReadIfAtBottom();
@@ -253,7 +281,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         if (event is Map) {
           final data = Map<String, dynamic>.from(event);
           final eventType = data['type'] ?? 'notification';
-          
+
           if (eventType == 'room_updated') {
             _handleRoomUpdate(data);
           } else if (eventType == 'notification') {
@@ -273,18 +301,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     final packageName = data['packageName'] ?? '';
     final subText = data['subText'] ?? '';
     final sender = data['title'] ?? '';
-    
+
     // 현재 대화방과 같은 패키지인지 확인
     if (packageName != widget.room.packageName) return;
-    
+
     // roomName 추출 (개인톡: sender, 그룹톡: subText)
     final roomName = subText.isNotEmpty ? subText : sender;
-    
+
     // 현재 대화방에 대한 알림인지 확인
     if (roomName != widget.room.roomName) return;
-    
+
     debugPrint('📩 현재 대화방에 새 알림 도착: $roomName');
-    
+
     // 새 메시지 로드 (DB에 이미 저장되어 있을 것)
     _loadNewMessages();
   }
@@ -292,12 +320,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 채팅방 업데이트 처리
   void _handleRoomUpdate(Map<String, dynamic> data) {
     final roomName = data['roomName'] as String? ?? '';
-    
+
     // 현재 대화방에 대한 업데이트인지 확인
     if (roomName != widget.room.roomName) return;
-    
+
     debugPrint('📩 현재 대화방에 새 메시지 도착: $roomName');
-    
+
     // 새 메시지 로드
     _loadNewMessages();
   }
@@ -305,23 +333,24 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 새 메시지만 로드 (최신 메시지 가져오기)
   Future<void> _loadNewMessages() async {
     if (_isLoading || _isLoadingMore) return;
-    
+
     try {
       final response = await _localDb.getRoomMessages(
         widget.room.id,
         page: 0,
-        size: 20,  // 최신 20개만 가져오기
+        size: 20, // 최신 20개만 가져오기
       );
-      
+
       if (response == null || response.messages.isEmpty) return;
       if (!mounted) return;
-      
+
       // 현재 메시지 ID 집합 (중복 체크용)
       final existingMessageIds = _messages.map((msg) => msg.messageId).toSet();
-      
+
       // 현재 가장 최신 메시지의 시간 (시간 비교용)
-      final latestTime = _messages.isNotEmpty ? _messages.first.createTime : DateTime(1970);
-      
+      final latestTime =
+          _messages.isNotEmpty ? _messages.first.createTime : DateTime(1970);
+
       // 새로운 메시지만 필터링 (ID 중복 체크 + 시간 비교)
       final newMessages = response.messages.where((msg) {
         // ID로 중복 체크 (더 정확함)
@@ -329,11 +358,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         // 시간 비교 (같은 시간도 포함하도록 >= 사용)
         return msg.createTime.compareTo(latestTime) >= 0;
       }).toList();
-      
+
       if (newMessages.isEmpty) return;
-      
+
       debugPrint('📩 새 메시지 ${newMessages.length}개 추가');
-      
+
       if (!mounted) return;
       setState(() {
         // 새 메시지를 맨 앞에 추가 (reverse 리스트이므로)
@@ -360,7 +389,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           _latestNewMessageContent = latestMsg.message;
         }
       });
-      
+
       // 스크롤이 맨 아래에 있으면 자동 스크롤 및 읽음 처리
       if (_isAtBottom && _scrollController.hasClients) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -384,7 +413,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 메시지 전송
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
-    
+
     try {
       // Android 네이티브로 메시지 전송 요청
       final success = await _methodChannel.invokeMethod<bool>(
@@ -394,7 +423,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           'message': message,
         },
       );
-      
+
       if (success == true) {
         // 전송 성공 - DB에 메시지 저장
         final now = DateTime.now();
@@ -410,7 +439,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         } catch (e) {
           debugPrint('⚠️ 메시지 DB 저장 실패: $e');
         }
-        
+
         // 전송 성공 - 로컬에 메시지 추가 (임시로 표시)
         final myMessage = MessageItem(
           messageId: -1, // 임시 ID
@@ -418,19 +447,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           message: message,
           createTime: now,
         );
-        
+
         if (mounted) {
           setState(() {
             _messages.insert(0, myMessage);
           });
-          
+
           // 입력창 초기화
           _chatInputController.clear();
-          
+
           // 맨 아래로 스크롤
           _scrollToBottom();
         }
-        
+
         debugPrint('✅ 메시지 전송 성공: $message');
       } else {
         debugPrint('❌ 메시지 전송 실패');
@@ -455,7 +484,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       }
     }
   }
-  
+
   /// 맨 아래로 스크롤
   void _scrollToBottom() {
     if (!mounted) return;
@@ -484,11 +513,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 스크롤이 맨 아래에 있으면 읽음 처리
   Future<void> _checkAndMarkAsReadIfAtBottom() async {
     if (_messages.isEmpty) return;
-    
+
     // 스크롤 컨트롤러가 아직 초기화되지 않은 경우 (메시지가 적어서 스크롤이 없는 경우)
     // 또는 스크롤이 맨 아래에 있는 경우 읽음 처리
     bool shouldMarkAsRead = false;
-    
+
     if (!_scrollController.hasClients) {
       // 스크롤 컨트롤러가 없으면 메시지가 적어서 스크롤이 필요 없는 상태
       // 이 경우 화면에 모든 메시지가 보이므로 읽음 처리
@@ -497,7 +526,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       // 스크롤이 맨 아래에 있는지 확인 (100px 이내)
       shouldMarkAsRead = _scrollController.position.pixels < 100;
     }
-    
+
     if (shouldMarkAsRead) {
       try {
         await _localDb.markRoomAsRead(widget.room.id);
@@ -508,11 +537,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     }
   }
 
-
   /// 대화방에 들어왔을 때 무조건 읽음 처리 (카카오톡처럼)
   Future<void> _markAsReadImmediately() async {
     if (_messages.isEmpty) return;
-    
+
     try {
       debugPrint('🔄 즉시 읽음 처리 시도 (roomId: ${widget.room.id})');
       await _localDb.markRoomAsRead(widget.room.id);
@@ -530,7 +558,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       packageName: widget.room.packageName,
       roomName: widget.room.roomName,
       sender: sender,
-      fallbackToRoom: true,  // sender 프로필 없으면 대화방 프로필 사용
+      fallbackToRoom: true, // sender 프로필 없으면 대화방 프로필 사용
     );
   }
 
@@ -550,7 +578,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       _messages = [];
       _hasMore = true;
     });
-    
+
     // 프로필 캐시 클리어 (새로운 이미지 반영)
     _profileService.invalidateRoomSenders(widget.room.roomName);
 
@@ -570,7 +598,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         debugPrint('메시지 로딩 완료: ${_messages.length}개');
 
         // 안 읽은 메시지가 5개 이상이면 자동으로 요약 모드 진입 (블럭 표시)
-        if (widget.room.unreadCount >= 5 && _messages.isNotEmpty && widget.room.summaryEnabled) {
+        if (widget.room.unreadCount >= 5 &&
+            _messages.isNotEmpty &&
+            widget.room.summaryEnabled) {
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
             // 자동으로 요약 모드 진입 (안 읽은 메시지 개수만큼 선택)
@@ -584,7 +614,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
             if (!mounted) return;
             _jumpToUnreadMessages();
           });
-        } else if (widget.room.unreadCount > 0 && widget.room.unreadCount < 5 && _messages.isNotEmpty) {
+        } else if (widget.room.unreadCount > 0 &&
+            widget.room.unreadCount < 5 &&
+            _messages.isNotEmpty) {
           // 안 읽은 메시지가 1~4개면 읽지 않은 메시지 위치로 이동
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
@@ -593,7 +625,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         }
         // 안 읽은 메시지가 없으면 스크롤 위치 변경 없음 (기본 위치 유지)
       });
-      
+
       // 초기 로딩 완료 후 새 메시지 체크 (로딩 중에 들어온 메시지가 있을 수 있음)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -701,7 +733,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   bool _shouldShowTime(int index) {
     if (index == 0) return true; // 첫 번째 메시지 (가장 최신)는 항상 시간 표시
     if (_isLastInGroup(index)) return true;
-    
+
     // reverse: true이므로 index는 이미 역순
     final current = _messages[index];
     final prev = _messages[index - 1];
@@ -776,7 +808,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
     // index 0부터 blockEndIndex까지의 누적 높이 계산 (blockEndIndex 메시지 포함)
     final blockEndOffset = _calculateScrollOffset(blockEndIndex + 1);
-    final blockEndMessageHeight = _estimateMessageHeight(_messages[blockEndIndex]);
+    final blockEndMessageHeight =
+        _estimateMessageHeight(_messages[blockEndIndex]);
 
     // 화면 상단 25% 위치에 블록 맨 위 메시지가 오도록 조정
     final screenHeight = MediaQuery.of(context).size.height;
@@ -785,13 +818,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     // blockEndOffset으로 스크롤하면 blockEndIndex 다음 메시지가 화면 하단에 위치
     // 블록 맨 위 메시지가 화면 상단 25%에 오게 하려면:
     // offset = blockEndOffset - screenHeight + topMargin + 메시지높이
-    final adjustedOffset = (blockEndOffset - screenHeight + topMargin + blockEndMessageHeight)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
+    final adjustedOffset =
+        (blockEndOffset - screenHeight + topMargin + blockEndMessageHeight)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
 
     // 애니메이션 없이 즉시 이동 (jumpTo)
     _scrollController.jumpTo(adjustedOffset);
 
-    debugPrint('안 읽은 메시지 위치로 즉시 이동: unreadCount=$unreadCount, blockEndIndex=$blockEndIndex, adjustedOffset=$adjustedOffset');
+    debugPrint(
+        '안 읽은 메시지 위치로 즉시 이동: unreadCount=$unreadCount, blockEndIndex=$blockEndIndex, adjustedOffset=$adjustedOffset');
   }
 
   /// 검색 실행
@@ -812,7 +847,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       if (_selectedSender != null && _messages[i].sender != _selectedSender) {
         continue;
       }
-      
+
       // 메시지 내용 검색
       if (_messages[i].message.toLowerCase().contains(lowerQuery)) {
         results.add(i);
@@ -829,7 +864,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       _scrollToSearchResult(0);
     }
   }
-  
+
   /// 고유한 발신자 목록 가져오기
   List<String> _getUniqueSenders() {
     final senders = <String>{};
@@ -838,7 +873,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     }
     return senders.toList()..sort();
   }
-  
+
   /// 사용자 선택 다이얼로그 표시
   void _showSenderSelectionDialog() {
     final senders = _getUniqueSenders();
@@ -897,7 +932,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   leading: CircleAvatar(
                     radius: 20,
                     backgroundColor: const Color(0xFF64B5F6),
-                    backgroundImage: profileImage != null ? FileImage(profileImage) : null,
+                    backgroundImage:
+                        profileImage != null ? FileImage(profileImage) : null,
                     child: profileImage == null
                         ? Text(
                             sender.isNotEmpty ? sender[0] : '?',
@@ -976,8 +1012,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       final targetPositionFromBottom = visibleHeight * 0.35;
 
       // offset 조정: baseOffset에서 빼면 메시지가 위로 올라감
-      final targetOffset = (baseOffset - targetPositionFromBottom + messageHeight)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      final targetOffset =
+          (baseOffset - targetPositionFromBottom + messageHeight)
+              .clamp(0.0, _scrollController.position.maxScrollExtent);
 
       _scrollController.animateTo(
         targetOffset,
@@ -1000,7 +1037,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   void _goToNextSearchResult() {
     if (_searchResults.isEmpty) return;
     setState(() {
-      _currentSearchIndex = (_currentSearchIndex - 1 + _searchResults.length) % _searchResults.length;
+      _currentSearchIndex = (_currentSearchIndex - 1 + _searchResults.length) %
+          _searchResults.length;
     });
     _scrollToSearchResult(_currentSearchIndex);
   }
@@ -1044,23 +1082,25 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
     // 최대 300개로 제한
     final requestedCount = messageCount.clamp(1, 300);
-    
+
     // 요청된 개수가 현재 로드된 메시지보다 많으면 추가로 로드
     if (requestedCount > _messages.length && _hasMore) {
       // 필요한 만큼 메시지 로드 (최대 300개까지)
       final neededCount = requestedCount - _messages.length;
       final pagesToLoad = (neededCount / _pageSize).ceil();
-      
-      for (int i = 0; i < pagesToLoad && _hasMore && _messages.length < 300; i++) {
+
+      for (int i = 0;
+          i < pagesToLoad && _hasMore && _messages.length < 300;
+          i++) {
         try {
           final response = await _localDb.getRoomMessages(
             widget.room.id,
             page: _currentPage + 1,
             size: _pageSize,
           );
-          
+
           if (!mounted) return;
-          
+
           setState(() {
             if (response.messages.isNotEmpty) {
               _messages.addAll(response.messages);
@@ -1070,7 +1110,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               _hasMore = false;
             }
           });
-          
+
           // 300개에 도달하면 중단
           if (_messages.length >= 300) break;
         } catch (e) {
@@ -1079,7 +1119,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         }
       }
     }
-    
+
     if (!mounted) return;
 
     setState(() {
@@ -1087,7 +1127,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
       final maxCount = _messages.length.clamp(1, 300);
       _selectedMessageCount = requestedCount.clamp(1, maxCount);
-      _selectionStartIndex = 0;  // 최신 메시지부터 시작
+      _selectionStartIndex = 0; // 최신 메시지부터 시작
     });
 
     // 블록의 시작점(오래된 쪽 = index N-1)이 화면 상단 25%에 오도록 스크롤
@@ -1102,16 +1142,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           // 블록의 "상단" = 시간순 첫 번째 = 가장 오래된 = index N-1
           // 이 메시지가 화면 상단 25%에 오도록 스크롤
 
-          final blockEndIndex = (_selectedMessageCount - 1).clamp(0, _messages.length - 1);
+          final blockEndIndex =
+              (_selectedMessageCount - 1).clamp(0, _messages.length - 1);
           final blockEndOffset = _calculateScrollOffset(blockEndIndex + 1);
-          final blockEndMessageHeight = _estimateMessageHeight(_messages[blockEndIndex]);
+          final blockEndMessageHeight =
+              _estimateMessageHeight(_messages[blockEndIndex]);
 
           // 화면 상단 25% 위치에 블록 맨 위 메시지가 오도록 조정
           final screenHeight = MediaQuery.of(context).size.height;
           final topMargin = screenHeight * 0.25; // 상단 25% 여백
 
           // 블록 맨 위 메시지가 화면 상단 25%에 오게 하려면:
-          final adjustedOffset = (blockEndOffset - screenHeight + topMargin + blockEndMessageHeight)
+          final adjustedOffset = (blockEndOffset -
+                  screenHeight +
+                  topMargin +
+                  blockEndMessageHeight)
               .clamp(0.0, _scrollController.position.maxScrollExtent);
 
           _scrollController.animateTo(
@@ -1170,7 +1215,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       _selectedMessageCount = 0;
       _selectionStartIndex = null;
       _isDraggingSelection = false;
-      _isDragHandleVisible = false;  // 드래그 핸들도 숨김
+      _isDragHandleVisible = false; // 드래그 핸들도 숨김
     });
     debugPrint('✅ _exitSummaryMode 완료 (_isSummaryMode: $_isSummaryMode)');
   }
@@ -1179,23 +1224,25 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   Future<void> _updateSummaryCount(int newCount) async {
     // 최대 300개로 제한
     final requestedCount = newCount.clamp(1, 300);
-    
+
     // 요청된 개수가 현재 로드된 메시지보다 많으면 추가로 로드
     if (requestedCount > _messages.length && _hasMore) {
       // 필요한 만큼 메시지 로드 (최대 300개까지)
       final neededCount = requestedCount - _messages.length;
       final pagesToLoad = (neededCount / _pageSize).ceil();
-      
-      for (int i = 0; i < pagesToLoad && _hasMore && _messages.length < 300; i++) {
+
+      for (int i = 0;
+          i < pagesToLoad && _hasMore && _messages.length < 300;
+          i++) {
         try {
           final response = await _localDb.getRoomMessages(
             widget.room.id,
             page: _currentPage + 1,
             size: _pageSize,
           );
-          
+
           if (!mounted) return;
-          
+
           setState(() {
             if (response.messages.isNotEmpty) {
               _messages.addAll(response.messages);
@@ -1205,7 +1252,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               _hasMore = false;
             }
           });
-          
+
           // 300개에 도달하면 중단
           if (_messages.length >= 300) break;
         } catch (e) {
@@ -1214,9 +1261,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         }
       }
     }
-    
+
     if (!mounted) return;
-    
+
     // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
     final maxCount = _messages.length.clamp(1, 300);
     setState(() {
@@ -1227,15 +1274,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     if (_messages.isNotEmpty && _selectedMessageCount > 0) {
       if (_scrollController.hasClients) {
         // 블록의 "상단" = 가장 오래된 메시지 = index N-1
-        final blockEndIndex = (_selectedMessageCount - 1).clamp(0, _messages.length - 1);
+        final blockEndIndex =
+            (_selectedMessageCount - 1).clamp(0, _messages.length - 1);
         final blockEndOffset = _calculateScrollOffset(blockEndIndex + 1);
-        final blockEndMessageHeight = _estimateMessageHeight(_messages[blockEndIndex]);
+        final blockEndMessageHeight =
+            _estimateMessageHeight(_messages[blockEndIndex]);
 
         // 화면 상단 25% 위치에 블록 맨 위 메시지가 오도록 조정
         final screenHeight = MediaQuery.of(context).size.height;
         final topMargin = screenHeight * 0.25;
-        final adjustedOffset = (blockEndOffset - screenHeight + topMargin + blockEndMessageHeight)
-            .clamp(0.0, _scrollController.position.maxScrollExtent);
+        final adjustedOffset =
+            (blockEndOffset - screenHeight + topMargin + blockEndMessageHeight)
+                .clamp(0.0, _scrollController.position.maxScrollExtent);
 
         _scrollController.animateTo(
           adjustedOffset,
@@ -1293,7 +1343,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
             }
 
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: Row(
                 children: [
                   Container(
@@ -1307,7 +1358,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                       ),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.edit_rounded, color: Colors.white, size: 20),
+                    child: const Icon(Icons.edit_rounded,
+                        color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -1335,7 +1387,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                       hintText: '개수 입력',
                       suffixText: '개',
                       errorText: errorMessage,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     onSubmitted: (_) => validateAndPop(),
                   ),
@@ -1351,7 +1404,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(AppColors.summaryPrimary),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('확인'),
                 ),
@@ -1368,7 +1422,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
     // mounted 체크 후 안전하게 setState
     if (!mounted) return;
-    
+
     if (result != null) {
       // postFrameCallback로 현재 프레임 완료 후 setState 실행
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1415,7 +1469,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isTop ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                isTop
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
                 size: 14,
                 color: Colors.white,
               ),
@@ -1439,7 +1495,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 고정 토글
   Future<void> _togglePinned() async {
     final newPinned = !widget.room.pinned;
-    final result = await _localDb.updateRoomSettings(widget.room.id, pinned: newPinned);
+    final result =
+        await _localDb.updateRoomSettings(widget.room.id, pinned: newPinned);
 
     if (result != null && mounted) {
       // 부모 화면에 변경사항 전달
@@ -1460,7 +1517,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   }
 
   /// 알림 토글
-  Future<void> _toggleNotification(NotificationSettingsService notificationService) async {
+  Future<void> _toggleNotification(
+      NotificationSettingsService notificationService) async {
     await notificationService.toggleNotification(widget.room.roomName);
     if (mounted) {
       final isMuted = notificationService.isMuted(widget.room.roomName);
@@ -1490,9 +1548,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            newSummaryEnabled
-                ? '✨ AI 요약 기능이 켜졌습니다.'
-                : 'AI 요약 기능이 꺼졌습니다.',
+            newSummaryEnabled ? '✨ AI 요약 기능이 켜졌습니다.' : 'AI 요약 기능이 꺼졌습니다.',
           ),
         ),
       );
@@ -1551,513 +1607,550 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       child: Scaffold(
         backgroundColor: const Color(0xFFE8F4FC), // 밝은 하늘색 배경 (앱 테마와 조화)
         appBar: AppBar(
-        backgroundColor: const Color(AppColors.primaryValue), // 앱 테마 파란색
-        elevation: 0,
-        titleSpacing: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            // 검색 모드나 요약 모드가 활성화되어 있으면 모드 종료
-            if (_isSearchMode) {
-              _exitSearchMode();
-            } else if (_isSummaryMode) {
-              _exitSummaryMode();
-            } else {
-              Navigator.pop(context);
-            }
-          },
-        ),
-        title: _isSearchMode || _isSummaryMode
-            ? _buildAppBarSearchBar()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.room.roomName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (widget.room.participantCount > 0)
-                    Text(
-                      '${widget.room.participantCount}명',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
-              ),
-        actions: [
-          // 검색 모드나 요약 모드가 아닐 때만 검색/요약 버튼 표시
-          if (!_isSearchMode && !_isSummaryMode) ...[
-            // 검색 버튼 (돋보기)
-            IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 22),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
-              onPressed: () {
-                setState(() {
-                  _isSearchMode = true;
-                });
-                // 검색창에 포커스 주기
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _searchFocusNode.requestFocus();
-                });
-              },
+          backgroundColor: const Color(AppColors.primaryValue), // 앱 테마 파란색
+          elevation: 0,
+          titleSpacing: 0,
+          leading: IconButton(
+            icon: Icon(
+              _isDeleteMode ? Icons.close : Icons.arrow_back,
+              color: Colors.white,
             ),
-            // 요약 버튼
-            if (widget.room.summaryEnabled)
-              IconButton(
-                icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
-              onPressed: () async {
-                if (_messages.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('요약할 메시지가 없습니다.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-                if (_messages.length < 5) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('메시지가 ${_messages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-                await _enterSummaryMode(_defaultSummaryCount);
-              },
-            ),
-          ],
-          // 검색/요약 모드가 아닐 때만 메뉴 버튼 표시
-          if (!_isSearchMode && !_isSummaryMode)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.white),
-              onSelected: (value) {
-                if (value == 'summary_history') {
-                  _showSummaryHistory();
-                } else if (value == 'open_kakao') {
-                  _openKakaoTalk();
-                } else if (value == 'leave_room') {
-                  _showLeaveConfirmDialog();
-                }
-              },
-              itemBuilder: (context) => [
-                if (widget.room.summaryEnabled)
-                  const PopupMenuItem(
-                    value: 'summary_history',
-                    child: Row(
-                      children: [
-                        Icon(Icons.history, color: Colors.amber),
-                        SizedBox(width: 12),
-                        Text('AI 요약 히스토리'),
-                      ],
-                    ),
-                  ),
-                const PopupMenuItem(
-                  value: 'open_kakao',
-                  child: Row(
-                    children: [
-                      Icon(Icons.chat_bubble, color: Color(0xFFFFE812)),
-                      SizedBox(width: 12),
-                      Text('카카오톡 열기'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'leave_room',
-                  child: Row(
-                    children: [
-                      Icon(Icons.exit_to_app, color: Colors.red),
-                      SizedBox(width: 12),
-                      Text('대화방 나가기', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3C1E1E)),
-              ),
-            )
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        _error!,
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadMessages,
-                        child: const Text('다시 시도'),
-                      ),
-                    ],
+            onPressed: () {
+              // 삭제 모드가 활성화되어 있으면 삭제 모드 종료
+              if (_isDeleteMode) {
+                _exitDeleteMode();
+              } else if (_isSearchMode) {
+                _exitSearchMode();
+              } else if (_isSummaryMode) {
+                _exitSummaryMode();
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          title: _isDeleteMode
+              ? const Text(
+                  '메시지 삭제',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
                 )
-              : Stack(
-                  children: [
-                    Column(
+              : _isSearchMode || _isSummaryMode
+                  ? _buildAppBarSearchBar()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 메시지 리스트
-                        Expanded(
-                      child: _messages.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.chat_bubble_outline,
-                                      size: 64, color: Colors.grey[400]),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    '아직 대화가 없습니다',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Stack(
-                              children: [
-                                RefreshIndicator(
-                                  onRefresh: _loadMessages,
-                                  color: const Color(0xFF3C1E1E),
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    reverse: true,
-                                    padding: const EdgeInsets.only(
-                                        left: 0,
-                                        right: 0,
-                                        top: 0,
-                                        bottom: 8),
-                                    itemCount: _messages.length + (_isLoadingMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                          if (_isLoadingMore && index == _messages.length) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF3C1E1E)),
-                                ),
-                              ),
-                            );
-                          }
-
-                          // reverse: true이므로 index는 이미 역순
-                          // index 0 = 가장 최신 메시지 (맨 아래 표시)
-                          // index가 커질수록 오래된 메시지 (맨 위 표시)
-                          final message = _messages[index];
-                          final showDate = _shouldShowDate(index);
-                          final isSameSender = _isSameSender(index);
-                          final isLastInGroup = _isLastInGroup(index);
-                          final showTime = _shouldShowTime(index);
-
-                          // reverse: true이므로 index 0이 맨 아래(최신 메시지)에 표시됨
-                          // 날짜 구분선은 메시지 위에 표시되어야 하므로 먼저 배치
-                          
-                          // 요약 모드일 때 선택된 범위에 포함되는지 확인
-                          // 안 읽은 메시지 5개 이상이면 자동으로 요약 모드로 진입하므로
-                          // isUnreadRange는 필요 없음 (요약 모드에서 블럭 표시)
-                          final isInSelectedRange = _isSummaryMode && index < _selectedMessageCount;
-
-                          // 검색 결과인지 확인 - 현재 선택된 것만 하이라이트
-                          final isCurrentSearchResult = _isSearchMode &&
-                                                        _currentSearchIndex >= 0 &&
-                                                        _currentSearchIndex < _searchResults.length &&
-                                                        _searchResults[_currentSearchIndex] == index;
-
-                          // "여기까지 읽으셨습니다" 구분선 표시 여부
-                          // reverse: true이므로 index 0이 최신, unreadCount번째 메시지 위에 구분선
-                          final showUnreadDivider = widget.room.unreadCount > 0 && index == widget.room.unreadCount;
-
-                          // 사용자 검색 모드 여부 (검색어 없이 사용자만 선택된 경우)
-                          final isSenderSearch = _selectedSender != null && _searchController.text.isEmpty;
-
-                          // 메시지 위젯 생성 (현재 선택된 검색 결과만 하이라이트)
-                          Widget messageWidget = _buildMessageBubble(
-                            message,
-                            showProfile: !isSameSender,
-                            showName: !isSameSender,
-                            showTime: showTime,
-                            isLastInGroup: isLastInGroup,
-                            isSearchResult: false, // 모든 검색 결과에 테두리 표시하지 않음
-                            isCurrentSearchResult: isCurrentSearchResult, // 현재 선택된 것만 표시
-                            searchQuery: isCurrentSearchResult && _isSearchMode && _searchController.text.isNotEmpty
-                                ? _searchController.text
-                                : null, // 현재 선택된 것만 단어 하이라이트
-                            isSenderSearch: false,
-                          );
-
-                          // 요약 모드에서 선택 범위의 끝부분에 확장 표시 추가
-                          if (_isSummaryMode && isInSelectedRange) {
-                            // 선택 범위 전체에 배경색 추가 (블럭이 더 잘 보이도록)
-                            messageWidget = Stack(
-                              children: [
-                                // 배경색 레이어
-                                Positioned.fill(
-                                  child: Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      color: Color(AppColors.summaryPrimary).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                                // 메시지 위젯
-                                messageWidget,
-                              ],
-                            );
-                            
-                            // 선택 범위의 첫 번째 메시지 (가장 최신)
-                            if (index == 0) {
-                              messageWidget = Stack(
-                                children: [
-                                  messageWidget,
-                                  // 하단 모서리 표시 - 터치 영역 확장
-                                  Positioned(
-                                    bottom: -24, // 영역 대폭 확장 (-12 -> -24)
-                                    left: 12,
-                                    right: 12,
-                                    child: _buildSelectionEdgeIndicator(isTop: false),
-                                  ),
-                                ],
-                              );
-                            }
-                            // 선택 범위의 마지막 메시지 (가장 오래된)
-                            else if (index == _selectedMessageCount - 1) {
-                              messageWidget = Stack(
-                                children: [
-                                  messageWidget,
-                                  // 상단 모서리 표시 - 터치 영역 확장
-                                  Positioned(
-                                    top: -24, // 영역 대폭 확장 (-12 -> -24)
-                                    left: 12,
-                                    right: 12,
-                                    child: _buildSelectionEdgeIndicator(isTop: true),
-                                  ),
-                                ],
-                              );
-                            }
-                          }
-
-                          // 요약 모드일 때 제스처 감지 추가
-                          if (_isSummaryMode) {
-                            messageWidget = GestureDetector(
-                              onTap: () => _startSelectionAt(index),
-                              onLongPressStart: (details) {
-                                _startSelectionAt(index);
-                                setState(() {
-                                  _isDraggingSelection = true;
-                                });
-                              },
-                              onLongPressMoveUpdate: (details) {
-                                if (_isDraggingSelection) {
-                                  // 현재 드래그 위치의 메시지 인덱스 계산
-                                  // 위로 이동할수록 인덱스 증가 (더 오래된 메시지)
-                                  final scrollDelta = details.localOffsetFromOrigin.dy;
-                                  // 대략 메시지 하나당 80px 높이 기준
-                                  final indexDelta = (-scrollDelta / 60).round();
-                                  final newIndex = ((_selectionStartIndex ?? 0) + indexDelta)
-                                      .clamp(0, _messages.length - 1);
-                                  _expandSelectionTo(newIndex);
-                                }
-                              },
-                              onLongPressEnd: (_) {
-                                setState(() {
-                                  _isDraggingSelection = false;
-                                });
-                              },
-                              child: messageWidget,
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              // 날짜 구분선 (메시지 위에 표시)
-                              if (showDate) _buildDateDivider(message.createTime),
-                              messageWidget,
-                              // "여기까지 읽었습니다" 구분선 (안 읽은 메시지 블록 바로 아래)
-                              if (showUnreadDivider) _buildUnreadDivider(),
-                            ],
-                          );
-                                    },
-                                  ),
-                                ),
-                                // 새 메시지 알림 (카카오톡 스타일, 하단에 붙어서 내용 표시)
-                                if (_newMessageCount > 0 && !_isAtBottom && _latestNewMessageSender != null)
-                                  Positioned(
-                                    bottom: _chatInputBarHeight > 0 ? _chatInputBarHeight + 8 : 80, // 입력창 높이 + 여유 공간
-                                    left: 12,
-                                    right: 12,
-                                    child: GestureDetector(
-                              onTap: () {
-                                _scrollToBottom();
-                                HapticFeedback.lightImpact();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF3B3B3B),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    // 프로필 영역
-                                    Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[600],
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: _getSenderProfileImage(_latestNewMessageSender!) != null
-                                            ? Image.file(
-                                                _getSenderProfileImage(_latestNewMessageSender!)!,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : const Icon(
-                                                Icons.person,
-                                                color: Colors.white70,
-                                                size: 20,
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    // 메시지 내용
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            _latestNewMessageSender!,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _latestNewMessageContent ?? '',
-                                            style: TextStyle(
-                                              color: Colors.grey[300],
-                                              fontSize: 13,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    // 새 메시지 개수 배지
-                                    if (_newMessageCount > 1)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(AppColors.primaryValue),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          '+${_newMessageCount - 1}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    const SizedBox(width: 4),
-                                    // 아래 화살표
-                                    const Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      color: Colors.white70,
-                                      size: 24,
-                                    ),
-                                  ],
-                                ),
-                              ),
+                        Text(
+                          widget.room.roomName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.room.participantCount > 0)
+                          Text(
+                            '${widget.room.participantCount}명',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
                             ),
                           ),
-                                // 스크롤 날짜 인디케이터 (오른쪽에 고정, 카카오톡 스타일)
-                                if (_visibleDate != null && !_isAtBottom)
-                                  Positioned(
-                                    right: 8,
-                                    top: MediaQuery.of(context).size.height * 0.5 - 20, // 화면 중앙
-                                    child: IgnorePointer(
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.6),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          _formatDateForIndicator(_visibleDate!),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            letterSpacing: -0.2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        // 하단 채팅 입력창 (검색/요약 모드가 아닐 때만 표시)
-                        if (!_isSearchMode && !_isSummaryMode)
-                          Builder(
-                            builder: (context) {
-                              // 레이아웃 완료 후 높이 측정
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _measureChatInputBarHeight();
-                              });
-                              return _buildChatInputBar();
-                            },
-                          ),
-                        // 검색/요약 모드일 때 하단 바
-                        if (_isSearchMode)
-                          _buildSearchResultBar(),
-                        if (_isSummaryMode)
-                          _buildSummaryBottomBar(),
                       ],
                     ),
-                  ],
+          actions: [
+            // 검색 모드나 요약 모드, 삭제 모드가 아닐 때만 검색/요약 버튼 표시
+            if (!_isSearchMode && !_isSummaryMode && !_isDeleteMode) ...[
+              // 검색 버튼 (돋보기)
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 22),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
+                onPressed: () {
+                  setState(() {
+                    _isSearchMode = true;
+                  });
+                  // 검색창에 포커스 주기
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _searchFocusNode.requestFocus();
+                  });
+                },
+              ),
+              // 요약 버튼
+              if (widget.room.summaryEnabled)
+                IconButton(
+                  icon: const Icon(Icons.auto_awesome,
+                      color: Colors.white, size: 22),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 32),
+                  onPressed: () async {
+                    if (_messages.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('요약할 메시지가 없습니다.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+                    if (_messages.length < 5) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '메시지가 ${_messages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+                    await _enterSummaryMode(_defaultSummaryCount);
+                  },
                 ),
+            ],
+            // 검색/요약 모드가 아닐 때만 메뉴 버튼 표시
+            if (!_isSearchMode && !_isSummaryMode)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  if (value == 'summary_history') {
+                    _showSummaryHistory();
+                  } else if (value == 'open_kakao') {
+                    _openKakaoTalk();
+                  } else if (value == 'leave_room') {
+                    _showLeaveConfirmDialog();
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (widget.room.summaryEnabled)
+                    const PopupMenuItem(
+                      value: 'summary_history',
+                      child: Row(
+                        children: [
+                          Icon(Icons.history, color: Colors.amber),
+                          SizedBox(width: 12),
+                          Text('AI 요약 히스토리'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'open_kakao',
+                    child: Row(
+                      children: [
+                        Icon(Icons.chat_bubble, color: Color(0xFFFFE812)),
+                        SizedBox(width: 12),
+                        Text('카카오톡 열기'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'leave_room',
+                    child: Row(
+                      children: [
+                        Icon(Icons.exit_to_app, color: Colors.red),
+                        SizedBox(width: 12),
+                        Text('대화방 나가기', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3C1E1E)),
+                ),
+              )
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadMessages,
+                          child: const Text('다시 시도'),
+                        ),
+                      ],
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      Column(
+                        children: [
+                          // 메시지 리스트
+                          Expanded(
+                            child: _messages.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.chat_bubble_outline,
+                                            size: 64, color: Colors.grey[400]),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          '아직 대화가 없습니다',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Stack(
+                                    children: [
+                                      RefreshIndicator(
+                                        onRefresh: _loadMessages,
+                                        color: const Color(0xFF3C1E1E),
+                                        child: ListView.builder(
+                                          controller: _scrollController,
+                                          reverse: true,
+                                          padding: const EdgeInsets.only(
+                                              left: 0,
+                                              right: 0,
+                                              top: 0,
+                                              bottom: 8),
+                                          itemCount: _messages.length +
+                                              (_isLoadingMore ? 1 : 0),
+                                          itemBuilder: (context, index) {
+                                            if (_isLoadingMore &&
+                                                index == _messages.length) {
+                                              return const Padding(
+                                                padding: EdgeInsets.all(16),
+                                                child: Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                                Color>(
+                                                            Color(0xFF3C1E1E)),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            // reverse: true이므로 index는 이미 역순
+                                            // index 0 = 가장 최신 메시지 (맨 아래 표시)
+                                            // index가 커질수록 오래된 메시지 (맨 위 표시)
+                                            final message = _messages[index];
+                                            final showDate =
+                                                _shouldShowDate(index);
+                                            final isSameSender =
+                                                _isSameSender(index);
+                                            final isLastInGroup =
+                                                _isLastInGroup(index);
+                                            final showTime =
+                                                _shouldShowTime(index);
+
+                                            // reverse: true이므로 index 0이 맨 아래(최신 메시지)에 표시됨
+                                            // 날짜 구분선은 메시지 위에 표시되어야 하므로 먼저 배치
+
+                                            // 요약 모드일 때 선택된 범위에 포함되는지 확인
+                                            // 안 읽은 메시지 5개 이상이면 자동으로 요약 모드로 진입하므로
+                                            // isUnreadRange는 필요 없음 (요약 모드에서 블럭 표시)
+                                            final isInSelectedRange =
+                                                _isSummaryMode &&
+                                                    index <
+                                                        _selectedMessageCount;
+
+                                            // 검색 결과인지 확인 - 현재 선택된 것만 하이라이트
+                                            final isCurrentSearchResult =
+                                                _isSearchMode &&
+                                                    _currentSearchIndex >= 0 &&
+                                                    _currentSearchIndex <
+                                                        _searchResults.length &&
+                                                    _searchResults[
+                                                            _currentSearchIndex] ==
+                                                        index;
+
+                                            // "여기까지 읽으셨습니다" 구분선 표시 여부
+                                            // reverse: true이므로 index 0이 최신, unreadCount번째 메시지 위에 구분선
+                                            final showUnreadDivider =
+                                                widget.room.unreadCount > 0 &&
+                                                    index ==
+                                                        widget.room.unreadCount;
+
+                                            // 사용자 검색 모드 여부 (검색어 없이 사용자만 선택된 경우)
+                                            final isSenderSearch =
+                                                _selectedSender != null &&
+                                                    _searchController
+                                                        .text.isEmpty;
+
+                                            // 메시지 위젯 생성 (현재 선택된 검색 결과만 하이라이트)
+                                            Widget messageWidget =
+                                                _buildMessageBubble(
+                                              message,
+                                              showProfile: !isSameSender,
+                                              showName: !isSameSender,
+                                              showTime: showTime,
+                                              isLastInGroup: isLastInGroup,
+                                              isSearchResult:
+                                                  false, // 모든 검색 결과에 테두리 표시하지 않음
+                                              isCurrentSearchResult:
+                                                  isCurrentSearchResult, // 현재 선택된 것만 표시
+                                              searchQuery: isCurrentSearchResult &&
+                                                      _isSearchMode &&
+                                                      _searchController
+                                                          .text.isNotEmpty
+                                                  ? _searchController.text
+                                                  : null, // 현재 선택된 것만 단어 하이라이트
+                                              isSenderSearch: false,
+                                              messageIndex: index,
+                                            );
+
+                                            // 요약 모드에서 선택 범위의 끝부분에 확장 표시 추가
+                                            if (_isSummaryMode &&
+                                                isInSelectedRange) {
+                                              // 선택 범위 전체에 배경색 추가 (블럭이 더 잘 보이도록)
+                                              messageWidget = Stack(
+                                                children: [
+                                                  // 배경색 레이어
+                                                  Positioned.fill(
+                                                    child: Container(
+                                                      margin: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: Color(AppColors
+                                                                .summaryPrimary)
+                                                            .withOpacity(0.2),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // 메시지 위젯
+                                                  messageWidget,
+                                                ],
+                                              );
+
+                                              // 선택 범위의 첫 번째 메시지 (가장 최신)
+                                              if (index == 0) {
+                                                messageWidget = Stack(
+                                                  children: [
+                                                    messageWidget,
+                                                    // 하단 모서리 표시 - 터치 영역 확장
+                                                    Positioned(
+                                                      bottom:
+                                                          -24, // 영역 대폭 확장 (-12 -> -24)
+                                                      left: 12,
+                                                      right: 12,
+                                                      child:
+                                                          _buildSelectionEdgeIndicator(
+                                                              isTop: false),
+                                                    ),
+                                                  ],
+                                                );
+                                              }
+                                              // 선택 범위의 마지막 메시지 (가장 오래된)
+                                              else if (index ==
+                                                  _selectedMessageCount - 1) {
+                                                messageWidget = Stack(
+                                                  children: [
+                                                    messageWidget,
+                                                    // 상단 모서리 표시 - 터치 영역 확장
+                                                    Positioned(
+                                                      top:
+                                                          -24, // 영역 대폭 확장 (-12 -> -24)
+                                                      left: 12,
+                                                      right: 12,
+                                                      child:
+                                                          _buildSelectionEdgeIndicator(
+                                                              isTop: true),
+                                                    ),
+                                                  ],
+                                                );
+                                              }
+                                            }
+
+                                            // 요약 모드일 때 제스처 감지 추가
+                                            if (_isSummaryMode) {
+                                              messageWidget = GestureDetector(
+                                                onTap: () =>
+                                                    _startSelectionAt(index),
+                                                onLongPressStart: (details) {
+                                                  _startSelectionAt(index);
+                                                  setState(() {
+                                                    _isDraggingSelection = true;
+                                                  });
+                                                },
+                                                onLongPressMoveUpdate:
+                                                    (details) {
+                                                  if (_isDraggingSelection) {
+                                                    // 현재 드래그 위치의 메시지 인덱스 계산
+                                                    // 위로 이동할수록 인덱스 증가 (더 오래된 메시지)
+                                                    final scrollDelta = details
+                                                        .localOffsetFromOrigin
+                                                        .dy;
+                                                    // 대략 메시지 하나당 80px 높이 기준
+                                                    final indexDelta =
+                                                        (-scrollDelta / 60)
+                                                            .round();
+                                                    final newIndex =
+                                                        ((_selectionStartIndex ??
+                                                                    0) +
+                                                                indexDelta)
+                                                            .clamp(
+                                                                0,
+                                                                _messages
+                                                                        .length -
+                                                                    1);
+                                                    _expandSelectionTo(
+                                                        newIndex);
+                                                  }
+                                                },
+                                                onLongPressEnd: (_) {
+                                                  setState(() {
+                                                    _isDraggingSelection =
+                                                        false;
+                                                  });
+                                                },
+                                                child: messageWidget,
+                                              );
+                                            }
+
+                                            return Column(
+                                              children: [
+                                                // 날짜 구분선 (메시지 위에 표시)
+                                                if (showDate)
+                                                  _buildDateDivider(
+                                                      message.createTime),
+                                                messageWidget,
+                                                // "여기까지 읽었습니다" 구분선 (안 읽은 메시지 블록 바로 아래)
+                                                if (showUnreadDivider)
+                                                  _buildUnreadDivider(),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      // 새 메시지 알림 (카카오톡 스타일 - 간결한 pill 버튼)
+                                      if (_newMessageCount > 0 &&
+                                          !_isAtBottom &&
+                                          _latestNewMessageSender != null)
+                                        Positioned(
+                                          bottom: _chatInputBarHeight > 0
+                                              ? _chatInputBarHeight + 4
+                                              : 60,
+                                          left: 0,
+                                          right: 0,
+                                          child: Center(
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                _scrollToBottom();
+                                                HapticFeedback.lightImpact();
+                                              },
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black
+                                                      .withOpacity(0.75),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons
+                                                          .keyboard_arrow_down_rounded,
+                                                      color: Colors.white,
+                                                      size: 18,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '새 메시지 $_newMessageCount개',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      // 스크롤 날짜 인디케이터 (오른쪽에 고정, 카카오톡 스타일)
+                                      if (_visibleDate != null && !_isAtBottom)
+                                        Positioned(
+                                          right: 8,
+                                          top: MediaQuery.of(context)
+                                                      .size
+                                                      .height *
+                                                  0.5 -
+                                              20, // 화면 중앙
+                                          child: IgnorePointer(
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black
+                                                    .withOpacity(0.6),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                _formatDateForIndicator(
+                                                    _visibleDate!),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  letterSpacing: -0.2,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                          // 하단 채팅 입력창 (검색/요약/삭제 모드가 아닐 때만 표시)
+                          if (!_isSearchMode &&
+                              !_isSummaryMode &&
+                              !_isDeleteMode)
+                            Builder(
+                              builder: (context) {
+                                // 레이아웃 완료 후 높이 측정
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  _measureChatInputBarHeight();
+                                });
+                                return _buildChatInputBar();
+                              },
+                            ),
+                          // 검색/요약/삭제 모드일 때 하단 바
+                          if (_isSearchMode) _buildSearchResultBar(),
+                          if (_isSummaryMode) _buildSummaryBottomBar(),
+                          if (_isDeleteMode) _buildDeleteBottomBar(),
+                        ],
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -2284,7 +2377,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           ),
                           onPressed: _selectedMessageCount > 5
                               ? () async {
-                                  await _updateSummaryCount(_selectedMessageCount - 1);
+                                  await _updateSummaryCount(
+                                      _selectedMessageCount - 1);
                                   HapticFeedback.selectionClick();
                                 }
                               : null,
@@ -2292,7 +2386,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         GestureDetector(
                           onTap: () => _showCountInputDialog(),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.7),
                               borderRadius: BorderRadius.circular(12),
@@ -2315,14 +2410,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(AppColors.summaryPrimary).withOpacity(0.7),
+                                    color: Color(AppColors.summaryPrimary)
+                                        .withOpacity(0.7),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.edit_rounded,
                                   size: 14,
-                                  color: Color(AppColors.summaryPrimary).withOpacity(0.6),
+                                  color: Color(AppColors.summaryPrimary)
+                                      .withOpacity(0.6),
                                 ),
                               ],
                             ),
@@ -2331,13 +2428,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         IconButton(
                           icon: Icon(
                             Icons.add_circle,
-                            color: _selectedMessageCount < _messages.length.clamp(1, 300)
+                            color: _selectedMessageCount <
+                                    _messages.length.clamp(1, 300)
                                 ? Color(AppColors.summaryPrimary)
                                 : Colors.grey[400],
                           ),
-                          onPressed: _selectedMessageCount < _messages.length.clamp(1, 300)
+                          onPressed: _selectedMessageCount <
+                                  _messages.length.clamp(1, 300)
                               ? () async {
-                                  await _updateSummaryCount(_selectedMessageCount + 1);
+                                  await _updateSummaryCount(
+                                      _selectedMessageCount + 1);
                                   HapticFeedback.selectionClick();
                                 }
                               : null,
@@ -2435,7 +2535,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: _isSearchMode 
+                      color: _isSearchMode
                           ? Color(AppColors.summaryPrimary).withOpacity(0.3)
                           : Colors.grey[200]!,
                       width: 1.5,
@@ -2446,7 +2546,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                       const SizedBox(width: 14),
                       Icon(
                         Icons.search_rounded,
-                        color: _isSearchMode 
+                        color: _isSearchMode
                             ? Color(AppColors.summaryPrimary)
                             : Colors.grey[500],
                         size: 22,
@@ -2465,7 +2565,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
                           ),
                           style: const TextStyle(
                             fontSize: 15,
@@ -2497,8 +2598,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               ),
               const SizedBox(width: 10),
               // AI 요약 버튼
-              if (widget.room.summaryEnabled)
-                _buildAISummaryButton(),
+              if (widget.room.summaryEnabled) _buildAISummaryButton(),
             ],
           ),
         ),
@@ -2531,7 +2631,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               // 선택된 사용자 표시
               if (_selectedSender != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Color(AppColors.summaryPrimary).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -2578,7 +2679,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               if (_selectedSender != null) const SizedBox(width: 12),
               // 검색 결과 개수
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: _searchResults.isEmpty
                       ? Colors.red.withOpacity(0.1)
@@ -2619,9 +2721,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                 color: _searchResults.isNotEmpty
                     ? Color(AppColors.summaryPrimary)
                     : Colors.grey[400],
-                onPressed: _searchResults.isNotEmpty
-                    ? _goToNextSearchResult
-                    : null,
+                onPressed:
+                    _searchResults.isNotEmpty ? _goToNextSearchResult : null,
               ),
               const SizedBox(width: 4),
               // 닫기 버튼
@@ -2703,7 +2804,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               Expanded(
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _searchResults.isEmpty
                           ? Colors.grey[100]
@@ -2744,9 +2846,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                 color: _searchResults.isNotEmpty
                     ? Color(AppColors.summaryPrimary)
                     : Colors.grey[300],
-                onPressed: _searchResults.isNotEmpty
-                    ? _goToNextSearchResult
-                    : null,
+                onPressed:
+                    _searchResults.isNotEmpty ? _goToNextSearchResult : null,
               ),
             ],
           ),
@@ -2767,9 +2868,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: isActive
-              ? Color(AppColors.summaryPrimary)
-              : Colors.grey[100],
+          color: isActive ? Color(AppColors.summaryPrimary) : Colors.grey[100],
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(child: icon),
@@ -2816,7 +2915,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     );
 
     if (selectedDate != null) {
-      _lastSelectedDate = selectedDate;  // 선택한 날짜 저장
+      _lastSelectedDate = selectedDate; // 선택한 날짜 저장
       _scrollToDate(selectedDate);
     }
   }
@@ -2824,7 +2923,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   /// 특정 날짜로 스크롤
   void _scrollToDate(DateTime targetDate) {
     if (!_scrollController.hasClients || _messages.isEmpty) return;
-    
+
     // 선택한 날짜에 해당하는 첫 번째 메시지 찾기 (가장 오래된 메시지, 즉 해당 날짜의 첫 번째 메시지)
     // reverse: true이므로 index가 클수록 오래된 메시지
     int targetIndex = -1;
@@ -2834,7 +2933,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           messageDate.month == targetDate.month &&
           messageDate.day == targetDate.day) {
         targetIndex = i;
-        break;  // 첫 번째(가장 오래된) 메시지를 찾으면 즉시 종료
+        break; // 첫 번째(가장 오래된) 메시지를 찾으면 즉시 종료
       }
     }
 
@@ -2848,13 +2947,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       final messageHeight = _estimateMessageHeight(_messages[targetIndex]);
       final screenHeight = MediaQuery.of(context).size.height;
       final topMargin = screenHeight * 0.1; // 상단 10% 여백
-      
+
       // 메시지가 화면 상단 10% 위치에 오도록 조정
       // baseOffset으로 스크롤하면 메시지가 화면 하단에 위치하므로,
       // 화면 높이만큼 빼고 상단 여백을 더하면 상단에 위치
-      final adjustedOffset = (baseOffset - screenHeight + topMargin + messageHeight)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
-      
+      final adjustedOffset =
+          (baseOffset - screenHeight + topMargin + messageHeight)
+              .clamp(0.0, _scrollController.position.maxScrollExtent);
+
       _scrollController.animateTo(
         adjustedOffset,
         duration: const Duration(milliseconds: 300),
@@ -2866,7 +2966,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       // 해당 날짜의 메시지가 없으면 안내
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${DateFormat('yyyy년 M월 d일').format(targetDate)}의 메시지가 없습니다'),
+          content: Text(
+              '${DateFormat('yyyy년 M월 d일').format(targetDate)}의 메시지가 없습니다'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 2),
         ),
@@ -2901,7 +3002,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                 icon: Icon(
                   Icons.remove,
                   size: 18,
-                  color: _selectedMessageCount > 5 ? Colors.grey[700] : Colors.grey[300],
+                  color: _selectedMessageCount > 5
+                      ? Colors.grey[700]
+                      : Colors.grey[300],
                 ),
                 isActive: false,
                 onTap: _selectedMessageCount > 5
@@ -2917,7 +3020,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                 child: GestureDetector(
                   onTap: _showCountInputDialog,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Color(AppColors.summaryPrimary).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -2939,7 +3043,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Color(AppColors.summaryPrimary).withOpacity(0.7),
+                            color: Color(AppColors.summaryPrimary)
+                                .withOpacity(0.7),
                           ),
                         ),
                       ],
@@ -2973,7 +3078,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   HapticFeedback.mediumImpact();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: Color(AppColors.summaryPrimary),
                     borderRadius: BorderRadius.circular(12),
@@ -3014,9 +3120,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: isActive
-              ? Color(AppColors.summaryPrimary)
-              : Colors.grey[100],
+          color: isActive ? Color(AppColors.summaryPrimary) : Colors.grey[100],
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(child: icon),
@@ -3185,7 +3289,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           ),
                           onPressed: _selectedMessageCount > 5
                               ? () async {
-                                  await _updateSummaryCount(_selectedMessageCount - 1);
+                                  await _updateSummaryCount(
+                                      _selectedMessageCount - 1);
                                   HapticFeedback.selectionClick();
                                 }
                               : null,
@@ -3194,7 +3299,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         GestureDetector(
                           onTap: () => _showCountInputDialog(),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.7),
                               borderRadius: BorderRadius.circular(12),
@@ -3217,14 +3323,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(AppColors.summaryPrimary).withOpacity(0.7),
+                                    color: Color(AppColors.summaryPrimary)
+                                        .withOpacity(0.7),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.edit_rounded,
                                   size: 14,
-                                  color: Color(AppColors.summaryPrimary).withOpacity(0.6),
+                                  color: Color(AppColors.summaryPrimary)
+                                      .withOpacity(0.6),
                                 ),
                               ],
                             ),
@@ -3234,13 +3342,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         IconButton(
                           icon: Icon(
                             Icons.add_circle,
-                            color: _selectedMessageCount < _messages.length.clamp(1, 300)
+                            color: _selectedMessageCount <
+                                    _messages.length.clamp(1, 300)
                                 ? Color(AppColors.summaryPrimary)
                                 : Colors.grey[400],
                           ),
-                          onPressed: _selectedMessageCount < _messages.length.clamp(1, 300)
+                          onPressed: _selectedMessageCount <
+                                  _messages.length.clamp(1, 300)
                               ? () async {
-                                  await _updateSummaryCount(_selectedMessageCount + 1);
+                                  await _updateSummaryCount(
+                                      _selectedMessageCount + 1);
                                   HapticFeedback.selectionClick();
                                 }
                               : null,
@@ -3338,7 +3449,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: _isSearchMode 
+                      color: _isSearchMode
                           ? Color(AppColors.summaryPrimary).withOpacity(0.3)
                           : Colors.grey[200]!,
                       width: 1.5,
@@ -3349,7 +3460,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                       const SizedBox(width: 14),
                       Icon(
                         Icons.search_rounded,
-                        color: _isSearchMode 
+                        color: _isSearchMode
                             ? Color(AppColors.summaryPrimary)
                             : Colors.grey[500],
                         size: 22,
@@ -3367,7 +3478,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
                           ),
                           style: const TextStyle(
                             fontSize: 15,
@@ -3393,13 +3505,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         ),
                       ),
                       // 검색 결과 표시 및 네비게이션
-                      if (_isSearchMode && _searchController.text.isNotEmpty) ...[
+                      if (_isSearchMode &&
+                          _searchController.text.isNotEmpty) ...[
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: _searchResults.isEmpty
                                 ? Colors.red.withOpacity(0.1)
-                                : Color(AppColors.summaryPrimary).withOpacity(0.1),
+                                : Color(AppColors.summaryPrimary)
+                                    .withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -3416,7 +3531,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 22),
+                          icon: const Icon(Icons.keyboard_arrow_up_rounded,
+                              size: 22),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 36),
                           color: _searchResults.isNotEmpty
@@ -3427,7 +3543,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                               : null,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 22),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                              size: 22),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 36),
                           color: _searchResults.isNotEmpty
@@ -3452,8 +3569,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
               ),
               const SizedBox(width: 10),
               // AI 요약 버튼 (요약 기능이 켜져있을 때만 표시)
-              if (widget.room.summaryEnabled)
-                _buildAISummaryButton(),
+              if (widget.room.summaryEnabled) _buildAISummaryButton(),
             ],
           ),
         ),
@@ -3468,7 +3584,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
     if (hasUnreadMessages) {
       // 읽지 않은 메시지 5개 이상: 눈에 띄는 AI 요약하기 버튼 (그라데이션 + 애니메이션)
-      final summaryCount = unreadCount.clamp(1, 300);  // 최대 300개
+      final summaryCount = unreadCount.clamp(1, 300); // 최대 300개
       return Container(
         height: MediaQuery.of(context).size.width * 0.1,
         decoration: BoxDecoration(
@@ -3562,11 +3678,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     // 선택된 메시지들 추출 (최신 메시지부터 위로 N개)
     // ⚠️ ListView.reverse=true이므로 index 0이 최신 메시지
     // 서버에는 오래된 순서(시간순)로 전송해야 LLM 요약 품질이 좋음
-    final selectedMessages = _messages
-        .take(_selectedMessageCount)
-        .toList()
-        .reversed
-        .toList();
+    final selectedMessages =
+        _messages.take(_selectedMessageCount).toList().reversed.toList();
 
     if (selectedMessages.isEmpty) {
       if (mounted) {
@@ -3585,7 +3698,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('메시지가 ${selectedMessages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
+            content: Text(
+                '메시지가 ${selectedMessages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -3594,11 +3708,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     }
 
     // 메시지를 API 요청 형식으로 변환
-    final messagesForApi = selectedMessages.map((m) => {
-      'sender': m.sender,
-      'message': m.message,
-      'createTime': m.createTime.toIso8601String(),
-    }).toList();
+    final messagesForApi = selectedMessages
+        .map((m) => {
+              'sender': m.sender,
+              'message': m.message,
+              'createTime': m.createTime.toIso8601String(),
+            })
+        .toList();
 
     // 개인정보 마스킹 처리 (LLM에 보내기 전)
     final privacyMaskingService = PrivacyMaskingService();
@@ -3631,12 +3747,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
 
       if (result != null) {
         // 서버 응답 필드명: summaryMessage, summarySubject
-        final summaryMessage = result['summaryMessage'] ?? result['summary'] ?? '';
-        final summarySubject = result['summarySubject'] ?? '${selectedMessages.length}개 메시지 요약';
-        
+        final summaryMessage =
+            result['summaryMessage'] ?? result['summary'] ?? '';
+        final summarySubject =
+            result['summarySubject'] ?? '${selectedMessages.length}개 메시지 요약';
+
         debugPrint('📝 요약 저장: $summarySubject');
         debugPrint('📝 요약 내용: $summaryMessage');
-        
+
         // 요약 결과 로컬 DB에 저장
         await _localDb.saveSummary(
           roomId: widget.room.id,
@@ -3653,16 +3771,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
             .where((sender) => sender.isNotEmpty && sender != '나')
             .toSet();
         final participantCount = uniqueSenders.length;
-        
+
         // 시간 형식 변환 (HH:mm 형식)
-        final startTime = DateFormat('HH:mm').format(selectedMessages.first.createTime);
-        final endTime = DateFormat('HH:mm').format(selectedMessages.last.createTime);
-        
+        final startTime =
+            DateFormat('HH:mm').format(selectedMessages.first.createTime);
+        final endTime =
+            DateFormat('HH:mm').format(selectedMessages.last.createTime);
+
         // 요약 모드 먼저 종료 (블럭 선택 해제)
         debugPrint('🔵 요약 완료 - _exitSummaryMode 호출 전');
         _exitSummaryMode();
-        debugPrint('🔵 요약 완료 - _exitSummaryMode 호출 후, _isSummaryMode: $_isSummaryMode');
-        
+        debugPrint(
+            '🔵 요약 완료 - _exitSummaryMode 호출 후, _isSummaryMode: $_isSummaryMode');
+
         // 요약 결과 표시
         _showSummaryBottomSheet({
           'summaryMessage': summaryMessage,
@@ -3690,11 +3811,84 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('분당 요청 횟수를 초과했습니다. ${e.retryAfterSeconds}초 후 다시 시도해주세요.'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
+        // 사용량 초과 안내 바텀시트
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) => Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.timer_outlined,
+                    color: Color(0xFFFF9800),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  e.message,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '내일 자정에 초기화됩니다',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(AppColors.summaryPrimary),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      '확인',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -3784,10 +3978,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   ),
                 ),
               ),
-              
+
               // 헤더
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -3817,13 +4012,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Color(AppColors.summaryPrimary).withOpacity(0.3),
+                            color: Color(AppColors.summaryPrimary)
+                                .withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+                      child: const Icon(Icons.auto_awesome,
+                          color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -3835,7 +4032,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(AppColors.summaryPrimary).withOpacity(0.8),
+                              color: Color(AppColors.summaryPrimary)
+                                  .withOpacity(0.8),
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -3869,7 +4067,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   ],
                 ),
               ),
-              
+
               // 정보 카드들
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -3912,9 +4110,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // 요약 내용 (상세보기 기능 포함)
               _buildSummaryContentCard(
                 summaryMessage: summaryData['summaryMessage'] ?? '',
@@ -3926,16 +4124,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       ),
     ).whenComplete(() {
       // BottomSheet가 닫힐 때 선택 모드 확실하게 해제
-      debugPrint('🟢 BottomSheet whenComplete 호출, mounted: $mounted, _isSummaryMode: $_isSummaryMode');
+      debugPrint(
+          '🟢 BottomSheet whenComplete 호출, mounted: $mounted, _isSummaryMode: $_isSummaryMode');
       if (mounted) {
         _exitSummaryMode();
-        debugPrint('🟢 BottomSheet whenComplete 후 _isSummaryMode: $_isSummaryMode');
+        debugPrint(
+            '🟢 BottomSheet whenComplete 후 _isSummaryMode: $_isSummaryMode');
       }
     });
   }
 
   /// 정보 카드 위젯
-  Widget _buildInfoCard(IconData icon, String value, String label, Color color) {
+  Widget _buildInfoCard(
+      IconData icon, String value, String label, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3986,7 +4187,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     String? summaryDetailMessage,
   }) {
     bool _showDetail = false; // builder 밖에서 선언하여 상태 유지
-    
+
     return StatefulBuilder(
       builder: (context, setState) {
         return Container(
@@ -4080,13 +4281,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         ),
                       ),
                     ),
-                    blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                    blockquotePadding:
+                        const EdgeInsets.only(left: 16, top: 8, bottom: 8),
                   ),
                 ),
               ),
-              
+
               // 상세보기 버튼 (상세 메시지가 있을 때만 표시)
-              if (summaryDetailMessage != null && summaryDetailMessage.isNotEmpty) ...[
+              if (summaryDetailMessage != null &&
+                  summaryDetailMessage.isNotEmpty) ...[
                 Divider(
                   height: 1,
                   thickness: 1,
@@ -4102,9 +4305,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                     bottom: Radius.circular(20),
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16, horizontal: 24),
                     decoration: BoxDecoration(
-                      color: _showDetail 
+                      color: _showDetail
                           ? const Color(0xFF2196F3).withOpacity(0.05)
                           : Colors.transparent,
                       borderRadius: const BorderRadius.vertical(
@@ -4119,7 +4323,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: _showDetail 
+                            color: _showDetail
                                 ? const Color(0xFF2196F3)
                                 : const Color(0xFF2196F3),
                             letterSpacing: -0.3,
@@ -4139,7 +4343,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                     ),
                   ),
                 ),
-                
+
                 // 상세 메시지 (펼쳐질 때)
                 if (_showDetail)
                   AnimatedContainer(
@@ -4197,7 +4401,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                               height: 1.5,
                               color: Color(0xFF2A2A2A),
                             ),
-                            h1Padding: const EdgeInsets.only(bottom: 10, top: 6),
+                            h1Padding:
+                                const EdgeInsets.only(bottom: 10, top: 6),
                             h2: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
@@ -4250,7 +4455,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                                 ),
                               ),
                             ),
-                            blockquotePadding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
+                            blockquotePadding: const EdgeInsets.only(
+                                left: 16, top: 6, bottom: 6),
                           ),
                         ),
                       ],
@@ -4378,46 +4584,172 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   }
 
   /// 검색어를 하이라이트한 텍스트 위젯 생성
+  /// URL 패턴 감지 정규식
+  static final RegExp _urlPattern = RegExp(
+    r'(https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)',
+    caseSensitive: false,
+  );
+
   Widget _buildHighlightedText(String text, String? searchQuery) {
-    if (searchQuery == null || searchQuery.isEmpty) {
-      return Text(
-        text,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF1A1A1A),
-          height: 1.4,
-          letterSpacing: -0.2,
-        ),
-      );
-    }
-
-    final lowerText = text.toLowerCase();
-    final lowerQuery = searchQuery.toLowerCase();
-    final queryIndex = lowerText.indexOf(lowerQuery);
-
-    if (queryIndex == -1) {
-      // 검색어가 없으면 일반 텍스트
-      return Text(
-        text,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF1A1A1A),
-          height: 1.4,
-          letterSpacing: -0.2,
-        ),
-      );
-    }
-
-    // 검색어를 하이라이트한 TextSpan 리스트 생성
+    // URL과 검색어를 모두 처리하는 TextSpan 리스트 생성
     final spans = <TextSpan>[];
-    int lastIndex = 0;
-    int currentIndex = queryIndex;
 
-    while (currentIndex != -1) {
-      // 검색어 이전 텍스트
-      if (currentIndex > lastIndex) {
+    // URL 패턴 찾기
+    final urlMatches = _urlPattern.allMatches(text);
+    final searchLower = searchQuery?.toLowerCase() ?? '';
+    final textLower = text.toLowerCase();
+
+    int lastIndex = 0;
+    final List<_TextSegment> segments = [];
+
+    // URL 위치 추가
+    if (urlMatches.isNotEmpty) {
+      for (final match in urlMatches) {
+        if (match.start > lastIndex) {
+          segments.add(_TextSegment(
+            start: lastIndex,
+            end: match.start,
+            isUrl: false,
+            isHighlight: false,
+          ));
+        }
+        segments.add(_TextSegment(
+          start: match.start,
+          end: match.end,
+          isUrl: true,
+          isHighlight: false,
+          url: match.group(0)!,
+        ));
+        lastIndex = match.end;
+      }
+    }
+
+    // 마지막 URL 이후 텍스트 추가 (또는 URL이 없으면 전체 텍스트)
+    if (lastIndex < text.length) {
+      segments.add(_TextSegment(
+        start: lastIndex,
+        end: text.length,
+        isUrl: false,
+        isHighlight: false,
+      ));
+    }
+
+    // URL도 없고 검색어도 없으면 일반 텍스트
+    if (urlMatches.isEmpty && (searchQuery == null || searchQuery.isEmpty)) {
+      return Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF1A1A1A),
+          height: 1.4,
+          letterSpacing: -0.2,
+        ),
+      );
+    }
+
+    // 검색어 하이라이트 처리
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final queryIndex = textLower.indexOf(searchLower);
+      if (queryIndex != -1) {
+        final newSegments = <_TextSegment>[];
+        for (final segment in segments) {
+          if (segment.isUrl) {
+            newSegments.add(segment);
+          } else {
+            // 세그먼트 내에서 검색어 찾기
+            final segmentText = text.substring(segment.start, segment.end);
+            final segmentLower = segmentText.toLowerCase();
+            int segLastIndex = 0;
+            int segCurrentIndex = segmentLower.indexOf(searchLower);
+
+            while (segCurrentIndex != -1) {
+              // 검색어 이전 텍스트
+              if (segCurrentIndex > segLastIndex) {
+                newSegments.add(_TextSegment(
+                  start: segment.start + segLastIndex,
+                  end: segment.start + segCurrentIndex,
+                  isUrl: false,
+                  isHighlight: false,
+                ));
+              }
+              // 검색어 하이라이트
+              newSegments.add(_TextSegment(
+                start: segment.start + segCurrentIndex,
+                end: segment.start + segCurrentIndex + searchQuery.length,
+                isUrl: false,
+                isHighlight: true,
+              ));
+              segLastIndex = segCurrentIndex + searchQuery.length;
+              segCurrentIndex = segmentLower.indexOf(searchLower, segLastIndex);
+            }
+            // 마지막 검색어 이후 텍스트
+            if (segLastIndex < segmentText.length) {
+              newSegments.add(_TextSegment(
+                start: segment.start + segLastIndex,
+                end: segment.end,
+                isUrl: false,
+                isHighlight: false,
+              ));
+            }
+          }
+        }
+        segments.clear();
+        segments.addAll(newSegments);
+      }
+    }
+
+    // TextSpan 생성
+    for (final segment in segments) {
+      final segmentText = text.substring(segment.start, segment.end);
+      if (segment.isUrl) {
+        final url = segment.url ?? segmentText;
+        final fullUrl = url.startsWith('http://') || url.startsWith('https://')
+            ? url
+            : 'https://$url';
         spans.add(TextSpan(
-          text: text.substring(lastIndex, currentIndex),
+          text: segmentText,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF2196F3),
+            height: 1.4,
+            letterSpacing: -0.2,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.tryParse(fullUrl);
+              if (uri != null) {
+                try {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                  debugPrint('링크 열기 실패: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('링크를 열 수 없습니다.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+        ));
+      } else if (segment.isHighlight) {
+        spans.add(TextSpan(
+          text: segmentText,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF1A1A1A),
+            height: 1.4,
+            letterSpacing: -0.2,
+            backgroundColor: Color(0xFFFFEB3B),
+            fontWeight: FontWeight.w500,
+          ),
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: segmentText,
           style: const TextStyle(
             fontSize: 14,
             color: Color(0xFF1A1A1A),
@@ -4426,42 +4758,441 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
           ),
         ));
       }
-
-      // 검색어 하이라이트 (원본 텍스트에서 해당 부분 추출)
-      final highlightText = text.substring(
-        currentIndex,
-        currentIndex + searchQuery.length,
-      );
-      spans.add(TextSpan(
-        text: highlightText,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF1A1A1A),
-          height: 1.4,
-          letterSpacing: -0.2,
-          backgroundColor: Color(0xFFFFEB3B), // 노란색 배경으로 하이라이트
-        ),
-      ));
-
-      lastIndex = currentIndex + searchQuery.length;
-      currentIndex = lowerText.indexOf(lowerQuery, lastIndex);
     }
 
-    // 마지막 검색어 이후 텍스트
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastIndex),
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF1A1A1A),
-          height: 1.4,
-          letterSpacing: -0.2,
-        ),
-      ));
-    }
+    return RichText(
+      text: TextSpan(children: spans),
+    );
+  }
 
-    return Text.rich(
-      TextSpan(children: spans),
+  /// 메시지 복사
+  Future<void> _copyMessage(String message) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: message));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('메시지가 복사되었습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      debugPrint('메시지 복사 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('메시지 복사에 실패했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 메시지 컨텍스트 메뉴 표시 (카카오톡 스타일 팝업)
+  void _showMessageContextMenu(
+      MessageItem message, int messageIndex, Offset globalPosition) {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: Colors.white,
+      elevation: 8,
+      items: [
+        PopupMenuItem<String>(
+          value: 'copy_all',
+          height: 44,
+          child: Row(
+            children: [
+              Icon(Icons.copy, color: Color(AppColors.summaryPrimary), size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                '전체 복사',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'copy_partial',
+          height: 44,
+          child: Row(
+            children: [
+              Icon(Icons.content_copy,
+                  color: Color(AppColors.summaryPrimary), size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                '일부만 복사',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          height: 44,
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline,
+                  color: Color(AppColors.summaryPrimary), size: 20),
+              const SizedBox(width: 12),
+              Text(
+                '메시지 삭제',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(AppColors.summaryPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'copy_all':
+          _copyMessage(message.message);
+          break;
+        case 'copy_partial':
+          _showPartialCopyDialog(message.message);
+          break;
+        case 'delete':
+          _enterDeleteMode(messageIndex);
+          break;
+      }
+    });
+  }
+
+  /// 일부만 복사 다이얼로그 (전체 선택 상태로 시작, 선택 핸들 표시)
+  void _showPartialCopyDialog(String message) {
+    final textController = TextEditingController(text: message);
+    final focusNode = FocusNode();
+
+    // 다이얼로그가 열리면 자동으로 전체 선택
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusNode.requestFocus();
+      // 약간의 딜레이 후 전체 선택 (포커스가 완전히 잡힌 후)
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (textController.text.isNotEmpty) {
+          textController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: message.length,
+          );
+        }
+      });
+    });
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.content_copy,
+                  color: Color(AppColors.summaryPrimary), size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                '텍스트 선택',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '복사할 부분을 드래그하여 선택하세요',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(dialogContext).size.height * 0.4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Color(AppColors.summaryPrimary).withOpacity(0.3),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SingleChildScrollView(
+                      child: TextField(
+                        controller: textController,
+                        focusNode: focusNode,
+                        maxLines: null,
+                        readOnly: true,
+                        showCursor: true,
+                        enableInteractiveSelection: true,
+                        selectionControls: MaterialTextSelectionControls(),
+                        cursorColor: Color(AppColors.summaryPrimary),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.all(14),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 선택된 텍스트 미리보기
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: textController,
+                  builder: (context, value, child) {
+                    final selection = value.selection;
+                    final hasSelection = selection.isValid &&
+                        selection.start != selection.end;
+                    final selectedLength =
+                        hasSelection ? selection.end - selection.start : 0;
+                    return Text(
+                      hasSelection
+                          ? '선택됨: $selectedLength자'
+                          : '전체: ${message.length}자',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasSelection
+                            ? Color(AppColors.summaryPrimary)
+                            : Colors.grey[500],
+                        fontWeight:
+                            hasSelection ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                focusNode.dispose();
+                Navigator.pop(dialogContext);
+              },
+              child: Text(
+                '취소',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // 선택된 텍스트 가져오기
+                final selection = textController.selection;
+                String textToCopy;
+                if (selection.isValid && selection.start != selection.end) {
+                  textToCopy = textController.text
+                      .substring(selection.start, selection.end);
+                } else {
+                  textToCopy = message; // 선택 없으면 전체 복사
+                }
+                focusNode.dispose();
+                Navigator.pop(dialogContext);
+                _copyMessage(textToCopy);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(AppColors.summaryPrimary),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('선택 복사'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 삭제 모드 진입
+  void _enterDeleteMode(int startIndex) {
+    setState(() {
+      _isDeleteMode = true;
+      _selectedMessageIds = {_messages[startIndex].messageId};
+      HapticFeedback.mediumImpact();
+    });
+  }
+
+  /// 삭제 모드 종료
+  void _exitDeleteMode() {
+    setState(() {
+      _isDeleteMode = false;
+      _selectedMessageIds.clear();
+    });
+  }
+
+  /// 메시지 선택 토글
+  void _toggleMessageSelection(int messageId) {
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+      } else {
+        _selectedMessageIds.add(messageId);
+      }
+      HapticFeedback.selectionClick();
+    });
+  }
+
+  /// 선택된 메시지 삭제
+  Future<void> _deleteSelectedMessages() async {
+    if (_selectedMessageIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('메시지 삭제'),
+        content: Text(
+          '선택한 ${_selectedMessageIds.length}개의 메시지를 삭제하시겠습니까?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final messageIds = _selectedMessageIds.toList();
+      final deletedCount = await _localDb.deleteMessages(messageIds);
+
+      if (mounted) {
+        setState(() {
+          _messages.removeWhere((msg) => messageIds.contains(msg.messageId));
+          _selectedMessageIds.clear();
+          _isDeleteMode = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$deletedCount개의 메시지가 삭제되었습니다.'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('메시지 삭제 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('메시지 삭제에 실패했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 삭제 모드 하단 바
+  Widget _buildDeleteBottomBar() {
+    final selectedCount = _selectedMessageIds.length;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // 취소 버튼
+              TextButton(
+                onPressed: _exitDeleteMode,
+                child: const Text(
+                  '취소',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 선택된 개수 표시
+              Expanded(
+                child: Center(
+                  child: Text(
+                    selectedCount > 0 ? '$selectedCount개 삭제' : '메시지 선택',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: selectedCount > 0 ? Colors.red : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+              // 삭제 버튼
+              ElevatedButton(
+                onPressed: selectedCount > 0 ? _deleteSelectedMessages : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  '삭제',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -4475,16 +5206,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     bool isCurrentSearchResult = false,
     String? searchQuery,
     bool isSenderSearch = false,
+    int? messageIndex,
   }) {
     final profileFile = _getSenderProfileImage(message.sender);
-    
+
     // 내가 보낸 메시지인지 확인 (정확한 매칭만 허용)
     final isSentByMe = message.sender == '나';
-    
+
     // 배경색 결정 - 내가 보낸 메시지는 연한 노란색, 다른 사람은 흰색
-    final Color bubbleColor = isSentByMe 
-        ? const Color(0xFFFFF176)  // 연한 노란색 (조금 더 진하게)
+    final Color bubbleColor = isSentByMe
+        ? const Color(0xFFFFF176) // 연한 노란색 (조금 더 진하게)
         : Colors.white;
+
+    // 삭제 모드에서 선택 여부 확인
+    final isSelected =
+        _isDeleteMode && _selectedMessageIds.contains(message.messageId);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -4495,8 +5231,41 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
+          // 삭제 모드일 때 체크박스 표시
+          if (_isDeleteMode) ...[
+            Padding(
+              padding: const EdgeInsets.only(right: 8, top: 8),
+              child: GestureDetector(
+                onTap: () => _toggleMessageSelection(message.messageId),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? const Color(0xFF2196F3)
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF2196F3)
+                          : Colors.grey[400]!,
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ],
           // 내가 보낸 메시지가 아니면 프로필 이미지 표시
           if (!isSentByMe) ...[
             if (showName)
@@ -4522,11 +5291,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
             else
               const SizedBox(width: 46), // 프로필 공간 유지
           ],
-          
+
           // 메시지 내용
           Expanded(
             child: Column(
-              crossAxisAlignment: isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isSentByMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 // 보낸사람 이름 (그룹의 첫 메시지만 표시, 내가 보낸 메시지는 표시 안 함)
                 if (showName && !isSentByMe)
@@ -4555,49 +5326,81 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                           padding: const EdgeInsets.only(bottom: 4),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: _buildImageWidget(message.imagePath!, message: message),
+                            child: _buildImageWidget(message.imagePath!,
+                                message: message),
                           ),
                         ),
                       // 텍스트가 있으면 말풍선으로 표시 (이미지가 있을 때는 시스템 메시지 제외)
-                      if (message.message.isNotEmpty && 
-                          message.message != '사진을 보냈습니다' && 
+                      if (message.message.isNotEmpty &&
+                          message.message != '사진을 보냈습니다' &&
                           message.message != '이모티콘을 보냈습니다' &&
                           message.message.trim().isNotEmpty)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          mainAxisAlignment: isSentByMe
+                              ? MainAxisAlignment.end
+                              : MainAxisAlignment.start,
                           children: [
                             // 내가 보낸 메시지가 아니면 말풍선 먼저, 내가 보낸 메시지는 시간 먼저
                             if (!isSentByMe) ...[
                               // 말풍선 (카카오톡 스타일)
                               Flexible(
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.65,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: bubbleColor,
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(showName ? 4 : 16),
-                                      topRight: const Radius.circular(16),
-                                      bottomLeft: const Radius.circular(16),
-                                      bottomRight: const Radius.circular(16),
+                                child: GestureDetector(
+                                  onTap: _isDeleteMode
+                                      ? () => _toggleMessageSelection(
+                                          message.messageId)
+                                      : null,
+                                  onLongPressStart: _isDeleteMode
+                                      ? null
+                                      : messageIndex != null
+                                          ? (details) => _showMessageContextMenu(
+                                              message,
+                                              messageIndex,
+                                              details.globalPosition)
+                                          : null,
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                              0.65,
                                     ),
-                                    border: isCurrentSearchResult
-                                        ? Border.all(color: const Color(0xFFFF9800), width: 2)
-                                        : null,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF2196F3)
+                                              .withOpacity(0.1)
+                                          : bubbleColor,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft:
+                                            Radius.circular(showName ? 4 : 16),
+                                        topRight: const Radius.circular(16),
+                                        bottomLeft: const Radius.circular(16),
+                                        bottomRight: const Radius.circular(16),
+                                      ),
+                                      border: isSelected
+                                          ? Border.all(
+                                              color: const Color(0xFF2196F3),
+                                              width: 2)
+                                          : isCurrentSearchResult
+                                              ? Border.all(
+                                                  color:
+                                                      const Color(0xFFFF9800),
+                                                  width: 2)
+                                              : null,
+                                    ),
+                                    child: _buildHighlightedText(
+                                        message.message, searchQuery),
                                   ),
-                                  child: _buildHighlightedText(message.message, searchQuery),
                                 ),
                               ),
                               // 시간 표시
                               if (showTime)
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 6, bottom: 2),
+                                  padding:
+                                      const EdgeInsets.only(left: 6, bottom: 2),
                                   child: Text(
                                     _formatTime(message.createTime),
                                     style: TextStyle(
@@ -4610,7 +5413,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                               // 내가 보낸 메시지: 시간 먼저
                               if (showTime)
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 6, bottom: 2),
+                                  padding: const EdgeInsets.only(
+                                      right: 6, bottom: 2),
                                   child: Text(
                                     _formatTime(message.createTime),
                                     style: TextStyle(
@@ -4621,27 +5425,54 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                                 ),
                               // 말풍선 (연한 노란색)
                               Flexible(
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth: MediaQuery.of(context).size.width * 0.65,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: bubbleColor,
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: const Radius.circular(16),
-                                      topRight: const Radius.circular(16),
-                                      bottomLeft: const Radius.circular(16),
-                                      bottomRight: const Radius.circular(16),
+                                child: GestureDetector(
+                                  onTap: _isDeleteMode
+                                      ? () => _toggleMessageSelection(
+                                          message.messageId)
+                                      : null,
+                                  onLongPressStart: _isDeleteMode
+                                      ? null
+                                      : messageIndex != null
+                                          ? (details) => _showMessageContextMenu(
+                                              message,
+                                              messageIndex,
+                                              details.globalPosition)
+                                          : null,
+                                  child: Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                              0.65,
                                     ),
-                                    border: isCurrentSearchResult
-                                        ? Border.all(color: const Color(0xFFFF9800), width: 2)
-                                        : null,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF2196F3)
+                                              .withOpacity(0.1)
+                                          : bubbleColor,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(16),
+                                        topRight: const Radius.circular(16),
+                                        bottomLeft: const Radius.circular(16),
+                                        bottomRight: const Radius.circular(16),
+                                      ),
+                                      border: isSelected
+                                          ? Border.all(
+                                              color: const Color(0xFF2196F3),
+                                              width: 2)
+                                          : isCurrentSearchResult
+                                              ? Border.all(
+                                                  color:
+                                                      const Color(0xFFFF9800),
+                                                  width: 2)
+                                              : null,
+                                    ),
+                                    child: _buildHighlightedText(
+                                        message.message, searchQuery),
                                   ),
-                                  child: _buildHighlightedText(message.message, searchQuery),
                                 ),
                               ),
                             ],
@@ -4674,22 +5505,22 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
   Widget _buildImageWidget(String imagePath, {MessageItem? message}) {
     // context가 없을 경우를 대비해 안전하게 처리
     final screenWidth = MediaQuery.maybeOf(context)?.size.width ?? 400.0;
-    
+
     // 이모티콘인지 확인 (메시지 텍스트에 "이모티콘" 또는 "스티커"가 포함되어 있거나, 이미지 경로에 emoticon/sticker가 포함된 경우)
     final imagePathLower = imagePath.toLowerCase();
     final isEmoticon = (message?.message.contains('이모티콘') ?? false) ||
-                       (message?.message.contains('스티커') ?? false) ||
-                       imagePathLower.contains('emoticon') ||
-                       imagePathLower.contains('sticker');
-    
+        (message?.message.contains('스티커') ?? false) ||
+        imagePathLower.contains('emoticon') ||
+        imagePathLower.contains('sticker');
+
     // 이모티콘은 작게, 사진은 크게
-    final maxImageWidth = isEmoticon 
-        ? screenWidth * 0.3  // 이모티콘: 화면 너비의 30%
+    final maxImageWidth = isEmoticon
+        ? screenWidth * 0.3 // 이모티콘: 화면 너비의 30%
         : screenWidth * 0.7; // 사진: 화면 너비의 70%
     final maxImageHeight = isEmoticon
-        ? screenWidth * 0.3  // 이모티콘: 화면 너비의 30%
+        ? screenWidth * 0.3 // 이모티콘: 화면 너비의 30%
         : screenWidth * 0.9; // 사진: 최대 높이 제한
-    
+
     // content:// URI인 경우 - Android에서 절대 경로로 변환했으므로 일반적으로 file:// 또는 절대 경로
     // 하지만 혹시 모를 경우를 대비해 처리
     if (imagePath.startsWith('content://')) {
@@ -4712,12 +5543,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         ),
       );
     }
-    
+
     // file:// URI 또는 절대 경로인 경우
-    final file = File(imagePath.startsWith('file://') 
-        ? imagePath.substring(7) 
-        : imagePath);
-    
+    final file = File(
+        imagePath.startsWith('file://') ? imagePath.substring(7) : imagePath);
+
     if (!file.existsSync()) {
       debugPrint('⚠️ 이미지 파일이 존재하지 않습니다: ${file.path}');
       return Container(
@@ -4737,54 +5567,57 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
         ),
       );
     }
-    
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: maxImageWidth,
-        maxHeight: maxImageHeight,
-      ),
-      child: Image.file(
-        file,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint('⚠️ 이미지 로드 실패: ${file.path}, $error');
-          return Container(
-            width: maxImageWidth,
-            height: 200,
-            color: Colors.grey[200],
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.broken_image, color: Colors.grey),
-                SizedBox(height: 4),
-                Text(
-                  '이미지 로드 실패',
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        },
+
+    return GestureDetector(
+      onTap: () => _showImageFullScreen(file.path),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxImageWidth,
+          maxHeight: maxImageHeight,
+        ),
+        child: Image.file(
+          file,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('⚠️ 이미지 로드 실패: ${file.path}, $error');
+            return Container(
+              width: maxImageWidth,
+              height: 200,
+              color: Colors.grey[200],
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, color: Colors.grey),
+                  SizedBox(height: 4),
+                  Text(
+                    '이미지 로드 실패',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   /// 링크 메시지 위젯 (카카오톡 스타일)
-  Widget _buildLinkMessage(MessageItem message, bool isSentByMe, bool showTime) {
+  Widget _buildLinkMessage(
+      MessageItem message, bool isSentByMe, bool showTime) {
     // 메시지에서 URL 추출
     final urlPattern = RegExp(r'(https?://[^\s]+|www\.[^\s]+)');
     final urlMatch = urlPattern.firstMatch(message.message);
     final url = urlMatch?.group(0) ?? '';
     final displayText = message.message.replaceAll(urlPattern, '').trim();
-    
+
     // URL이 http:// 또는 https://로 시작하지 않으면 추가
-    final fullUrl = url.isNotEmpty && !url.startsWith('http') 
-        ? 'https://$url' 
-        : url;
-    
+    final fullUrl =
+        url.isNotEmpty && !url.startsWith('http') ? 'https://$url' : url;
+
     final screenWidth = MediaQuery.of(context).size.width;
     final maxImageWidth = screenWidth * 0.7;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4825,7 +5658,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                   if (message.imagePath != null)
                     SizedBox(
                       width: double.infinity,
-                      child: _buildImageWidget(message.imagePath!, message: message),
+                      child: _buildImageWidget(message.imagePath!,
+                          message: message),
                     ),
                   // 링크 정보
                   Container(
@@ -4845,11 +5679,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
                         if (url.isNotEmpty)
                           Row(
                             children: [
-                              Icon(Icons.link, size: 14, color: Colors.grey[600]),
+                              Icon(Icons.link,
+                                  size: 14, color: Colors.grey[600]),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  url.length > 50 ? '${url.substring(0, 50)}...' : url,
+                                  url.length > 50
+                                      ? '${url.substring(0, 50)}...'
+                                      : url,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.blue[700],
@@ -4916,8 +5753,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
       const Color(0xFFBB8FCE),
       const Color(0xFF85C1E9),
     ];
-    final colorIndex = sender.isNotEmpty ? sender.codeUnitAt(0) % colors.length : 0;
-    
+    final colorIndex =
+        sender.isNotEmpty ? sender.codeUnitAt(0) % colors.length : 0;
+
     return Container(
       width: 38,
       height: 38,
@@ -4938,6 +5776,84 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen> with Widget
     );
   }
 
+  /// 전체 화면 이미지 뷰어 표시
+  void _showImageFullScreen(String imagePath) {
+    final file = File(
+        imagePath.startsWith('file://') ? imagePath.substring(7) : imagePath);
+
+    if (!file.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('이미지 파일을 찾을 수 없습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(
+          imagePath: file.path,
+          onSave: () => _saveImageToGallery(file.path),
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  /// 이미지를 갤러리에 저장
+  Future<void> _saveImageToGallery(String imagePath) async {
+    try {
+      final file = File(imagePath);
+      if (!file.existsSync()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미지 파일을 찾을 수 없습니다.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      await Gal.putImage(imagePath, album: 'AI Chat');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미지가 갤러리에 저장되었습니다.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        HapticFeedback.mediumImpact();
+      }
+    } on GalException catch (e) {
+      debugPrint('이미지 저장 실패 (GalException): ${e.type}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미지 저장에 실패했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('이미지 저장 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미지 저장 중 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
 }
 
 /// 요약 히스토리 오버레이 위젯
@@ -4979,10 +5895,10 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
     setState(() {
       _currentIndex = index;
     });
-    
+
     // 배경 스크롤 제거 - 오버레이에서는 스크롤하지 않음
   }
-  
+
   /// 5페이지 앞으로 이동 (끝에 도달하면 마지막 페이지로)
   void _jumpForward() {
     final totalPages = widget.summaries.length;
@@ -4994,10 +5910,11 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
     );
     HapticFeedback.selectionClick();
   }
-  
+
   /// 5페이지 뒤로 이동 (처음에 도달하면 첫 페이지로)
   void _jumpBackward() {
-    final targetPage = (_currentIndex - 5).clamp(0, widget.summaries.length - 1);
+    final targetPage =
+        (_currentIndex - 5).clamp(0, widget.summaries.length - 1);
     _pageController.animateToPage(
       targetPage,
       duration: const Duration(milliseconds: 300),
@@ -5009,7 +5926,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
   /// 페이지 인디케이터 생성 (최대 5개만 표시, 현재 페이지 중심)
   List<Widget> _buildPageIndicators() {
     final totalPages = widget.summaries.length;
-    
+
     // 5개 이하면 전부 표시
     if (totalPages <= 5) {
       return List.generate(
@@ -5036,7 +5953,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
         ),
       );
     }
-    
+
     // 5개 초과: 현재 페이지를 중심으로 5개 표시
     // 현재 페이지가 항상 가운데(또는 가능한 가운데)에 오도록 계산
     int start;
@@ -5050,7 +5967,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
       // 중간: 현재 페이지가 가운데에 오도록
       start = _currentIndex - 2;
     }
-    
+
     List<Widget> indicators = [];
     for (int i = start; i < start + 5; i++) {
       final isCurrentPage = _currentIndex == i;
@@ -5070,15 +5987,14 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isCurrentPage
-                  ? Colors.white
-                  : Colors.white.withOpacity(0.4),
+              color:
+                  isCurrentPage ? Colors.white : Colors.white.withOpacity(0.4),
             ),
           ),
         ),
       );
     }
-    
+
     return indicators;
   }
 
@@ -5128,9 +6044,10 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
             },
             onHorizontalDragUpdate: (details) {
               final delta = details.localPosition.dx - _dragStartX;
-              _accumulatedDrag += (delta - _accumulatedDrag).abs() > _dragThreshold
-                  ? 0
-                  : delta - _accumulatedDrag;
+              _accumulatedDrag +=
+                  (delta - _accumulatedDrag).abs() > _dragThreshold
+                      ? 0
+                      : delta - _accumulatedDrag;
 
               // 드래그 거리가 임계값을 넘으면 페이지 이동
               if (_accumulatedDrag < -_dragThreshold) {
@@ -5160,12 +6077,14 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
             onHorizontalDragEnd: (details) {
               // 빠른 스와이프 처리
               if (details.primaryVelocity != null) {
-                if (details.primaryVelocity! < -800 && _currentIndex < widget.summaries.length - 1) {
+                if (details.primaryVelocity! < -800 &&
+                    _currentIndex < widget.summaries.length - 1) {
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
                   );
-                } else if (details.primaryVelocity! > 800 && _currentIndex > 0) {
+                } else if (details.primaryVelocity! > 800 &&
+                    _currentIndex > 0) {
                   _pageController.previousPage(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
@@ -5189,14 +6108,14 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _currentIndex > 0 
+                          color: _currentIndex > 0
                               ? Colors.white.withOpacity(0.2)
                               : Colors.white.withOpacity(0.05),
                         ),
                         child: Icon(
                           Icons.keyboard_double_arrow_left,
-                          color: _currentIndex > 0 
-                              ? Colors.white 
+                          color: _currentIndex > 0
+                              ? Colors.white
                               : Colors.white.withOpacity(0.3),
                           size: 20,
                         ),
@@ -5207,7 +6126,9 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                   // 오른쪽 화살표 (5페이지 앞으로) - 2개 이상일 때 표시, 마지막 페이지 아니면 활성화
                   if (widget.summaries.length > 1)
                     GestureDetector(
-                      onTap: _currentIndex < widget.summaries.length - 1 ? _jumpForward : null,
+                      onTap: _currentIndex < widget.summaries.length - 1
+                          ? _jumpForward
+                          : null,
                       child: Container(
                         width: 36,
                         height: 36,
@@ -5221,7 +6142,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         child: Icon(
                           Icons.keyboard_double_arrow_right,
                           color: _currentIndex < widget.summaries.length - 1
-                              ? Colors.white 
+                              ? Colors.white
                               : Colors.white.withOpacity(0.3),
                           size: 20,
                         ),
@@ -5269,7 +6190,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                   Color(AppColors.summaryPrimary).withOpacity(0.06),
                 ],
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Row(
               children: [
@@ -5318,13 +6240,15 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      if (summary.summaryFrom != null && summary.summaryTo != null)
+                      if (summary.summaryFrom != null &&
+                          summary.summaryTo != null)
                         Text(
                           '${_formatDateTime(summary.summaryFrom!)} ~ ${_formatDateTime(summary.summaryTo!)}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(AppColors.summaryPrimary).withOpacity(0.7),
+                            color: Color(AppColors.summaryPrimary)
+                                .withOpacity(0.7),
                             decoration: TextDecoration.none,
                           ),
                         ),
@@ -5333,7 +6257,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                 ),
                 // 페이지 인디케이터
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(12),
@@ -5351,7 +6276,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
               ],
             ),
           ),
-          
+
           // 내용 (깔끔한 패딩)
           Expanded(
             child: Container(
@@ -5385,7 +6310,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
     String? summaryDetailMessage,
   }) {
     bool _showDetail = false; // builder 밖에서 선언하여 상태 유지
-    
+
     return StatefulBuilder(
       builder: (context, setState) {
         return Column(
@@ -5468,23 +6393,27 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                     ),
                   ),
                 ),
-                blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                blockquotePadding:
+                    const EdgeInsets.only(left: 16, top: 8, bottom: 8),
               ),
             ),
-            
+
             // 상세보기 버튼 (상세 메시지가 있을 때만 표시)
-            if (summaryDetailMessage != null && summaryDetailMessage.isNotEmpty) ...[
+            if (summaryDetailMessage != null &&
+                summaryDetailMessage.isNotEmpty) ...[
               const SizedBox(height: 24),
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: _showDetail ? [
-                    BoxShadow(
-                      color: const Color(0xFF2196F3).withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
+                  boxShadow: _showDetail
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF2196F3).withOpacity(0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Material(
                   color: Colors.transparent,
@@ -5496,9 +6425,10 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                     },
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 20),
                       decoration: BoxDecoration(
-                        gradient: _showDetail 
+                        gradient: _showDetail
                             ? LinearGradient(
                                 colors: [
                                   const Color(0xFF2196F3).withOpacity(0.12),
@@ -5509,7 +6439,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         color: _showDetail ? null : Colors.grey[50],
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: _showDetail 
+                          color: _showDetail
                               ? const Color(0xFF2196F3).withOpacity(0.4)
                               : Colors.grey[300]!,
                           width: 1.5,
@@ -5520,7 +6450,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         children: [
                           Icon(
                             _showDetail ? Icons.expand_less : Icons.expand_more,
-                            color: _showDetail 
+                            color: _showDetail
                                 ? const Color(0xFF2196F3)
                                 : const Color(0xFF666666),
                             size: 22,
@@ -5531,7 +6461,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: _showDetail 
+                              color: _showDetail
                                   ? const Color(0xFF2196F3)
                                   : const Color(0xFF666666),
                               letterSpacing: -0.3,
@@ -5544,7 +6474,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                   ),
                 ),
               ),
-              
+
               // 상세 메시지 (펼쳐질 때)
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
@@ -5580,9 +6510,11 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                           children: [
                             // 상세 메시지 제목
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2196F3).withOpacity(0.15),
+                                color:
+                                    const Color(0xFF2196F3).withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
@@ -5630,7 +6562,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   color: Color(0xFF2A2A2A),
                                   decoration: TextDecoration.none,
                                 ),
-                                h1Padding: const EdgeInsets.only(bottom: 10, top: 6),
+                                h1Padding:
+                                    const EdgeInsets.only(bottom: 10, top: 6),
                                 h2: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -5638,7 +6571,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   color: Color(0xFF2A2A2A),
                                   decoration: TextDecoration.none,
                                 ),
-                                h2Padding: const EdgeInsets.only(bottom: 8, top: 6),
+                                h2Padding:
+                                    const EdgeInsets.only(bottom: 8, top: 6),
                                 h3: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -5646,7 +6580,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   color: Color(0xFF2A2A2A),
                                   decoration: TextDecoration.none,
                                 ),
-                                h3Padding: const EdgeInsets.only(bottom: 6, top: 4),
+                                h3Padding:
+                                    const EdgeInsets.only(bottom: 6, top: 4),
                                 strong: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF2A2A2A),
@@ -5660,7 +6595,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   fontSize: 15,
                                   color: Color(0xFF2196F3),
                                 ),
-                                listBulletPadding: const EdgeInsets.only(right: 8),
+                                listBulletPadding:
+                                    const EdgeInsets.only(right: 8),
                                 code: TextStyle(
                                   fontSize: 13,
                                   fontFamily: 'monospace',
@@ -5685,7 +6621,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                     ),
                                   ),
                                 ),
-                                blockquotePadding: const EdgeInsets.only(left: 16, top: 6, bottom: 6),
+                                blockquotePadding: const EdgeInsets.only(
+                                    left: 16, top: 6, bottom: 6),
                               ),
                             ),
                           ],
@@ -5702,6 +6639,67 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.month}/${dateTime.day} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// 전체 화면 이미지 뷰어
+class _FullScreenImageViewer extends StatelessWidget {
+  final String imagePath;
+  final VoidCallback onSave;
+
+  const _FullScreenImageViewer({
+    required this.imagePath,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.white),
+            onPressed: () {
+              onSave();
+              Navigator.pop(context);
+            },
+            tooltip: '저장',
+          ),
+        ],
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.file(
+            File(imagePath),
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image, color: Colors.white, size: 64),
+                    SizedBox(height: 16),
+                    Text(
+                      '이미지를 불러올 수 없습니다',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }
 

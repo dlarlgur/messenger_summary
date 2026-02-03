@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/notification_settings_service.dart';
 import '../services/profile_image_service.dart';
+import '../services/auth_service.dart';
+import '../services/plan_service.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
+import 'usage_management_screen.dart';
+import 'app_settings_screen.dart';
 
 class ChatRoomListScreen extends StatefulWidget {
   const ChatRoomListScreen({super.key});
@@ -20,6 +26,7 @@ class ChatRoomListScreen extends StatefulWidget {
 class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBindingObserver {
   final LocalDbService _localDb = LocalDbService();
   final ProfileImageService _profileService = ProfileImageService();
+  final PlanService _planService = PlanService();
   List<ChatRoom> _chatRooms = [];
   bool _isLoading = true;
   String? _error;
@@ -29,12 +36,24 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // 패키지별 필터링
   String? _selectedPackageName;
 
+  // 설정 버튼 클릭 카운터 (5번 누르면 플랜 선택)
+  int _settingsClickCount = 0;
+  DateTime? _lastSettingsClickTime;
+  
+  // 플랜 타입 캐시
+  String? _cachedPlanType;
+  
+  // ⚠️ 보수적 수정: 이벤트 리스너 구독 추가 (상세화면에서 나와도 동기화 유지)
+  static const eventChannel = EventChannel('com.example.chat_llm/notification_stream');
+  StreamSubscription? _eventSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initProfileService();
     _loadChatRooms();
+    _startListeningEvents(); // ⚠️ 보수적 수정: 이벤트 리스너 구독 시작
   }
 
   @override
@@ -50,7 +69,59 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _eventSubscription?.cancel(); // ⚠️ 보수적 수정: 이벤트 리스너 구독 해제
     super.dispose();
+  }
+  
+  /// ⚠️ 보수적 수정: 이벤트 리스너 구독 시작 (상세화면에서 나와도 동기화 유지)
+  void _startListeningEvents() {
+    _eventSubscription?.cancel(); // 기존 구독 취소
+    _eventSubscription = eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        if (event is Map) {
+          final data = Map<String, dynamic>.from(event);
+          final eventType = data['type'] ?? 'notification';
+          
+          if (eventType == 'room_updated') {
+            debugPrint('📩 대화목록 화면에서 room_updated 이벤트 수신');
+            // 채팅방 업데이트 이벤트 처리
+            _handleRoomUpdateEvent(data);
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ 대화목록 화면 이벤트 스트림 에러: $error');
+        // 에러 발생 시 재구독 시도
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            debugPrint('🔄 대화목록 화면 이벤트 스트림 에러 후 재구독 시도...');
+            _startListeningEvents();
+          }
+        });
+      },
+      cancelOnError: false, // 에러 발생해도 구독 유지
+    );
+    debugPrint('✅ 대화목록 화면 이벤트 리스너 구독 시작');
+  }
+  
+  /// 채팅방 업데이트 이벤트 처리 (대화목록 화면에서 직접 처리)
+  void _handleRoomUpdateEvent(Map<String, dynamic> data) {
+    final roomName = data['roomName'] as String? ?? '';
+    final roomId = data['roomId'] as int? ?? 0;
+    final unreadCount = data['unreadCount'] as int? ?? 0;
+    final lastMessage = data['lastMessage'] as String? ?? '';
+    
+    debugPrint('=== ✅ 대화목록 화면에서 채팅방 업데이트 수신 ===');
+    debugPrint('  roomName: $roomName');
+    debugPrint('  roomId: $roomId');
+    debugPrint('  unreadCount: $unreadCount');
+    debugPrint('  lastMessage: ${lastMessage.length > 50 ? lastMessage.substring(0, 50) + "..." : lastMessage}');
+    
+    // 즉시 새로고침하여 동기화 보장
+    if (mounted) {
+      debugPrint('🔄 대화목록 화면에서 즉시 새로고침 실행');
+      _loadChatRooms(silent: true);
+    }
   }
 
   /// 프로필 이미지 서비스 초기화
@@ -91,6 +162,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   }
 
   Future<void> _loadChatRooms({bool silent = false}) async {
+    // ⚠️ 보수적 수정: silent 모드에서도 로그 출력 (대화목록 동기화 문제 디버깅용)
+    if (silent) {
+      debugPrint('🔄 _loadChatRooms(silent=true) 호출됨 - 대화방 목록 새로고침');
+    }
+    
     if (!silent) {
       if (mounted) {
         setState(() {
@@ -137,6 +213,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       }
       
       // silent 모드에서도 항상 업데이트하여 새 메시지 반영 보장
+      final beforeCount = _chatRooms.length;
       setState(() {
         _chatRooms = rooms;
         _lastMessageCache.clear();
@@ -145,9 +222,21 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         // silent 모드에서도 로딩 상태를 false로 설정하여 UI가 업데이트되도록 함
         _isLoading = false;
       });
-      debugPrint('✅ UI 업데이트 완료: ${_chatRooms.length}개 대화방 표시');
+      
+      // ⚠️ 보수적 수정: silent 모드에서도 로그 출력 (대화목록 동기화 확인용)
+      if (silent) {
+        debugPrint('✅ 대화방 목록 새로고침 완료: 이전 ${beforeCount}개 → 현재 ${_chatRooms.length}개 대화방');
+        if (_chatRooms.isNotEmpty) {
+          final latestRoom = _chatRooms.first;
+          final lastMsg = latestRoom.lastMessage ?? '';
+          final truncatedMsg = lastMsg.length > 30 ? '${lastMsg.substring(0, 30)}...' : lastMsg;
+          debugPrint('   최신 대화방: ${latestRoom.roomName}, 마지막 메시지: $truncatedMsg, 읽지않음: ${latestRoom.unreadCount}');
+        }
+      } else {
+        debugPrint('✅ UI 업데이트 완료: ${_chatRooms.length}개 대화방 표시');
+      }
     } catch (e) {
-      debugPrint('대화방 목록 로드 실패: $e');
+      debugPrint('❌ 대화방 목록 로드 실패: $e');
       if (mounted) {
         setState(() {
           if (!silent) {
@@ -160,11 +249,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
   }
 
-  void _showRoomContextMenu(BuildContext context, ChatRoom room) {
+  void _showRoomContextMenu(BuildContext context, ChatRoom room) async {
     final notificationService =
         Provider.of<NotificationSettingsService>(context, listen: false);
     final isMuted = notificationService.isMuted(room.roomName);
+    
+    // 플랜 타입 확인 (베이직 플랜일 때만 자동 요약 설정 표시)
+    final planType = await _planService.getCurrentPlanType();
+    final isBasicPlan = planType == 'basic';
 
+    if (!mounted) return;
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -241,6 +336,22 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   }
                 },
               ),
+              // 자동 요약 설정 (베이직 플랜 전용 - 베이직일 때만 표시)
+              if (isBasicPlan)
+                _buildMenuItem(
+                  icon: Icons.schedule,
+                  title: '자동 요약 설정',
+                  subtitle: '베이직 플랜 전용',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // 요약 관리 페이지로 이동 (해당 채팅방으로 스크롤)
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UsageManagementScreen(initialRoomId: room.id),
+                      ),
+                    );
+                  },
+                ),
               // 대화방 차단
               _buildMenuItem(
                 icon: Icons.block,
@@ -267,6 +378,104 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ),
       ),
     );
+  }
+
+  /// 설정 메뉴 표시
+  void _showSettingsMenu(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 모두 읽음 처리
+            InkWell(
+              onTap: () async {
+                Navigator.pop(context);
+                await _markAllAsRead();
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                child: const Text(
+                  '모두 읽음 처리',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            // 구분선
+            Divider(height: 1, color: Colors.grey[200]),
+            // 앱 설정
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AppSettingsScreen(),
+                  ),
+                ).then((_) {
+                  _loadChatRooms();
+                });
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                child: const Text(
+                  '앱 설정',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 모든 채팅방 읽음 처리
+  Future<void> _markAllAsRead() async {
+    try {
+      await _localDb.markAllRoomsAsRead();
+      if (mounted) {
+        setState(() {
+          // 모든 채팅방의 unreadCount를 0으로 업데이트
+          for (var i = 0; i < _chatRooms.length; i++) {
+            _chatRooms[i] = _chatRooms[i].copyWith(unreadCount: 0);
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('모든 채팅방이 읽음 처리되었습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('모두 읽음 처리 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('읽음 처리에 실패했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   /// AI 요약 기능 토글
@@ -509,12 +718,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       appBar: AppBar(
         backgroundColor: const Color(0xFF2196F3),
         elevation: 0,
-        title: const Text(
-          'AI 톡비서',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        title: GestureDetector(
+          onTap: _handleTitleClick,
+          child: const Text(
+            'AI 톡비서',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         actions: [
@@ -525,36 +737,32 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             },
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            icon: const Icon(Icons.settings, color: Colors.white),
+            offset: const Offset(0, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             onSelected: (value) async {
-              if (value == 'blocked_rooms') {
+              if (value == 'mark_all_read') {
+                await _markAllAsRead();
+              } else if (value == 'app_settings') {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const BlockedRoomsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const AppSettingsScreen(),
+                  ),
                 ).then((_) {
                   _loadChatRooms();
                 });
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'blocked_rooms',
-                child: Row(
-                  children: [
-                    Icon(Icons.block, size: 20, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text('차단방 관리'),
-                  ],
-                ),
+              const PopupMenuItem<String>(
+                value: 'mark_all_read',
+                child: Text('모두 읽음 처리'),
               ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, size: 20, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text('설정'),
-                  ],
-                ),
+              const PopupMenuItem<String>(
+                value: 'app_settings',
+                child: Text('앱 설정'),
               ),
             ],
           ),
@@ -658,8 +866,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                         }
                                       });
                                     }
-                                    // 항상 새로고침하여 읽음 상태 등 최신 정보 반영
+                                    // ⚠️ 보수적 수정: 상세화면에서 나올 때 무조건 새로고침하여 읽음 상태 등 최신 정보 반영
+                                    debugPrint('🔄 상세화면에서 복귀 - 대화목록 새로고침 및 이벤트 구독 재시작');
                                     _loadChatRooms(silent: true);
+                                    // ⚠️ 핵심 수정: 상세화면 dispose 시 EventChannel 구독이 끊길 수 있으므로 재구독
+                                    _startListeningEvents();
                                   },
                                   onLongPress: () => _showRoomContextMenu(context, room),
                                   child: Container(
@@ -972,5 +1183,141 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       return [];
     }
     return _chatRooms.where((room) => room.packageName == _selectedPackageName).toList();
+  }
+
+  /// 타이틀 클릭 처리 (5번 누르면 플랜 선택)
+  void _handleTitleClick() {
+    final now = DateTime.now();
+    
+    // 3초 이내에 클릭했는지 확인
+    if (_lastSettingsClickTime != null &&
+        now.difference(_lastSettingsClickTime!) < const Duration(seconds: 3)) {
+      _settingsClickCount++;
+    } else {
+      // 3초 이상 지났으면 카운터 리셋
+      _settingsClickCount = 1;
+    }
+    
+    _lastSettingsClickTime = now;
+
+    debugPrint('⚙️ 설정 버튼 클릭: $_settingsClickCount/5');
+
+    // 5번 누르면 플랜 선택 다이얼로그 표시
+    if (_settingsClickCount >= 5) {
+      _settingsClickCount = 0; // 카운터 리셋
+      _showPlanSelectionDialog();
+    }
+  }
+
+  /// 플랜 선택 다이얼로그 표시
+  Future<void> _showPlanSelectionDialog() async {
+    final authService = AuthService();
+    final deviceIdHash = await authService.getDeviceIdHash();
+
+    if (deviceIdHash == null || deviceIdHash.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('플랜 선택 (테스트용)'),
+        content: const Text(
+          '사용할 플랜을 선택하세요.\n\n'
+          '• Free: 일 3회, 메시지 최대 100개\n'
+          '• Basic: 월 200회, 메시지 최대 300개',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _setPlan(deviceIdHash, 'free');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Free'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _setPlan(deviceIdHash, 'basic');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Basic'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 플랜 설정
+  Future<void> _setPlan(String deviceIdHash, String planType) async {
+    if (!mounted) return;
+
+    // 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final planService = PlanService();
+      bool success = false;
+
+      if (planType == 'basic') {
+        success = await planService.setBasicPlan(deviceIdHash);
+      } else {
+        success = await planService.setFreePlan(deviceIdHash);
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context); // 로딩 다이얼로그 닫기
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('플랜이 ${planType.toUpperCase()}로 설정되었습니다.'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('플랜 설정에 실패했습니다.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // 로딩 다이얼로그 닫기
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('플랜 설정 중 오류가 발생했습니다: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

@@ -6,7 +6,9 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
+import 'services/auto_summary_settings_service.dart';
 import 'services/profile_image_service.dart';
+import 'services/auth_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
 
@@ -33,6 +35,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NotificationSettingsService()),
+        ChangeNotifierProvider(create: (_) => AutoSummarySettingsService()),
       ],
       child: MaterialApp(
         title: 'AI 톡비서',
@@ -84,13 +87,32 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _initializeAndCheckPermissions() async {
     final notificationService =
         Provider.of<NotificationSettingsService>(context, listen: false);
+    final autoSummarySettingsService =
+        Provider.of<AutoSummarySettingsService>(context, listen: false);
 
     // 알림 설정 초기화
     await notificationService.initialize();
+    // 자동 요약 설정 초기화
+    await autoSummarySettingsService.initialize();
 
-    // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외)
+    // JWT 토큰 미리 발급 (자동 요약에서 사용)
+    // Play Integrity 검증 후 JWT 토큰을 SharedPreferences에 저장
+    try {
+      final authService = AuthService();
+      final token = await authService.getJwtToken();
+      if (token != null) {
+        debugPrint('✅ JWT 토큰 발급 성공 (자동 요약 준비 완료)');
+      } else {
+        debugPrint('⚠️ JWT 토큰 발급 실패 - 자동 요약 불가');
+      }
+    } catch (e) {
+      debugPrint('JWT 토큰 발급 오류: $e');
+    }
+
+    // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외 + 다른 앱 위에 표시)
     bool notificationPermissionGranted = false;
     bool batteryOptimizationDisabled = false;
+    bool canDrawOverlays = false;
     
     try {
       notificationPermissionGranted =
@@ -106,33 +128,47 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       debugPrint('배터리 최적화 권한 확인 실패: $e');
     }
 
+    // 다른 앱 위에 표시 권한 확인 (필수 권한)
+    try {
+      canDrawOverlays = await methodChannel.invokeMethod<bool>('canDrawOverlays') ?? false;
+    } catch (e) {
+      debugPrint('다른 앱 위에 표시 권한 확인 실패: $e');
+    }
+
     if (mounted) {
-      // 알림 권한 또는 배터리 최적화 제외 권한이 없으면 권한 화면으로
-      if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
+      // 필수 권한이 모두 없으면 권한 화면으로
+      if (!notificationPermissionGranted || !batteryOptimizationDisabled || !canDrawOverlays) {
         debugPrint('⚠️ 권한 미허용 - 권한 화면으로 이동');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+        debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => PermissionScreen(
               onComplete: () {
                 debugPrint('✅ 권한 화면 완료 콜백 호출됨');
-                Future.microtask(() {
-                  if (mounted) {
-                    debugPrint('✅ 메인 화면으로 네비게이션 시작');
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const MainScreen()),
-                    );
-                  }
-                });
+                // 즉시 메인 화면으로 이동
+                if (mounted) {
+                  debugPrint('✅ 메인 화면으로 네비게이션 시작');
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    (route) => false, // 모든 이전 라우트 제거
+                  );
+                  debugPrint('✅ 네비게이션 완료');
+                } else {
+                  debugPrint('⚠️ 위젯이 dispose됨 - 네비게이션 스킵');
+                }
               },
             ),
           ),
         );
       } else {
-        // 모든 권한이 있으면 메인 화면 유지
-        debugPrint('✅ 모든 권한 허용됨 - 메인 화면 유지');
-        _checkPermission(); // 기존 권한 확인 로직도 실행
+        // 모든 필수 권한이 있으면 메인 화면 유지
+        debugPrint('✅ 모든 필수 권한 허용됨 - 메인 화면 유지');
+        debugPrint('  알림 권한: $notificationPermissionGranted');
+        debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+        debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
+        // 팝업 없이 바로 권한 화면으로 이동했으므로 _checkPermission()은 호출하지 않음
       }
     }
   }
@@ -157,60 +193,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _checkPermission() async {
-    try {
-      final bool isEnabled =
-          await methodChannel.invokeMethod('isNotificationListenerEnabled');
-      if (mounted) {
-        setState(() {
-          _isPermissionGranted = isEnabled;
-        });
-      }
-
-      if (!isEnabled && mounted) {
-        _showPermissionDialog();
-      }
-    } on PlatformException catch (e) {
-      debugPrint('권한 확인 실패: ${e.message}');
-    }
-  }
-
-  void _showPermissionDialog() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('알림 접근 권한 필요'),
-          content: const Text(
-            '카카오톡 메시지를 수신하려면 알림 접근 권한이 필요합니다.\n\n설정에서 AI 톡비서의 알림 접근을 허용해주세요.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('나중에'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _openSettings();
-              },
-              child: const Text('설정 열기'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Future<void> _openSettings() async {
-    try {
-      await methodChannel.invokeMethod('openNotificationSettings');
-    } on PlatformException catch (e) {
-      debugPrint('설정 열기 실패: ${e.message}');
-    }
-  }
 
   void _startListening() {
     _subscription?.cancel(); // 기존 구독 취소
@@ -253,7 +235,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     debugPrint('  lastMessage: ${data['lastMessage']}');
     debugPrint('  lastMessageTime: ${data['lastMessageTime']}');
 
-    // ChatRoomListScreen에 업데이트 전달
+    // ⚠️ 보수적 수정: ChatRoomListScreen에 업데이트 전달
     // 즉시 실행하여 빠른 동기화 보장
     if (mounted) {
       if (_chatRoomListKey.currentState != null) {
@@ -266,6 +248,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (mounted && _chatRoomListKey.currentState != null) {
             debugPrint('🔄 대화방 목록 새로고침 재시도');
             _chatRoomListKey.currentState!.refreshRooms();
+          } else {
+            debugPrint('⚠️ 재시도 실패: 위젯이 dispose되었거나 ChatRoomListScreen이 없음');
           }
         });
       }
