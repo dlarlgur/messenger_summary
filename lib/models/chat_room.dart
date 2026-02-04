@@ -38,7 +38,7 @@ class ChatRoom {
   final String packageName;  // 패키지 이름 (com.kakao.talk, org.telegram.messenger 등)
   final String packageAlias;  // 패키지 표시 이름 (카카오톡, 텔레그램, 인스타그램 등)
   final bool autoSummaryEnabled;  // 자동 요약 활성화 여부
-  final int autoSummaryMessageCount;  // 자동 요약 메시지 개수 (5~500)
+  final int autoSummaryMessageCount;  // 자동 요약 메시지 개수 (5~300)
 
   ChatRoom({
     required this.id,

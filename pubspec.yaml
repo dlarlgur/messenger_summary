@@ -49,6 +49,9 @@ dependencies:
   # 이미지 저장
   gal: ^2.3.0
 
+  # 인앱 결제
+  in_app_purchase: ^3.1.11
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

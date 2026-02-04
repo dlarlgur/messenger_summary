@@ -1551,6 +1551,54 @@ class NotificationListener : NotificationListenerService() {
                     val message = text
                     val isPrivateChat = subText.isEmpty()
                     
+                    // ★★★ 이미지 추출을 음소거 체크 전에 수행 (알림 삭제 전에 데이터 확보) ★★★
+                    // 알림에서 이미지 데이터를 먼저 추출해두고, 그 후 음소거면 알림 삭제
+                    var preExtractedImage: android.graphics.Bitmap? = null
+                    var preExtractedRoomProfile: android.graphics.Bitmap? = null
+                    var preExtractedSenderProfile: android.graphics.Bitmap? = null
+
+                    if (roomName.isNotEmpty()) {
+                        // 이미지 데이터 선추출 (알림 삭제 전에 메모리로 복사)
+                        preExtractedRoomProfile = extractRoomProfileImage(noti)
+                        preExtractedSenderProfile = extractSenderProfileImage(noti, bundle, subText.isEmpty())
+
+                        // 공유 이미지 선추출 (이모티콘/스티커 제외)
+                        val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) ||
+                                               message.contains("스티커", ignoreCase = true)
+                        if (!isEmojiOrSticker) {
+                            preExtractedImage = extractSharedImage(noti, bundle, message)
+                        }
+                    }
+
+                    // ★★★ 음소거 및 차단 체크 ★★★
+                    if (roomName.isNotEmpty()) {
+                        // 1. 음소거 체크 (알림만 삭제, 저장은 계속 진행)
+                        val isMuted = isRoomMuted(roomName)
+                        if (isMuted) {
+                            // 음소거된 채팅방이면 알림만 삭제 (이미지는 이미 추출됨)
+                            try {
+                                cancelNotification(notification.key)
+                                Log.i(TAG, "🔇 음소거 채팅방 알림 삭제: roomName='$roomName'")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "🔇 알림 삭제 실패: ${e.message}", e)
+                            }
+                            // return 하지 않음 - 저장은 계속 진행
+                        }
+
+                        // 2. 차단 체크
+                        val isBlocked = isRoomBlocked(roomName, packageName)
+                        if (isBlocked) {
+                            // 차단된 채팅방이면 알림 즉시 삭제하고 종료
+                            try {
+                                cancelNotification(notification.key)
+                                Log.i(TAG, "🚫 차단된 채팅방 알림 삭제: roomName='$roomName'")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "🚫 알림 삭제 실패: ${e.message}", e)
+                            }
+                            return  // 즉시 종료 (이미지 저장, 메시지 저장 모두 스킵)
+                        }
+                    }
+                    
                     // 내가 보낸 메시지인지 확인 (selfDisplayName과 비교)
                     if (sender == selfDisplayName || sender == "나") {
                         sender = "나"
@@ -1565,143 +1613,54 @@ class NotificationListener : NotificationListenerService() {
                         Log.d(TAG, ">>> [$messengerName] 개인톡=$isPrivateChat, sender='$sender', roomName='$roomName'")
                     }
 
-                    // 이미지 처리
-                    // savedImagePath를 상위 스코프에 선언하고 명시적으로 초기화 (이전 값이 남아있지 않도록)
+                    // 이미지 처리 (선추출된 이미지 사용 - 알림 삭제 전에 미리 추출됨)
                     var savedImagePath: String? = null
                     var imageMessage: String? = null
-                    
+
                     if (roomName.isNotEmpty()) {
-                        if (shouldLog) {
-                            Log.d(TAG, "========== 프로필 이미지 처리 시작 ==========")
-                            Log.d(TAG, "roomName: '$roomName'")
-                            Log.d(TAG, "sender: '$sender'")
-                            Log.d(TAG, "isPrivateChat: $isPrivateChat")
-                        }
-                        
-                        // 1. 대화방 프로필 사진 저장 (LargeIcon - 대화방 이미지)
-                        // null 체크 후 저장 (crash 예방)
-                        extractRoomProfileImage(noti)?.let { roomProfileBitmap ->
-                            if (shouldLog) {
-                                Log.d(TAG, "✅ 대화방 프로필 이미지 추출 성공: ${roomProfileBitmap.width}x${roomProfileBitmap.height}")
-                            }
+                        // 1. 대화방 프로필 사진 저장 (선추출된 이미지 사용)
+                        preExtractedRoomProfile?.let { roomProfileBitmap ->
                             saveRoomProfileImage(roomName, roomProfileBitmap)
                         }
 
-                        // 2. 보낸사람 프로필 사진 저장 (개인톡: LargeIcon, 그룹톡: Person.icon)
-                        // null 체크 후 저장 (crash 예방)
-                        extractSenderProfileImage(noti, bundle, isPrivateChat)?.let { senderProfileBitmap ->
-                            if (shouldLog) {
-                                Log.d(TAG, "✅ 보낸사람 프로필 이미지 추출 성공: ${senderProfileBitmap.width}x${senderProfileBitmap.height}")
-                            }
-                            // 해시 기반 파일명으로 저장 (packageName + roomName + sender 조합)
+                        // 2. 보낸사람 프로필 사진 저장 (선추출된 이미지 사용)
+                        preExtractedSenderProfile?.let { senderProfileBitmap ->
                             saveSenderProfileImage(packageName, roomName, sender, senderProfileBitmap)
                         }
 
-                        // 3. 공유된 사진/이모티콘이 있으면 앱 내부 저장소에 저장
-                        
-                        // 이미지가 있을 가능성이 있는 메시지인지 확인 (시스템 메시지 패턴 체크)
+                        // 3. 공유된 사진 저장 (선추출된 이미지 사용)
                         val systemMessagePatterns = listOf(
-                            "사진을 보냈습니다", "사진을 보냈습니다.", "사진을 보냈습니다!", "사진을 보냈습니다?", "사진을 보냈습니다~",
-                            "이미지를 보냈습니다", "이미지를 보냈습니다.",
-                            "이모티콘을 보냈습니다", "이모티콘을 보냈습니다.", "이모티콘을 보냈습니다!", "이모티콘을 보냈습니다?", "이모티콘을 보냈습니다~",
-                            "스티커를 보냈습니다", "스티커를 보냈습니다.", "스티커를 보냈습니다!", "스티커를 보냈습니다?", "스티커를 보냈습니다~",
-                            "사진", "사진.", "사진!", "사진~",
-                            "이모티콘", "이모티콘.", "이모티콘!", "이모티콘~",
-                            "스티커", "스티커.", "스티커!", "스티커~",
+                            "사진을 보냈습니다", "이미지를 보냈습니다"
                         )
-                        
                         val isSystemMessage = systemMessagePatterns.any { pattern ->
                             message.contains(pattern, ignoreCase = true)
                         }
-                        
-                        // 이모티콘/스티커 여부 확인 (이미지 추출 시도 여부 결정)
-                        val isEmojiOrStickerMessage = message.contains("이모티콘", ignoreCase = true) || 
-                                                       message.contains("스티커", ignoreCase = true)
-                        
-                        // 링크 메시지 여부 확인 (URL이 포함되어 있는지)
                         val urlPattern = Regex("""(https?://|www\.)[^\s]+""", RegexOption.IGNORE_CASE)
                         val isLinkMessage = urlPattern.containsMatchIn(message)
-                        
-                        // ⚠️ 보수적 수정: savedImagePath를 명시적으로 null로 초기화 (이전 값이 남아있지 않도록)
-                        savedImagePath = null
-                        imageMessage = null
-                        
-                        // ⚠️ 성능 최적화: 이모티콘/스티커는 이미지 저장하지 않고 텍스트만 저장
-                        val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) || 
+                        val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) ||
                                                message.contains("스티커", ignoreCase = true)
-                        
-                        if (isEmojiOrSticker) {
-                            // 이모티콘/스티커는 이미지 저장 시도하지 않고 바로 텍스트 메시지로 처리
-                            if (shouldLog) {
-                                Log.d(TAG, ">>> 이모티콘/스티커 감지 - 이미지 저장 스킵, 텍스트만 저장: '$message'")
-                            }
-                            // savedImagePath는 null로 유지하고 일반 메시지 저장으로 진행
-                        } else {
-                            // 일반 사진/링크 이미지 추출 시도
-                            if (shouldLog) {
-                                Log.d(TAG, ">>> 이미지 추출 시도: message='$message', isSystemMessage=$isSystemMessage, isLinkMessage=$isLinkMessage")
-                            }
-                            
-                            val sharedImage = extractSharedImage(noti, bundle, message)
-                            
-                            if (sharedImage != null) {
-                                // 이미지 크기 검증: 프로필 이미지가 아닌 실제 사진인지 확인
-                                val minSize = if (isSystemMessage || isLinkMessage) 200 else 300
-                                val isLargeEnough = sharedImage.width >= minSize || sharedImage.height >= minSize
-                                
-                                if (isLargeEnough) {
-                                    Log.i(TAG, "📷 공유 이미지 발견! 저장 시도... (크기: ${sharedImage.width}x${sharedImage.height}, 최소크기: $minSize)")
-                                    savedImagePath = saveNotificationImage(roomName, sharedImage, notification.postTime)
-                                    // 한번 실패하면 끝, 재시도하지 않음
-                                    if (savedImagePath != null) {
-                                        Log.i(TAG, "✅ 이미지 저장 성공: $savedImagePath")
-                                    } else {
-                                        Log.e(TAG, "❌ 이미지 저장 실패")
-                                    }
-                                } else {
-                                    if (shouldLog) {
-                                        Log.d(TAG, "⚠️ 이미지 크기가 작아서 프로필 이미지로 간주 (크기: ${sharedImage.width}x${sharedImage.height}, 최소크기: $minSize)")
-                                    }
-                                }
-                            } else {
-                                // 이미지 추출 실패 - 한번 실패하면 끝
-                                if (shouldLog) {
-                                    Log.d(TAG, "이미지 추출 실패 또는 없음: '$message'")
-                                }
+
+                        if (!isEmojiOrSticker && preExtractedImage != null) {
+                            // 선추출된 이미지 크기 검증 후 저장
+                            val minSize = if (isSystemMessage || isLinkMessage) 200 else 300
+                            val isLargeEnough = preExtractedImage.width >= minSize || preExtractedImage.height >= minSize
+
+                            if (isLargeEnough) {
+                                savedImagePath = saveNotificationImage(roomName, preExtractedImage, notification.postTime)
                             }
                         }
                         
-                        if (shouldLog) {
-                            Log.d(TAG, "========== 프로필 이미지 처리 완료 ==========")
-                        }
-                        
-                        // 이미지 메시지 처리 (간결하게 - 한번만 확인)
+                        // 이미지 메시지 처리
                         if (savedImagePath != null) {
-                            if (isLinkMessage) {
-                                imageMessage = "[LINK:$savedImagePath]$message"
-                                Log.i(TAG, ">>> 링크 메시지: 이미지와 함께 저장")
-                            } else {
-                                imageMessage = "[IMAGE:$savedImagePath]사진을 보냈습니다"
-                                Log.i(TAG, ">>> 이미지 메시지 생성")
-                            }
+                            imageMessage = if (isLinkMessage) "[LINK:$savedImagePath]$message" else "[IMAGE:$savedImagePath]사진을 보냈습니다"
                         } else if (isLinkMessage) {
                             imageMessage = message
-                            Log.i(TAG, ">>> 링크 메시지 (이미지 없음)")
                         }
                         
-                        // 이미지 메시지가 있는 경우 저장 (이미지가 있거나 링크 메시지인 경우)
+                        // 이미지 메시지가 있는 경우 저장
                         if (imageMessage != null) {
-                            Log.i(TAG, ">>> 이미지 메시지 저장 시작: imageMessage='$imageMessage', savedImagePath=$savedImagePath")
-                            
-                            // 음소거 여부 (알림은 이미 위에서 즉시 취소됨, API는 계속 호출)
-                            val isMuted = roomName.isNotEmpty() && isRoomMuted(roomName)
-
-                            // 약관 동의 여부 확인 (동의하지 않으면 데이터 저장 안 함)
-                            val agreementAccepted = isAgreementAccepted()
-                            if (!agreementAccepted) {
-                                Log.w(TAG, ">>> [$messengerName] ⚠️ 약관 동의하지 않음 - 이미지 메시지 저장 건너뜀: roomName=$roomName, sender=$sender")
-                                return
-                            }
+                            // 약관 동의 여부 확인
+                            if (!isAgreementAccepted()) return
 
                             // ✅ 비동기 처리: 메시지 저장을 백그라운드에서 처리 (알림 삭제는 이미 완료)
                             if (sender.isNotEmpty() && roomName.isNotEmpty()) {
@@ -1737,10 +1696,9 @@ class NotificationListener : NotificationListenerService() {
                                         // PendingIntent 및 RemoteInput 캐시에 저장
                                         if (roomId > 0 && replyData != null) {
                                             replyIntentCache[roomId] = replyData
-                                            Log.d(TAG, "✅ ReplyIntent 캐시 저장: roomId=$roomId, hasRemoteInput=${replyData.remoteInput != null}, actionTitle=${replyData.actionTitle}")
                                         }
-                                        
-                                        // 메시지 저장 (roomId가 유효한 경우에만)
+
+                                        // 메시지 저장
                                         if (roomId > 0) {
                                             try {
                                                 db.saveMessage(
@@ -1750,17 +1708,10 @@ class NotificationListener : NotificationListenerService() {
                                                     createTime = postTime,
                                                     roomName = room
                                                 )
-                                                
-                                                if (savedPath != null) {
-                                                    Log.i(TAG, ">>> [$messengerName] ✅ 이미지 메시지 SQLite 저장 완료: roomId=$roomId, sender='$senderName', imagePath=$savedPath, roomName='$room'")
-                                                } else {
-                                                    Log.i(TAG, ">>> [$messengerName] ✅ 링크 메시지 SQLite 저장 완료: roomId=$roomId, sender='$senderName', message='$imageMsg', roomName='$room'")
-                                                }
-                                                
-                                                // 업데이트된 unreadCount 가져오기
+
                                                 val updatedUnreadCount = db.getUnreadCount(roomId)
-                                                
-                                                // 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용)
+
+                                                // 채팅방 업데이트 브로드캐스트
                                                 val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
                                                     putExtra("roomId", roomId)
                                                     putExtra("roomName", room)
@@ -1771,68 +1722,27 @@ class NotificationListener : NotificationListenerService() {
                                                     setPackage(this@NotificationListener.packageName)
                                                     addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                                                 }
-                                                
-                                                // 브로드캐스트 전송
                                                 sendBroadcast(roomUpdateIntent)
-                                                Log.i(TAG, ">>> ✅ 이미지 메시지 채팅방 업데이트 브로드캐스트 전송: roomName=$room, unreadCount=$updatedUnreadCount, roomId=$roomId, lastMessage='${imageMsg.take(50)}...'")
-                                                
-                                                // 자동 요약 체크 (안 읽은 메시지 개수가 설정값에 도달했는지 확인)
+
                                                 checkAndTriggerAutoSummary(roomId, room, updatedUnreadCount)
-                                                
-                                                // ✅ 메시지 저장 후 알람 캔슬 (이미지 저장 후 처리)
-                                                val isMuted = isRoomMuted(room)
-                                                if (isMuted) {
-                                                    try {
-                                                        cancelNotification(notification.key)
-                                                        Log.d(TAG, ">>> ✅ 음소거 채팅방 알림 취소: roomName='$room'")
-                                                    } catch (e: Exception) {
-                                                        Log.e(TAG, ">>> ❌ 알림 취소 실패: ${e.message}", e)
-                                                    }
-                                                }
-                                                
                                             } catch (e: Exception) {
-                                                Log.e(TAG, ">>> [$messengerName] ❌ 이미지 메시지 저장 중 예외 발생: ${e.message}", e)
+                                                Log.e(TAG, "이미지 메시지 저장 실패: ${e.message}")
                                             }
-                                        } else {
-                                            Log.w(TAG, ">>> [$messengerName] ⚠️ roomId가 0이거나 유효하지 않음 - 채팅방이 차단되었거나 저장 실패: roomName='$room', sender='$senderName', imagePath=$savedPath")
                                         }
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "이미지 메시지 SQLite 저장 실패: ${e.message}", e)
+                                        Log.e(TAG, "이미지 메시지 DB 오류: ${e.message}")
                                     }
                                 }
-                            } else {
-                                Log.w(TAG, ">>> [$messengerName] ⚠️ 필수 필드 누락으로 이미지 메시지 저장 건너뜀: sender='$sender' (비어있음=${sender.isEmpty()}), roomName='$roomName' (비어있음=${roomName.isEmpty()})")
                             }
-                            
-                            // 이미지 메시지 저장 시작 (비동기) - 일반 메시지 저장은 건너뜀
-                            Log.d(TAG, ">>> 이미지 메시지 저장 시작 (비동기) - 일반 메시지 저장 건너뜀")
                             return
-                        } else {
-                            if (shouldLog) {
-                                Log.d(TAG, ">>> 이미지 메시지 없음 (imageMessage=null) - 일반 메시지 저장 진행: message='$message'")
-                            }
-                        }
-                    } else {
-                        if (shouldLog) {
-                            Log.d(TAG, ">>> roomName이 비어있음 - 일반 메시지 저장 진행: message='$message'")
                         }
                     }
 
-                    // 음소거 여부 (알림은 이미 위에서 즉시 취소됨, API는 계속 호출)
-                    val isMuted = roomName.isNotEmpty() && isRoomMuted(roomName)
+                    // 약관 동의 여부 확인
+                    if (!isAgreementAccepted()) return
 
-                    // 약관 동의 여부 확인 (동의하지 않으면 데이터 저장 안 함)
-                    val agreementAccepted = isAgreementAccepted()
-                    if (!agreementAccepted) {
-                        Log.w(TAG, ">>> [$messengerName] ⚠️ 약관 동의하지 않음 - 데이터 저장 건너뜀: roomName=$roomName, sender=$sender, message=$message")
-                        return
-                    }
-
-                    // ✅ 비동기 처리: 메시지 저장을 백그라운드에서 처리 (알림 삭제는 이미 완료)
-                    Log.d(TAG, ">>> [$messengerName] 일반 메시지 저장 조건 확인: sender='$sender' (비어있음=${sender.isEmpty()}), message='$message' (비어있음=${message.isEmpty()}), roomName='$roomName' (비어있음=${roomName.isEmpty()})")
-                    
+                    // 일반 메시지 저장
                     if (sender.isNotEmpty() && message.isNotEmpty() && roomName.isNotEmpty()) {
-                        Log.i(TAG, ">>> [$messengerName] ✅ 일반 메시지 저장 시도: sender='$sender', message='$message', roomName='$roomName'")
                         
                         // 필요한 데이터를 로컬 변수로 복사 (클로저 안전성)
                         val finalMessage = message
@@ -1846,42 +1756,10 @@ class NotificationListener : NotificationListenerService() {
                         messageSaveScope.launch {
                             try {
                                 val db = ChatDatabase.getInstance(applicationContext)
-                                
-                                // ★★★ 시스템 메시지 (이모티콘, 사진 등)도 저장 ★★★
-                                // 이전: 이미지 추출 실패 시 시스템 메시지 필터링 → 저장 안 됨
-                                // 수정: 이미지 추출 실패해도 메시지 텍스트는 저장
-                                // 이유: 목록에 보이지만 상세에서 안 보이는 문제 해결
-                                val systemMessagePatterns = listOf(
-                                    "사진을 보냈습니다", "이미지를 보냈습니다",
-                                    "이모티콘을 보냈습니다", "스티커를 보냈습니다"
-                                )
 
-                                val isSystemMessage = systemMessagePatterns.any { pattern ->
-                                    finalMessage.contains(pattern, ignoreCase = true)
-                                }
-
-                                Log.i(TAG, ">>> 메시지 타입 분석: isSystemMessage=$isSystemMessage, savedImagePath=$savedPath, message='$finalMessage'")
-
-                                // ★ 시스템 메시지도 저장 (이미지 추출 실패해도 텍스트 저장)
-                                // 이미지가 추출되었으면 위에서 이미 처리됨, 여기서는 텍스트로 저장
-                                if (isSystemMessage && savedPath == null) {
-                                    Log.i(TAG, ">>> ✅ 시스템 메시지 저장 (이미지 추출 실패): '$finalMessage'")
-                                    // return 제거! 메시지 저장 계속 진행
-                                }
-
-                                Log.i(TAG, ">>> 메시지 저장 진행: message='$finalMessage'")
-                                
-                                // 이모티콘/스티커를 보낼 때 원본 텍스트가 함께 오는 경우 필터링
-                                // 시스템 메시지 필터링에서 이미 처리되지만, 혹시 모를 경우를 대비
-                                // 일반 메시지 저장 부분에서는 이미지 추출 여부를 알 수 없으므로
-                                // 시스템 메시지 패턴만으로 필터링 (위에서 이미 처리됨)
-                                
-                                // PendingIntent 추출 (contentIntent 또는 reply action의 intent)
                                 val replyIntentUri = extractReplyIntent(noti)
                                 val replyData = extractReplyIntentData(noti)
-                                
-                                // 채팅방 저장/업데이트 및 roomId 반환
-                                // 개인채팅은 요약 끄기, 그룹/오픈채팅은 요약 켜기
+
                                 val roomId = db.saveOrUpdateRoom(
                                     roomName = room,
                                     packageName = pkgName,
@@ -1892,15 +1770,10 @@ class NotificationListener : NotificationListenerService() {
                                     isPrivateChat = isPrivate
                                 )
 
-                                // PendingIntent 및 RemoteInput 캐시에 저장
                                 if (roomId > 0 && replyData != null) {
                                     replyIntentCache[roomId] = replyData
-                                    Log.d(TAG, "✅ ReplyIntent 캐시 저장: roomId=$roomId, hasRemoteInput=${replyData.remoteInput != null}, actionTitle=${replyData.actionTitle}, 캐시 크기: ${replyIntentCache.size}")
-                                } else {
-                                    Log.w(TAG, "⚠️ ReplyIntent 캐시 저장 실패: roomId=$roomId, replyData=${replyData != null}")
                                 }
-                                
-                                // 메시지 저장 (roomId가 유효한 경우에만)
+
                                 if (roomId > 0) {
                                     try {
                                         db.saveMessage(
@@ -1910,12 +1783,9 @@ class NotificationListener : NotificationListenerService() {
                                             createTime = postTime,
                                             roomName = room
                                         )
-                                        Log.i(TAG, ">>> [$messengerName] ✅ SQLite 저장 완료: roomId=$roomId, sender='$senderName', message='${finalMessage.take(50)}...', roomName='$room'")
-                                        
-                                        // 업데이트된 unreadCount 가져오기
+
                                         val updatedUnreadCount = db.getUnreadCount(roomId)
-                                        
-                                        // ⚠️ 보수적 수정: 채팅방 업데이트 브로드캐스트 (Flutter UI 갱신용) - 메시지 저장 후 즉시 동기화
+
                                         val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
                                             putExtra("roomId", roomId)
                                             putExtra("roomName", room)
@@ -1924,43 +1794,19 @@ class NotificationListener : NotificationListenerService() {
                                             putExtra("lastMessageTime", postTime.toString())
                                             putExtra("unreadCount", updatedUnreadCount)
                                             setPackage(this@NotificationListener.packageName)
-                                            // 명시적으로 플래그 추가하여 백그라운드에서도 전달되도록
                                             addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                                         }
-                                        
-                                        // 브로드캐스트 전송 (1회만 - 중복 전송 제거로 성능 개선)
                                         sendBroadcast(roomUpdateIntent)
-                                        Log.i(TAG, ">>> ✅ 일반 메시지 채팅방 업데이트 브로드캐스트 전송: roomName=$room, unreadCount=$updatedUnreadCount, roomId=$roomId, lastMessage='${finalMessage.take(50)}...'")
-                                        
-                                        // 자동 요약 체크 (안 읽은 메시지 개수가 설정값에 도달했는지 확인)
                                         checkAndTriggerAutoSummary(roomId, room, updatedUnreadCount)
-                                        
-                                        // ✅ 메시지 저장 후 알람 캔슬 (이미지 저장 후 처리)
-                                        val isMuted = isRoomMuted(room)
-                                        if (isMuted) {
-                                            try {
-                                                cancelNotification(notification.key)
-                                                Log.d(TAG, ">>> ✅ 음소거 채팅방 알림 취소: roomName='$room'")
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, ">>> ❌ 알림 취소 실패: ${e.message}", e)
-                                            }
-                                        }
-                                        
                                     } catch (e: Exception) {
-                                        Log.e(TAG, ">>> [$messengerName] ❌ 메시지 저장 중 예외 발생: ${e.message}", e)
+                                        Log.e(TAG, "메시지 저장 실패: ${e.message}")
                                     }
-                                } else {
-                                    Log.w(TAG, ">>> [$messengerName] ⚠️ roomId가 0이거나 유효하지 않음 - 채팅방이 차단되었거나 저장 실패: roomName='$room', sender='$senderName', message='${finalMessage.take(50)}...'")
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "SQLite 저장 실패: ${e.message}", e)
+                                Log.e(TAG, "DB 오류: ${e.message}")
                             }
                         }
-                    } else {
-                        Log.w(TAG, ">>> [$messengerName] ⚠️ 필수 필드 누락으로 저장 건너뜀: sender='$sender' (비어있음=${sender.isEmpty()}), message='${message.take(50)}...' (비어있음=${message.isEmpty()}), roomName='$roomName' (비어있음=${roomName.isEmpty()})")
                     }
-                } else {
-                    Log.d(TAG, ">>> 지원하지 않는 앱: $packageName")
                 }
 
                 // 모든 extras를 문자열로 변환
@@ -2291,8 +2137,14 @@ class NotificationListener : NotificationListenerService() {
             try {
                 val db = ChatDatabase.getInstance(applicationContext)
 
-                // 자동 요약 설정 확인
-                val (autoSummaryEnabled, autoSummaryMessageCount) = db.getAutoSummarySettings(roomId)
+                // 자동 요약 설정 확인 (요약 기능이 켜져 있어야 자동 요약 가능)
+                val (summaryEnabled, autoSummaryEnabled, autoSummaryMessageCount) = db.getAutoSummarySettings(roomId)
+
+                // 요약 기능이 꺼져 있으면 자동 요약도 실행하지 않음
+                if (!summaryEnabled) {
+                    Log.d(TAG, "🤖 요약 기능 비활성화로 인해 자동 요약 스킵: roomName='$roomName', roomId=$roomId")
+                    return@launch
+                }
 
                 if (!autoSummaryEnabled) {
                     Log.d(TAG, "🤖 자동 요약 비활성화: roomName='$roomName', roomId=$roomId")
@@ -2445,6 +2297,7 @@ class NotificationListener : NotificationListenerService() {
                     val result = JSONObject(responseBody)
                     val summaryMessage = result.optString("summaryMessage", result.optString("summary", ""))
                     val summarySubject = result.optString("summarySubject", "${messages.size}개 메시지 요약")
+                    val summaryDetailMessage = result.optString("summaryDetailMessage", null).takeIf { !it.isNullOrEmpty() }
                     
                     if (summaryMessage.isNotEmpty()) {
                         // 요약 결과 저장
@@ -2457,7 +2310,8 @@ class NotificationListener : NotificationListenerService() {
                             summaryName = summarySubject,
                             summaryMessage = summaryMessage,
                             summaryFrom = firstMessageTime,
-                            summaryTo = lastMessageTime
+                            summaryTo = lastMessageTime,
+                            summaryDetailMessage = summaryDetailMessage
                         )
                         
                         Log.i(TAG, "🤖 ✅ 자동 요약 완료: roomName='$roomName', summaryId=$summaryId")

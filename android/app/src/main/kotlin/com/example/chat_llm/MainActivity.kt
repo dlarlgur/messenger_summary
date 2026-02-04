@@ -33,6 +33,8 @@ class MainActivity : FlutterActivity() {
 
     private var eventSink: EventChannel.EventSink? = null
     private var notificationReceiver: BroadcastReceiver? = null
+    private var mainMethodChannel: MethodChannel? = null
+    private var pendingSummaryId: Int = -1
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,8 +51,12 @@ class MainActivity : FlutterActivity() {
         val summaryId = intent?.getIntExtra("summaryId", -1) ?: -1
         if (summaryId > 0) {
             Log.d(TAG, "summaryId 받음: $summaryId")
+            pendingSummaryId = summaryId
+            // SharedPreferences에도 저장 (백업용)
             val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             prefs.edit().putInt("flutter.pending_summary_id", summaryId).apply()
+            // MethodChannel이 준비되어 있으면 즉시 전달
+            mainMethodChannel?.invokeMethod("openSummary", summaryId)
         }
     }
 
@@ -58,7 +64,8 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
 
         // Main MethodChannel 설정 (파일 경로, 권한 확인 등)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MAIN_METHOD_CHANNEL).setMethodCallHandler { call, result ->
+        mainMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MAIN_METHOD_CHANNEL)
+        mainMethodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getCacheDir" -> {
                     // Android의 cacheDir 경로를 Flutter에 전달
@@ -86,8 +93,29 @@ class MainActivity : FlutterActivity() {
                     // Flutter에서 JWT 토큰 요청 시 SecureStorage에서 읽어서 반환
                     getJwtTokenFromSecureStorage(result)
                 }
+                "getPendingSummaryId" -> {
+                    // 대기 중인 summaryId 반환
+                    val summaryId = if (pendingSummaryId > 0) pendingSummaryId else {
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        prefs.getInt("flutter.pending_summary_id", -1)
+                    }
+                    if (summaryId > 0) {
+                        // 반환 후 초기화
+                        pendingSummaryId = -1
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        prefs.edit().remove("flutter.pending_summary_id").apply()
+                    }
+                    result.success(if (summaryId > 0) summaryId else null)
+                }
                 else -> result.notImplemented()
             }
+        }
+        
+        // Flutter 엔진이 준비되면 대기 중인 summaryId 전달
+        if (pendingSummaryId > 0) {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                mainMethodChannel?.invokeMethod("openSummary", pendingSummaryId)
+            }, 500) // Flutter가 완전히 초기화될 때까지 약간의 딜레이
         }
 
         // Play Integrity MethodChannel 설정

@@ -11,12 +11,13 @@ class LocalDbService {
 
   // Android ChatDatabase.kt와 동일한 DB 이름 사용
   static const String _databaseName = 'chat_llm.db';
-  static const int _databaseVersion = 3; // auto_summary 컬럼 추가
+  static const int _databaseVersion = 4; // push_notifications 테이블 추가
 
   // 테이블 이름 (Android와 동일)
   static const String _tableRooms = 'chat_rooms';
   static const String _tableMessages = 'chat_messages';
   static const String _tableSummaries = 'chat_summaries';
+  static const String _tableNotifications = 'push_notifications';
 
   Database? _database;
   bool _isInitialized = false;
@@ -113,11 +114,25 @@ class LocalDbService {
       )
     ''');
 
+    // 푸시 알림 테이블
+    await db.execute('''
+      CREATE TABLE $_tableNotifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        package_name TEXT NOT NULL,
+        sender TEXT,
+        message TEXT,
+        room_name TEXT,
+        post_time INTEGER NOT NULL,
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+      )
+    ''');
+
     // 인덱스 생성
     await db.execute('CREATE INDEX idx_rooms_name_package ON $_tableRooms(room_name, package_name)');
     await db.execute('CREATE INDEX idx_messages_room_id ON $_tableMessages(room_id)');
     await db.execute('CREATE INDEX idx_messages_create_time ON $_tableMessages(create_time)');
     await db.execute('CREATE INDEX idx_summaries_room_id ON $_tableSummaries(room_id)');
+    await db.execute('CREATE INDEX idx_notifications_post_time ON $_tableNotifications(post_time)');
 
     debugPrint('데이터베이스 테이블 생성 완료');
   }
@@ -135,6 +150,21 @@ class LocalDbService {
         // auto_summary_enabled, auto_summary_message_count 컬럼 추가
         await _ensureColumnExists(db, _tableRooms, 'auto_summary_enabled', 'INTEGER DEFAULT 0');
         await _ensureColumnExists(db, _tableRooms, 'auto_summary_message_count', 'INTEGER DEFAULT 50');
+      }
+      if (version == 4) {
+        // push_notifications 테이블 추가
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS $_tableNotifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            package_name TEXT NOT NULL,
+            sender TEXT,
+            message TEXT,
+            room_name TEXT,
+            post_time INTEGER NOT NULL,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_notifications_post_time ON $_tableNotifications(post_time)');
       }
     }
   }
@@ -311,8 +341,8 @@ class LocalDbService {
     if (muted != null) updateData['muted'] = muted ? 1 : 0;
     if (autoSummaryEnabled != null) updateData['auto_summary_enabled'] = autoSummaryEnabled ? 1 : 0;
     if (autoSummaryMessageCount != null) {
-      // 5~500 사이로 제한
-      final clampedCount = autoSummaryMessageCount.clamp(5, 500);
+      // 5~300 사이로 제한
+      final clampedCount = autoSummaryMessageCount.clamp(5, 300);
       updateData['auto_summary_message_count'] = clampedCount;
     }
 
@@ -642,6 +672,100 @@ class LocalDbService {
       await _database!.close();
       _database = null;
       _isInitialized = false;
+    }
+  }
+
+  // ============ 푸시 알림 관련 ============
+
+  /// 푸시 알림 저장
+  Future<int?> saveNotification({
+    required String packageName,
+    String? sender,
+    String? message,
+    String? roomName,
+    required int postTime,
+  }) async {
+    try {
+      final db = await database;
+      debugPrint('📝 알림 저장 시도: packageName=$packageName, sender=$sender, message=${message?.substring(0, message.length > 50 ? 50 : message.length)}..., roomName=$roomName, postTime=$postTime');
+      
+      final id = await db.insert(
+        _tableNotifications,
+        {
+          'package_name': packageName,
+          'sender': sender,
+          'message': message,
+          'room_name': roomName,
+          'post_time': postTime,
+        },
+      );
+      
+      debugPrint('✅ 알림 저장 성공: id=$id');
+      return id;
+    } catch (e, stackTrace) {
+      debugPrint('❌ 알림 저장 실패: $e');
+      debugPrint('스택 트레이스: $stackTrace');
+      return null;
+    }
+  }
+
+  /// 푸시 알림 목록 조회 (최신순)
+  Future<List<Map<String, dynamic>>> getNotifications({
+    int? limit,
+    int? offset,
+  }) async {
+    try {
+      final db = await database;
+      final results = await db.query(
+        _tableNotifications,
+        orderBy: 'post_time DESC',
+        limit: limit,
+        offset: offset,
+      );
+      return results;
+    } catch (e) {
+      debugPrint('알림 목록 조회 실패: $e');
+      return [];
+    }
+  }
+
+  /// 푸시 알림 개수 조회
+  Future<int> getNotificationCount() async {
+    try {
+      final db = await database;
+      final results = await db.rawQuery('SELECT COUNT(*) as count FROM $_tableNotifications');
+      return Sqflite.firstIntValue(results) ?? 0;
+    } catch (e) {
+      debugPrint('알림 개수 조회 실패: $e');
+      return 0;
+    }
+  }
+
+  /// 푸시 알림 삭제
+  Future<bool> deleteNotification(int id) async {
+    try {
+      final db = await database;
+      final count = await db.delete(
+        _tableNotifications,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      return count > 0;
+    } catch (e) {
+      debugPrint('알림 삭제 실패: $e');
+      return false;
+    }
+  }
+
+  /// 모든 푸시 알림 삭제
+  Future<bool> deleteAllNotifications() async {
+    try {
+      final db = await database;
+      await db.delete(_tableNotifications);
+      return true;
+    } catch (e) {
+      debugPrint('모든 알림 삭제 실패: $e');
+      return false;
     }
   }
 }

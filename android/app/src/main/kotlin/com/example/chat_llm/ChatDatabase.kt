@@ -19,7 +19,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     companion object {
         const val TAG = "ChatDatabase"
         const val DATABASE_NAME = "chat_llm.db"
-        const val DATABASE_VERSION = 3
+        const val DATABASE_VERSION = 4  // Flutter와 버전 일치 (push_notifications 테이블 추가)
 
         // 채팅방 테이블
         const val TABLE_ROOMS = "chat_rooms"
@@ -58,6 +58,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         const val SUMMARY_ROOM_ID = "room_id"
         const val SUMMARY_NAME = "summary_name"
         const val SUMMARY_MESSAGE = "summary_message"
+        const val SUMMARY_DETAIL_MESSAGE = "summary_detail_message"
         const val SUMMARY_FROM = "summary_from"
         const val SUMMARY_TO = "summary_to"
         const val SUMMARY_CREATED_AT = "created_at"
@@ -119,6 +120,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
                 $SUMMARY_ROOM_ID INTEGER NOT NULL,
                 $SUMMARY_NAME TEXT,
                 $SUMMARY_MESSAGE TEXT NOT NULL,
+                $SUMMARY_DETAIL_MESSAGE TEXT,
                 $SUMMARY_FROM INTEGER,
                 $SUMMARY_TO INTEGER,
                 $SUMMARY_CREATED_AT INTEGER,
@@ -177,6 +179,22 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
                 }
             }
         }
+        if (oldVersion < 4) {
+            // 버전 4: push_notifications 테이블은 Flutter에서만 사용하므로 Android에서는 마이그레이션 불필요
+            // summary_detail_message 컬럼 추가
+            try {
+                db.execSQL("ALTER TABLE $TABLE_SUMMARIES ADD COLUMN $SUMMARY_DETAIL_MESSAGE TEXT")
+                Log.i(TAG, "summary_detail_message 컬럼 추가 완료")
+            } catch (e: Exception) {
+                if (e.message?.contains("duplicate column") == true || 
+                    e.message?.contains("already exists") == true) {
+                    Log.d(TAG, "summary_detail_message 컬럼이 이미 존재함 - 스킵")
+                } else {
+                    Log.e(TAG, "summary_detail_message 컬럼 추가 실패: ${e.message}", e)
+                }
+            }
+            Log.i(TAG, "데이터베이스 버전 4로 업그레이드 완료")
+        }
     }
 
     override fun onOpen(db: SQLiteDatabase) {
@@ -184,6 +202,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         // 데이터베이스가 열릴 때마다 필요한 컬럼들이 존재하는지 확인하고 없으면 추가
         ensureReplyIntentColumn(db)
         ensureAutoSummaryColumns(db)
+        ensureSummaryDetailMessageColumn(db)
     }
 
     /**
@@ -239,6 +258,28 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
             }
         } catch (e: Exception) {
             Log.e(TAG, "auto_summary 컬럼 확인/추가 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * summary_detail_message 컬럼이 존재하는지 확인하고 없으면 추가
+     */
+    private fun ensureSummaryDetailMessageColumn(db: SQLiteDatabase) {
+        try {
+            val cursor = db.rawQuery("PRAGMA table_info($TABLE_SUMMARIES)", null)
+            val existingColumns = mutableSetOf<String>()
+            while (cursor.moveToNext()) {
+                val columnName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                existingColumns.add(columnName)
+            }
+            cursor.close()
+
+            if (!existingColumns.contains(SUMMARY_DETAIL_MESSAGE)) {
+                db.execSQL("ALTER TABLE $TABLE_SUMMARIES ADD COLUMN $SUMMARY_DETAIL_MESSAGE TEXT")
+                Log.i(TAG, "✅ summary_detail_message 컬럼 추가 완료 (onOpen)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "summary_detail_message 컬럼 확인/추가 실패: ${e.message}", e)
         }
     }
 
@@ -483,23 +524,24 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     /**
      * 채팅방의 자동 요약 설정 조회
      */
-    fun getAutoSummarySettings(roomId: Long): Pair<Boolean, Int> {
+    fun getAutoSummarySettings(roomId: Long): Triple<Boolean, Boolean, Int> {
         val db = readableDatabase
         val cursor = db.query(
             TABLE_ROOMS,
-            arrayOf(ROOM_AUTO_SUMMARY_ENABLED, ROOM_AUTO_SUMMARY_MESSAGE_COUNT),
+            arrayOf(ROOM_SUMMARY_ENABLED, ROOM_AUTO_SUMMARY_ENABLED, ROOM_AUTO_SUMMARY_MESSAGE_COUNT),
             "$ROOM_ID = ?",
             arrayOf(roomId.toString()),
             null, null, null
         )
         return if (cursor.moveToFirst()) {
-            val enabled = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_AUTO_SUMMARY_ENABLED)) == 1
+            val summaryEnabled = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_SUMMARY_ENABLED)) == 1
+            val autoSummaryEnabled = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_AUTO_SUMMARY_ENABLED)) == 1
             val messageCount = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_AUTO_SUMMARY_MESSAGE_COUNT))
             cursor.close()
-            Pair(enabled, messageCount)
+            Triple(summaryEnabled, autoSummaryEnabled, messageCount)
         } else {
             cursor.close()
-            Pair(false, 50)
+            Triple(false, false, 50)
         }
     }
 
@@ -538,7 +580,8 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         summaryName: String,
         summaryMessage: String,
         summaryFrom: Long,
-        summaryTo: Long
+        summaryTo: Long,
+        summaryDetailMessage: String? = null
     ): Long {
         val db = writableDatabase
         val now = System.currentTimeMillis()
@@ -549,6 +592,9 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
             put(SUMMARY_FROM, summaryFrom)
             put(SUMMARY_TO, summaryTo)
             put(SUMMARY_CREATED_AT, now)
+            if (summaryDetailMessage != null) {
+                put(SUMMARY_DETAIL_MESSAGE, summaryDetailMessage)
+            }
         }
         return db.insert(TABLE_SUMMARIES, null, values)
     }

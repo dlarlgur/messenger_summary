@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/plan_service.dart';
@@ -31,6 +32,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   bool _isLoading = true;
   bool _isLoadingRooms = false;
   String? _errorMessage;
+  // 자동 요약 개수 임시 값 (확인 버튼을 눌러야 저장)
+  final Map<int, int> _tempAutoSummaryCounts = {};
 
   @override
   void initState() {
@@ -859,29 +862,150 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 ),
                 if (room.autoSummaryEnabled)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '메시지 개수: ${room.autoSummaryMessageCount}개',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey[200]!,
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                '메시지 개수',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2A2A2A),
+                                ),
+                              ),
+                              Text(
+                                '${_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount}개',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2196F3),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Slider(
-                          value: room.autoSummaryMessageCount.toDouble(),
-                          min: 5,
-                          max: 500,
-                          divisions: 99,
-                          label: '${room.autoSummaryMessageCount}개',
-                          onChanged: (value) {
-                            _updateAutoSummaryMessageCount(room, value.toInt());
-                          },
-                          activeColor: const Color(0xFF2196F3),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          // 숫자 입력 필드
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.grey[300]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: TextField(
+                              key: ValueKey('auto_summary_count_${room.id}_${_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount}'),
+                              controller: TextEditingController(
+                                text: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toString(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: InputDecoration(
+                                hintText: '5 ~ 300',
+                                suffixText: '개',
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                hintStyle: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              onChanged: (value) {
+                                final count = int.tryParse(value);
+                                if (count != null && count >= 5 && count <= 300) {
+                                  setState(() {
+                                    _tempAutoSummaryCounts[room.id] = count;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // 슬라이더
+                          Slider(
+                            value: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toDouble().clamp(5.0, 300.0),
+                            min: 5,
+                            max: 300,
+                            divisions: 59,
+                            activeColor: const Color(0xFF2196F3),
+                            inactiveColor: Colors.grey[300],
+                            onChanged: (value) {
+                              setState(() {
+                                _tempAutoSummaryCounts[room.id] = value.toInt();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          // 범위 표시
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '5개',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                '300개',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // 확인 버튼
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => _saveAutoSummaryMessageCount(room),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2196F3),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                '확인',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -933,13 +1057,16 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     }
   }
 
-  Future<void> _updateAutoSummaryMessageCount(ChatRoom room, int count) async {
+  Future<void> _saveAutoSummaryMessageCount(ChatRoom room) async {
     // 베이직 플랜이 아니면 설정 변경 불가
     if (!_isBasicPlan) {
       return;
     }
 
-    final clampedCount = count.clamp(5, 500);
+    // 임시 값이 없으면 현재 값을 사용
+    final tempCount = _tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount;
+    final clampedCount = tempCount.clamp(5, 300);
+    
     final result = await _localDb.updateRoomSettings(
       room.id,
       autoSummaryMessageCount: clampedCount,
@@ -953,7 +1080,22 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             autoSummaryMessageCount: clampedCount,
           );
         }
+        // 임시 값 제거
+        _tempAutoSummaryCounts.remove(room.id);
       });
+
+      // 저장 완료 토스트 표시 (항상 표시)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${room.roomName}의 자동 요약 개수가 ${clampedCount}개로 저장되었습니다.'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF2196F3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
     }
   }
 

@@ -70,10 +70,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const methodChannel =
       MethodChannel('com.example.chat_llm/notification');
+  static const mainMethodChannel =
+      MethodChannel('com.example.chat_llm/main');
   static const eventChannel =
       EventChannel('com.example.chat_llm/notification_stream');
 
   StreamSubscription? _subscription;
+  StreamSubscription? _mainMethodSubscription;
   bool _isPermissionGranted = false;
   bool _isCheckingPermissions = true; // ⚠️ 수정: 권한 확인 중인지 여부
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
@@ -84,48 +87,84 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeAndCheckPermissions();
+    _setupMainMethodChannel();
     _checkPendingSummaryId();
     // ⚠️ 수정: 권한 확인 완료 전까지는 리스너 시작하지 않음
     // _startListening();
   }
 
+  /// Main MethodChannel 설정 (summaryId 수신용)
+  void _setupMainMethodChannel() {
+    mainMethodChannel.setMethodCallHandler((call) async {
+      if (call.method == 'openSummary') {
+        final summaryId = call.arguments as int?;
+        if (summaryId != null && summaryId > 0) {
+          debugPrint('📱 MainMethodChannel에서 summaryId 수신: $summaryId');
+          _openSummaryFromNotification(summaryId);
+        }
+      }
+    });
+  }
+
   /// 대기 중인 summaryId 확인 및 처리
   Future<void> _checkPendingSummaryId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final summaryId = prefs.getInt('flutter.pending_summary_id');
+      // 먼저 MethodChannel에서 확인
+      final summaryIdFromChannel = await mainMethodChannel.invokeMethod<int?>('getPendingSummaryId');
+      int? summaryId = summaryIdFromChannel;
+      
+      // MethodChannel에 없으면 SharedPreferences에서 확인
+      if (summaryId == null || summaryId <= 0) {
+        final prefs = await SharedPreferences.getInstance();
+        summaryId = prefs.getInt('flutter.pending_summary_id');
+        if (summaryId != null && summaryId > 0) {
+          await prefs.remove('flutter.pending_summary_id');
+        }
+      }
       
       if (summaryId != null && summaryId > 0) {
-        // 대기 중인 summaryId 제거
-        await prefs.remove('flutter.pending_summary_id');
-        
-        // summaryId로 roomId 찾기
-        final roomId = await _localDb.getRoomIdBySummaryId(summaryId);
-        
-        if (roomId != null) {
-          // roomId로 채팅방 정보 가져오기
-          final room = await _localDb.getRoomById(roomId);
-          
-          if (room != null && mounted) {
-            // 앱이 완전히 로드된 후 요약 히스토리 화면으로 이동
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SummaryHistoryScreen(
-                      roomId: roomId,
-                      roomName: room.roomName,
-                      initialSummaryId: summaryId,
-                    ),
-                  ),
-                );
-              }
-            });
-          }
-        }
+        debugPrint('📱 대기 중인 summaryId 발견: $summaryId');
+        _openSummaryFromNotification(summaryId);
       }
     } catch (e) {
       debugPrint('대기 중인 summaryId 처리 실패: $e');
+    }
+  }
+
+  /// 알림에서 받은 summaryId로 요약 히스토리 열기
+  Future<void> _openSummaryFromNotification(int summaryId) async {
+    try {
+      // summaryId로 roomId 찾기
+      final roomId = await _localDb.getRoomIdBySummaryId(summaryId);
+      
+      if (roomId != null) {
+        // roomId로 채팅방 정보 가져오기
+        final room = await _localDb.getRoomById(roomId);
+        
+        if (room != null && mounted) {
+          // 앱이 완전히 로드된 후 요약 히스토리 화면으로 이동
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              debugPrint('📱 요약 히스토리 화면으로 이동: roomId=$roomId, summaryId=$summaryId');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SummaryHistoryScreen(
+                    roomId: roomId,
+                    roomName: room.roomName,
+                    initialSummaryId: summaryId,
+                  ),
+                ),
+              );
+            }
+          });
+        } else {
+          debugPrint('⚠️ 채팅방을 찾을 수 없음: roomId=$roomId');
+        }
+      } else {
+        debugPrint('⚠️ summaryId로 roomId를 찾을 수 없음: summaryId=$summaryId');
+      }
+    } catch (e) {
+      debugPrint('요약 히스토리 열기 실패: $e');
     }
   }
   
@@ -220,6 +259,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _chatRoomListKey.currentState?.refreshRooms();
+          // 앱이 포그라운드로 돌아올 때도 summaryId 확인
+          _checkPendingSummaryId();
         }
       });
     } else if (state == AppLifecycleState.paused) {
@@ -298,6 +339,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     final packageName = data['packageName'] ?? '';
 
+    // 시스템 UI 알림 필터링 (com.android.systemui 등)
+    if (packageName == 'com.android.systemui' || 
+        packageName.startsWith('com.android.') ||
+        packageName == 'android') {
+      debugPrint('🔇 시스템 알림 무시: $packageName');
+      return;
+    }
+
     // 지원하는 메신저인지 확인
     if (!_localDb.isSupportedMessenger(packageName)) {
       debugPrint('❌ 지원하지 않는 메신저: $packageName');
@@ -345,10 +394,42 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       }
     }
 
-    debugPrint('✅ === 알림 수신 → UI 갱신 (Android 네이티브에서 이미 저장됨) ===');
+    debugPrint('✅ === 알림 수신 → 푸시 알림 저장 ===');
     debugPrint('  패키지: $packageName');
     debugPrint('  발신자: $sender, 대화방: $roomName');
     debugPrint('  메시지: $message');
+
+    // 푸시 알림 저장
+    // postTime은 Android에서 Long 타입으로 전달되므로 안전하게 변환
+    int postTime;
+    if (data['postTime'] != null) {
+      if (data['postTime'] is int) {
+        postTime = data['postTime'] as int;
+      } else if (data['postTime'] is num) {
+        postTime = (data['postTime'] as num).toInt();
+      } else {
+        postTime = DateTime.now().millisecondsSinceEpoch;
+        debugPrint('⚠️ postTime 타입 변환 실패, 현재 시간 사용');
+      }
+    } else {
+      postTime = DateTime.now().millisecondsSinceEpoch;
+      debugPrint('⚠️ postTime이 없음, 현재 시간 사용');
+    }
+
+    debugPrint('📝 알림 저장 시도: postTime=$postTime');
+    final savedId = await _localDb.saveNotification(
+      packageName: packageName,
+      sender: sender,
+      message: message,
+      roomName: roomName,
+      postTime: postTime,
+    );
+
+    if (savedId != null) {
+      debugPrint('✅ 알림 저장 성공: id=$savedId');
+    } else {
+      debugPrint('❌ 알림 저장 실패: 저장된 ID가 null');
+    }
 
     // Android 네이티브에서 이미 DB에 저장했으므로 UI만 갱신
     // 즉시 실행하여 빠른 동기화 보장
@@ -365,6 +446,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
+    _mainMethodSubscription?.cancel();
     super.dispose();
   }
 

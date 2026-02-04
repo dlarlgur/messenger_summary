@@ -30,6 +30,183 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
   Set<int> _selectedSummaryIds = {};
   bool _isSelectionMode = false;
 
+  /// 마크다운 전처리 (서버에서 받은 마크다운을 올바르게 파싱하도록 정리)
+  String _preprocessMarkdown(String text) {
+    if (text.isEmpty) return text;
+    
+    String processed = text;
+    
+    // 1. 숫자 리스트 항목에서 **가 줄바꿈으로 분리된 경우 먼저 처리
+    // 예: "1. **제목\n**" -> "1. **제목**"
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+)\.\s+\*\*([^\n\*]+)\n\*\*'),
+      (match) => '${match.group(1)}. **${match.group(2)}**',
+    );
+    
+    // 2. **bold** 형식이 줄바꿈으로 분리된 경우 수정 (재귀적으로 처리)
+    // 예: "**text\n**" -> "**text**"
+    int maxIterations = 10;
+    for (int i = 0; i < maxIterations; i++) {
+      final before = processed;
+      // 단일 줄바꿈으로 분리된 경우
+      processed = processed.replaceAllMapped(
+        RegExp(r'\*\*([^\n\*]+)\n\*\*'),
+        (match) => '**${match.group(1)}**',
+      );
+      // 여러 줄에 걸친 경우
+      processed = processed.replaceAllMapped(
+        RegExp(r'\*\*([^\n\*]+)\n([^\n\*]+)\n\*\*'),
+        (match) => '**${match.group(1)} ${match.group(2)}**',
+      );
+      if (before == processed) break; // 더 이상 변경이 없으면 종료
+    }
+    
+    // 3. 숫자 리스트 다음에 오는 불렛 리스트만 들여쓰기
+    final lines = processed.split('\n');
+    final result = <String>[];
+    bool inBulletList = false;
+    int lastNumberLineIndex = -1;
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final trimmedLine = line.trimLeft();
+      final isNumberList = RegExp(r'^\d+\.\s+').hasMatch(trimmedLine);
+      final isBulletList = RegExp(r'^\*\s+').hasMatch(trimmedLine);
+
+      if (isNumberList) {
+        // 숫자 리스트 - 무조건 모드 종료
+        inBulletList = false;
+        lastNumberLineIndex = i;
+        result.add(line);
+      } else if (isBulletList) {
+        // 불렛 리스트 - 바로 이전 줄이 숫자였거나 모드 중이면 들여쓰기
+        if (lastNumberLineIndex == i - 1 || inBulletList) {
+          inBulletList = true;
+          result.add('   $line');
+        } else {
+          result.add(line);
+        }
+      } else {
+        // 그 외 - 모드 종료
+        inBulletList = false;
+        result.add(line);
+      }
+    }
+    
+    processed = result.join('\n');
+    
+    // 4. 숫자 리스트 형식 정리 (1. **제목\n** * 내용 패턴)
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+)\.\s+\*\*([^\n\*]+)\n\*\*\s*\*'),
+      (match) => '${match.group(1)}. **${match.group(2)}**\n   *',
+    );
+    
+    // 5. 줄바꿈 정리 (연속된 줄바꿈을 2개로 제한)
+    processed = processed.replaceAll(RegExp(r'\n{4,}'), '\n\n\n');
+    
+    // 6. 리스트 항목 사이의 불필요한 빈 줄 제거
+    processed = processed.replaceAllMapped(
+      RegExp(r'\n\n(\d+\.|\*)'),
+      (match) => '\n${match.group(1)}',
+    );
+    
+    // 7. 문단 끝의 불필요한 줄바꿈 제거
+    processed = processed.trim();
+    
+    return processed;
+  }
+
+  /// 상세 내용용 마크다운 전처리 (숫자 리스트를 일반 텍스트로 처리하여 들여쓰기 방지)
+  String _preprocessDetailMarkdown(String text) {
+    if (text.isEmpty) return text;
+    
+    String processed = text;
+    
+    // 1. 숫자 리스트 항목에서 **가 줄바꿈으로 분리된 경우 먼저 처리
+    // 예: "1. **제목\n**" -> "1. **제목**"
+    processed = processed.replaceAllMapped(
+      RegExp(r'(\d+)\.\s+\*\*([^\n\*]+)\n\*\*'),
+      (match) => '${match.group(1)}. **${match.group(2)}**',
+    );
+    
+    // 2. **bold** 형식이 줄바꿈으로 분리된 경우 수정 (재귀적으로 처리)
+    // 예: "**text\n**" -> "**text**"
+    int maxIterations = 10;
+    for (int i = 0; i < maxIterations; i++) {
+      final before = processed;
+      // 단일 줄바꿈으로 분리된 경우
+      processed = processed.replaceAllMapped(
+        RegExp(r'\*\*([^\n\*]+)\n\*\*'),
+        (match) => '**${match.group(1)}**',
+      );
+      // 여러 줄에 걸친 경우
+      processed = processed.replaceAllMapped(
+        RegExp(r'\*\*([^\n\*]+)\n([^\n\*]+)\n\*\*'),
+        (match) => '**${match.group(1)} ${match.group(2)}**',
+      );
+      if (before == processed) break; // 더 이상 변경이 없으면 종료
+    }
+    
+    // 3. 숫자 리스트를 일반 텍스트로 변환 (마크다운 리스트로 인식하지 않도록)
+    // 숫자 앞에 공백 4개를 추가하여 마크다운 리스트로 인식하지 않게 함
+    // 예: "1. 제목" -> "    1. 제목" (앞에 공백 4개 추가)
+    processed = processed.replaceAllMapped(
+      RegExp(r'^(\d+)\.\s+', multiLine: true),
+      (match) => '    ${match.group(1)}. ',  // 앞에 공백 4개 추가하여 리스트로 인식 방지
+    );
+    
+    // 4. 숫자 리스트 다음에 오는 불렛 리스트만 들여쓰기
+    final lines = processed.split('\n');
+    final result = <String>[];
+    bool inBulletList = false;
+    int lastNumberLineIndex = -1;
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final trimmedLine = line.trimLeft();
+      // 숫자 텍스트 체크 (앞 공백 4개 포함하여 체크: "    1. " 패턴)
+      final isNumberText = RegExp(r'^\s{4,}\d+\.\s+').hasMatch(line);
+      // 불렛 리스트 체크 (정확히 *로 시작하는 경우만)
+      final isBulletList = RegExp(r'^\*\s+').hasMatch(trimmedLine);
+
+      if (isNumberText) {
+        // 숫자 텍스트 - 앞 공백 모두 제거하여 들여쓰기 없이 표시
+        inBulletList = false;
+        lastNumberLineIndex = i;
+        // 앞 공백 모두 제거 (원래 숫자 리스트는 들여쓰기 없이)
+        result.add(trimmedLine);
+      } else if (isBulletList) {
+        // 불렛 리스트 - 바로 이전 줄이 숫자 텍스트였거나 모드 중이면 들여쓰기
+        if (lastNumberLineIndex == i - 1 || inBulletList) {
+          inBulletList = true;
+          result.add('   $line');
+        } else {
+          result.add(line);
+        }
+      } else {
+        // 그 외 (빈 줄 포함) - 모드 종료
+        inBulletList = false;
+        result.add(line);
+      }
+    }
+    
+    processed = result.join('\n');
+    
+    // 5. 줄바꿈 정리 (연속된 줄바꿈을 2개로 제한)
+    processed = processed.replaceAll(RegExp(r'\n{4,}'), '\n\n\n');
+    
+    // 6. 리스트 항목 사이의 불필요한 빈 줄 제거
+    processed = processed.replaceAllMapped(
+      RegExp(r'\n\n(\s{4,}\d+\.|\*)'),
+      (match) => '\n${match.group(1)}',
+    );
+    
+    // 7. 문단 끝의 불필요한 줄바꿈 제거
+    processed = processed.trim();
+    
+    return processed;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -596,7 +773,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                   children: [
                     // 요약 메시지
                     MarkdownBody(
-                      data: summary.summaryMessage,
+                      data: _preprocessMarkdown(summary.summaryMessage),
                       selectable: true,
                       softLineBreak: true,
                       styleSheet: MarkdownStyleSheet(
@@ -637,10 +814,11 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                           fontStyle: FontStyle.italic,
                         ),
                         blockSpacing: 12,
-                        listIndent: 24,
+                        listIndent: 32,
                         listBullet: const TextStyle(
                           fontSize: 16,
                           color: Color(0xFF2196F3),
+                          fontWeight: FontWeight.w600,
                         ),
                         listBulletPadding: const EdgeInsets.only(right: 8),
                         code: TextStyle(
@@ -722,7 +900,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                             ),
                             const SizedBox(height: 16),
                             MarkdownBody(
-                              data: summary.summaryDetailMessage!,
+                              data: _preprocessDetailMarkdown(summary.summaryDetailMessage!),
                               selectable: true,
                               softLineBreak: true,
                               styleSheet: MarkdownStyleSheet(
@@ -733,7 +911,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   fontWeight: FontWeight.w400,
                                   letterSpacing: -0.2,
                                 ),
-                                pPadding: const EdgeInsets.only(bottom: 8),
+                                pPadding: const EdgeInsets.only(left: 0, right: 0, bottom: 8),
                                 h1: const TextStyle(
                                   fontSize: 19,
                                   fontWeight: FontWeight.w700,
@@ -763,7 +941,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   fontStyle: FontStyle.italic,
                                 ),
                                 blockSpacing: 10,
-                                listIndent: 24,
+                                listIndent: 32,
                                 listBullet: const TextStyle(
                                   fontSize: 15,
                                   color: Color(0xFF2196F3),

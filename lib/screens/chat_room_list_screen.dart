@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -13,8 +14,30 @@ import '../services/auth_service.dart';
 import '../services/plan_service.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
+import 'notification_list_screen.dart';
 import 'usage_management_screen.dart';
 import 'app_settings_screen.dart';
+import 'subscription_screen.dart';
+
+/// 사선을 그리는 CustomPainter
+class SlashPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey[700]!
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(size.width, 0),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
 
 class ChatRoomListScreen extends StatefulWidget {
   const ChatRoomListScreen({super.key});
@@ -296,6 +319,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 icon: room.summaryEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
                 title: room.summaryEnabled ? 'AI 요약 기능 끄기' : 'AI 요약 기능 켜기',
                 subtitle: room.summaryEnabled ? '요약 기능이 활성화되어 있습니다' : '요약 기능이 비활성화되어 있습니다',
+                isEnabled: room.summaryEnabled,
+                iconColor: room.summaryEnabled ? const Color(0xFF2196F3) : null,
                 onTap: () async {
                   Navigator.pop(context);
                   await _toggleSummaryEnabled(room);
@@ -305,6 +330,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               _buildMenuItem(
                 icon: room.pinned ? Icons.push_pin : Icons.push_pin_outlined,
                 title: room.pinned ? '채팅방 고정 해제' : '채팅방 상단 고정',
+                isEnabled: room.pinned,
+                iconColor: room.pinned ? const Color(0xFF2196F3) : null,
                 onTap: () async {
                   Navigator.pop(context);
                   await _togglePinned(room);
@@ -313,9 +340,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               // 알림 켜기/끄기
               _buildMenuItem(
                 icon: isMuted
-                    ? Icons.notifications_active_outlined
-                    : Icons.notifications_off_outlined,
+                    ? Icons.notifications_off_outlined
+                    : Icons.notifications_active_outlined,
                 title: isMuted ? '채팅방 알림 켜기' : '채팅방 알림 끄기',
+                isEnabled: !isMuted,
+                iconColor: !isMuted ? const Color(0xFF2196F3) : null,
                 onTap: () async {
                   Navigator.pop(context);
                   await notificationService.toggleNotification(room.roomName);
@@ -338,7 +367,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 _buildMenuItem(
                   icon: Icons.schedule,
                   title: '자동요약기능설정',
-                  subtitle: '베이직 플랜 전용',
+                  subtitle: room.autoSummaryEnabled 
+                      ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
+                      : '베이직 플랜 전용',
+                  isEnabled: room.autoSummaryEnabled,
+                  iconColor: room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
                   onTap: () {
                     Navigator.pop(context);
                     // 요약 관리 페이지로 이동 (해당 채팅방으로 스크롤)
@@ -547,9 +580,60 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     required VoidCallback onTap,
     String? subtitle,
     Color? textColor,
+    bool? isEnabled,
+    Color? iconColor,
   }) {
+    // 아이콘 색상 결정: iconColor가 지정되면 사용, 없으면 isEnabled에 따라 파란색 또는 기본색
+    final finalIconColor = iconColor ?? (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? Colors.black87));
+    
     return ListTile(
-      leading: Icon(icon, color: textColor ?? Colors.black87),
+      leading: Icon(icon, color: finalIconColor),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: textColor ?? Colors.black87,
+          fontSize: 16,
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 13,
+              ),
+            )
+          : null,
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildMenuItemWithCustomIcon({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    String? subtitle,
+    Color? textColor,
+    bool? isEnabled,
+    Color? iconColor,
+    bool showSlash = false,
+  }) {
+    // 아이콘 색상 결정: iconColor가 지정되면 사용, 없으면 isEnabled에 따라 파란색 또는 기본색
+    final finalIconColor = iconColor ?? (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? Colors.black87));
+    
+    return ListTile(
+      leading: showSlash
+          ? Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, color: finalIconColor),
+                CustomPaint(
+                  size: const Size(24, 24),
+                  painter: SlashPainter(),
+                ),
+              ],
+            )
+          : Icon(icon, color: finalIconColor),
       title: Text(
         title,
         style: TextStyle(
@@ -728,9 +812,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: const Icon(Icons.notifications, color: Colors.white),
             onPressed: () {
-              // TODO: 검색 기능
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationListScreen(),
+                ),
+              );
             },
           ),
           PopupMenuButton<String>(
@@ -976,10 +1064,43 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                                     Padding(
                                                       padding:
                                                           const EdgeInsets.only(left: 4),
-                                                      child: Icon(
-                                                        Icons.auto_awesome,
-                                                        size: 16,
-                                                        color: Colors.amber[600],
+                                                      child: Stack(
+                                                        clipBehavior: Clip.none,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.auto_awesome,
+                                                            size: 16,
+                                                            color: Colors.amber[600],
+                                                          ),
+                                                          if (room.autoSummaryEnabled)
+                                                            Positioned(
+                                                              right: -4,
+                                                              top: -4,
+                                                              child: Container(
+                                                                width: 10,
+                                                                height: 10,
+                                                                decoration: BoxDecoration(
+                                                                  color: const Color(0xFF2196F3),
+                                                                  shape: BoxShape.circle,
+                                                                  border: Border.all(
+                                                                    color: Colors.white,
+                                                                    width: 1.5,
+                                                                  ),
+                                                                ),
+                                                                child: const Center(
+                                                                  child: Text(
+                                                                    'A',
+                                                                    style: TextStyle(
+                                                                      color: Colors.white,
+                                                                      fontSize: 7,
+                                                                      fontWeight: FontWeight.w800,
+                                                                      height: 1.0,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                        ],
                                                       ),
                                                     ),
                                                   if (isMuted)
@@ -1208,61 +1329,76 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 플랜 선택 다이얼로그 표시
   Future<void> _showPlanSelectionDialog() async {
-    final authService = AuthService();
-    final deviceIdHash = await authService.getDeviceIdHash();
+    // 테스트 모드인지 확인
+    final bool isTestMode = PlanService.isTestMode;
+    
+    if (isTestMode) {
+      // 테스트 모드: 기존 방식 (관리자 API 사용)
+      final authService = AuthService();
+      final deviceIdHash = await authService.getDeviceIdHash();
 
-    if (deviceIdHash == null || deviceIdHash.isEmpty) {
+      if (deviceIdHash == null || deviceIdHash.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'),
-          duration: Duration(seconds: 2),
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('플랜 선택 (테스트용)'),
+          content: const Text(
+            '사용할 플랜을 선택하세요.\n\n'
+            '• Free: 일 3회, 메시지 최대 100개\n'
+            '• Basic: 월 200회, 메시지 최대 300개',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _setPlan(deviceIdHash, 'free');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Free'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _setPlan(deviceIdHash, 'basic');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Basic'),
+            ),
+          ],
         ),
       );
-      return;
-    }
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('플랜 선택 (테스트용)'),
-        content: const Text(
-          '사용할 플랜을 선택하세요.\n\n'
-          '• Free: 일 3회, 메시지 최대 100개\n'
-          '• Basic: 월 200회, 메시지 최대 300개',
+    } else {
+      // 상용 모드: 플랜 구독 화면으로 이동
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SubscriptionScreen(),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _setPlan(deviceIdHash, 'free');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Free'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _setPlan(deviceIdHash, 'basic');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Basic'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   /// 플랜 설정
