@@ -1883,6 +1883,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             if (!_isSearchMode && !_isSummaryMode)
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 8,
+                offset: const Offset(0, 8),
                 onSelected: (value) {
                   if (value == 'summary_history') {
                     _showSummaryHistory();
@@ -1894,33 +1899,91 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 },
                 itemBuilder: (context) => [
                   if (widget.room.summaryEnabled)
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'summary_history',
                       child: Row(
                         children: [
-                          Icon(Icons.history, color: Colors.amber),
-                          SizedBox(width: 12),
-                          Text('AI 요약 히스토리'),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2196F3).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome,
+                              color: Color(0xFF2196F3),
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'AI 요약 히스토리',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'open_kakao',
                     child: Row(
                       children: [
-                        Icon(Icons.chat_bubble, color: Color(0xFFFFE812)),
-                        SizedBox(width: 12),
-                        Text('카카오톡 열기'),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE812).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_rounded,
+                            color: Color(0xFF3C1E1E),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          '카카오톡 열기',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
+                  const PopupMenuDivider(height: 8),
+                  PopupMenuItem(
                     value: 'leave_room',
                     child: Row(
                       children: [
-                        Icon(Icons.exit_to_app, color: Colors.red),
-                        SizedBox(width: 12),
-                        Text('대화방 나가기', style: TextStyle(color: Colors.red)),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.logout_rounded,
+                            color: Colors.red,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          '대화방 나가기',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.red,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -2212,9 +2275,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                           !_isAtBottom &&
                                           _latestNewMessageSender != null)
                                         Positioned(
-                                          bottom: _chatInputBarHeight > 0
-                                              ? _chatInputBarHeight + 4
-                                              : 60,
+                                          bottom: 12,
                                           left: 0,
                                           right: 0,
                                           child: Center(

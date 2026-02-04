@@ -43,10 +43,12 @@ class AuthService {
     try {
       final integrityToken = await _requestPlayIntegrityToken();
       if (integrityToken == null) {
+        print('❌ Play Integrity 토큰 요청 실패');
         return null;
       }
 
       // 서버에 토큰 전송하여 JWT 발급
+      // 주의: 이 요청은 AuthInterceptor를 거치지 않도록 별도의 Dio 인스턴스 사용
       final response = await _dio.post(
         _tokenEndpoint,
         data: {'integrityToken': integrityToken},
@@ -69,11 +71,26 @@ class AuthService {
 
           _cachedJwtToken = accessToken;
           _cachedDeviceIdHash = deviceIdHash;
+          print('✅ JWT 토큰 발급 성공');
           return accessToken;
+        } else {
+          print('❌ JWT 토큰 발급 실패: 응답에 accessToken이 없습니다.');
+        }
+      } else {
+        print('❌ JWT 토큰 발급 실패: 상태 코드 ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        print('❌ JWT 토큰 발급 실패: Play Integrity 토큰이 유효하지 않습니다 (401)');
+      } else {
+        print('❌ JWT 토큰 발급 실패: ${e.message}');
+        if (e.response != null) {
+          print('   상태 코드: ${e.response?.statusCode}');
+          print('   응답 데이터: ${e.response?.data}');
         }
       }
     } catch (e) {
-      print('JWT 토큰 발급 실패: $e');
+      print('❌ JWT 토큰 발급 실패: $e');
     }
 
     return null;

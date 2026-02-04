@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/notification_settings_service.dart';
@@ -71,6 +72,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   Timer? _dbObserverTimer;
   DateTime? _lastCheckTime;
 
+  // 알림 권한 대기 상태
+  bool _wasWaitingForPermission = false;
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +82,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _initProfileService();
     _loadChatRooms();
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
+
+    // 첫 진입 시 알림 설정 안내 다이얼로그 표시
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showNotificationDialogIfNeeded();
+    });
   }
 
   @override
@@ -89,6 +98,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       _loadChatRooms();
       // ✅ 핵심 수정: 포그라운드 복귀 시 DB Observer 재시작
       _startDbObserver();
+      
+      // 알림 권한 허용 후 돌아오면 자동으로 알림 켜기
+      if (_wasWaitingForPermission) {
+        _wasWaitingForPermission = false;
+        _checkAndEnableNotificationsAfterPermission();
+      }
     }
   }
 
@@ -157,6 +172,98 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 대화방의 프로필 이미지 파일 가져오기
   File? _getProfileImageFile(String roomName) {
     return _profileService.getRoomProfile(roomName);
+  }
+
+  /// 알림 설정 안내 다이얼로그 표시 (첫 진입 시)
+  Future<void> _showNotificationDialogIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShown = prefs.getBool('has_shown_notification_dialog') ?? false;
+      
+      if (hasShown) return;
+      
+      // 시스템 알림 권한 확인
+      final methodChannel = const MethodChannel('com.example.chat_llm/notification');
+      final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
+      
+      if (hasPermission) {
+        // 권한이 이미 있으면 표시하지 않음
+        await prefs.setBool('has_shown_notification_dialog', true);
+        return;
+      }
+      
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('알림 설정'),
+          content: const Text(
+            'AI 톡비서가 메시지를 수신하려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await prefs.setBool('has_shown_notification_dialog', true);
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text('나중에'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await prefs.setBool('has_shown_notification_dialog', true);
+                _wasWaitingForPermission = true;
+                if (mounted) Navigator.pop(context);
+                
+                // 설정 화면으로 이동
+                try {
+                  await methodChannel.invokeMethod('openAppSettings');
+                } catch (e) {
+                  debugPrint('설정 화면 열기 실패: $e');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2196F3),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('설정으로 이동'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint('알림 안내 다이얼로그 표시 실패: $e');
+    }
+  }
+
+  /// 알림 권한 허용 후 자동으로 알림 켜기
+  Future<void> _checkAndEnableNotificationsAfterPermission() async {
+    try {
+      final methodChannel = const MethodChannel('com.example.chat_llm/notification');
+      final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
+      
+      if (hasPermission) {
+        // 권한이 허용되었으면 모든 채팅방 알림 켜기
+        final notificationService = Provider.of<NotificationSettingsService>(context, listen: false);
+        for (final room in _chatRooms) {
+          if (notificationService.isMuted(room.roomName)) {
+            await notificationService.enableNotification(room.roomName);
+          }
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('알림 권한이 허용되어 모든 채팅방 알림이 켜졌습니다.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('알림 자동 켜기 실패: $e');
+    }
   }
 
   /// 외부에서 호출 가능한 채팅방 목록 새로고침
@@ -283,15 +390,24 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
               // 핸들바
               Container(
                 margin: const EdgeInsets.only(top: 12),
@@ -304,19 +420,43 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               ),
               // 대화방 이름
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  room.roomName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFE812).withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_rounded,
+                        color: Color(0xFF3C1E1E),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        room.roomName,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF333333),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Divider(height: 1),
+              Divider(height: 1, color: Colors.grey[200]),
+              const SizedBox(height: 8),
               // AI 요약 기능 켜기/끄기
               _buildMenuItem(
-                icon: room.summaryEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                icon: Icons.auto_awesome,
                 title: room.summaryEnabled ? 'AI 요약 기능 끄기' : 'AI 요약 기능 켜기',
                 subtitle: room.summaryEnabled ? '요약 기능이 활성화되어 있습니다' : '요약 기능이 비활성화되어 있습니다',
                 isEnabled: room.summaryEnabled,
@@ -326,6 +466,26 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   await _toggleSummaryEnabled(room);
                 },
               ),
+              // 자동요약기능설정 (AI 요약 기능이 켜져 있고 베이직 플랜일 때만 표시)
+              if (isBasicPlan && room.summaryEnabled)
+                _buildMenuItem(
+                  icon: Icons.schedule,
+                  title: '자동요약기능설정',
+                  subtitle: room.autoSummaryEnabled 
+                      ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
+                      : '자동 요약이 꺼져 있습니다',
+                  isEnabled: room.autoSummaryEnabled,
+                  iconColor: room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
+                  onTap: () {
+                    Navigator.pop(context);
+                    // 요약 관리 페이지로 이동 (해당 채팅방으로 스크롤)
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UsageManagementScreen(initialRoomId: room.id),
+                      ),
+                    );
+                  },
+                ),
               // 채팅방 상단 고정
               _buildMenuItem(
                 icon: room.pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -362,31 +522,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   }
                 },
               ),
-              // 자동요약기능설정 (베이직 플랜 전용 - 베이직일 때만 표시)
-              if (isBasicPlan)
-                _buildMenuItem(
-                  icon: Icons.schedule,
-                  title: '자동요약기능설정',
-                  subtitle: room.autoSummaryEnabled 
-                      ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
-                      : '베이직 플랜 전용',
-                  isEnabled: room.autoSummaryEnabled,
-                  iconColor: room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
-                  onTap: () {
-                    Navigator.pop(context);
-                    // 요약 관리 페이지로 이동 (해당 채팅방으로 스크롤)
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => UsageManagementScreen(initialRoomId: room.id),
-                      ),
-                    );
-                  },
-                ),
-              // 대화방 차단
+              // 구분선
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Divider(height: 1, color: Colors.grey[200]),
+              ),
+              // 채팅방 차단
               _buildMenuItem(
-                icon: Icons.block,
+                icon: Icons.block_outlined,
                 title: '채팅방 차단',
                 textColor: Colors.orange,
+                iconColor: Colors.orange,
                 onTap: () {
                   Navigator.pop(context);
                   _showBlockConfirmDialog(room);
@@ -397,13 +543,16 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 icon: Icons.delete_outline,
                 title: '대화방 삭제',
                 textColor: Colors.red,
+                iconColor: Colors.red,
                 onTap: () {
                   Navigator.pop(context);
                   _showDeleteConfirmDialog(room);
                 },
               ),
-              const SizedBox(height: 8),
-            ],
+              const SizedBox(height: 16),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -511,13 +660,24 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// AI 요약 기능 토글
   Future<void> _toggleSummaryEnabled(ChatRoom room) async {
     final newSummaryEnabled = !room.summaryEnabled;
-    final result = await _localDb.updateRoomSettings(room.id, summaryEnabled: newSummaryEnabled);
+
+    // AI 요약 기능을 끄면 자동요약 기능도 함께 끄기
+    final newAutoSummaryEnabled = newSummaryEnabled ? room.autoSummaryEnabled : false;
+
+    final result = await _localDb.updateRoomSettings(
+      room.id,
+      summaryEnabled: newSummaryEnabled,
+      autoSummaryEnabled: newAutoSummaryEnabled,
+    );
 
     if (result != null && mounted) {
       setState(() {
         final index = _chatRooms.indexWhere((r) => r.id == room.id);
         if (index >= 0) {
-          _chatRooms[index] = room.copyWith(summaryEnabled: newSummaryEnabled);
+          _chatRooms[index] = room.copyWith(
+            summaryEnabled: newSummaryEnabled,
+            autoSummaryEnabled: newAutoSummaryEnabled,
+          );
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -583,28 +743,80 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     bool? isEnabled,
     Color? iconColor,
   }) {
-    // 아이콘 색상 결정: iconColor가 지정되면 사용, 없으면 isEnabled에 따라 파란색 또는 기본색
-    final finalIconColor = iconColor ?? (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? Colors.black87));
-    
-    return ListTile(
-      leading: Icon(icon, color: finalIconColor),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: textColor ?? Colors.black87,
-          fontSize: 16,
+    // 아이콘 색상 결정
+    final finalIconColor = iconColor ??
+        (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? const Color(0xFF555555)));
+    // 아이콘 배경색 결정
+    final iconBgColor = textColor == Colors.red
+        ? Colors.red.withOpacity(0.1)
+        : textColor == Colors.orange
+            ? Colors.orange.withOpacity(0.1)
+            : (isEnabled == true
+                ? const Color(0xFF2196F3).withOpacity(0.1)
+                : Colors.grey.withOpacity(0.08));
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: finalIconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: textColor ?? const Color(0xFF333333),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (isEnabled != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isEnabled == true
+                      ? const Color(0xFF2196F3).withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isEnabled == true ? 'ON' : 'OFF',
+                  style: TextStyle(
+                    color: isEnabled == true ? const Color(0xFF2196F3) : Colors.grey[600],
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
-              ),
-            )
-          : null,
-      onTap: onTap,
     );
   }
 
@@ -985,21 +1197,32 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                                 } else if (room.profileImageUrl != null) {
                                                   bgImage = NetworkImage(room.profileImageUrl!);
                                                 }
+                                                // 카카오톡인지 확인
+                                                final isKakaoTalk = room.packageName == 'com.kakao.talk';
+                                                
                                                 return CircleAvatar(
                                                   radius: 24,
-                                                  backgroundColor: const Color(0xFF64B5F6),
+                                                  backgroundColor: bgImage == null
+                                                      ? (isKakaoTalk ? const Color(0xFFFFE812) : const Color(0xFF64B5F6))
+                                                      : const Color(0xFF64B5F6),
                                                   backgroundImage: bgImage,
                                                   child: bgImage == null
-                                                      ? Text(
-                                                          room.roomName.isNotEmpty
-                                                              ? room.roomName[0]
-                                                              : '?',
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 20,
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
-                                                        )
+                                                      ? (isKakaoTalk
+                                                          ? const Icon(
+                                                              Icons.chat_bubble_rounded,
+                                                              color: Color(0xFF3C1E1E),
+                                                              size: 24,
+                                                            )
+                                                          : Text(
+                                                              room.roomName.isNotEmpty
+                                                                  ? room.roomName[0]
+                                                                  : '?',
+                                                              style: const TextStyle(
+                                                                color: Colors.white,
+                                                                fontSize: 20,
+                                                                fontWeight: FontWeight.w500,
+                                                              ),
+                                                            ))
                                                       : null,
                                                 );
                                               },

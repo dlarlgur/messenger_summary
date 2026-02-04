@@ -297,7 +297,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         title: const Text('자동 요약 알림'),
         content: const Text(
           '자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n'
-          '알림을 받으려면 시스템 알림 권한이 필요합니다.',
+          '알림을 받으려면 알림 권한이 필요합니다.',
         ),
         actions: [
           TextButton(
@@ -323,7 +323,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   // 시스템 권한이 없으면 설정 화면으로 이동 안내
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('시스템 알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
+                      content: const Text('알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
                       action: SnackBarAction(
                         label: '설정',
                         onPressed: () async {

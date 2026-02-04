@@ -57,6 +57,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
 
 flutter:
   uses-material-design: true
@@ -84,3 +85,9 @@ flutter_launcher_icons:
   adaptive_icon_background: "#4A90E2"
   adaptive_icon_foreground: "assets/ai_talk.png"
   remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#4A90E2"
+  image: "assets/ai_talk.png"
+  android: true
+  ios: true

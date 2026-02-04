@@ -213,6 +213,13 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                       final roomName = notification['room_name'] as String? ?? '';
                       final postTime = notification['post_time'] as int? ?? 0;
                       final id = notification['id'] as int? ?? 0;
+                      final isRead = (notification['is_read'] as int? ?? 0) == 1;
+
+                      // roomName에서 패키지명 제거 (예: "com.example.chat_llm 테스트방" → "테스트방")
+                      String displayRoomName = roomName;
+                      if (roomName.startsWith('com.') && roomName.contains(' ')) {
+                        displayRoomName = roomName.substring(roomName.indexOf(' ') + 1);
+                      }
 
                       return Dismissible(
                         key: Key('notification_$id'),
@@ -281,11 +288,12 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             ),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.grey[50],
+                              // 읽음/안읽음에 따라 배경색 구분
+                              color: isRead ? Colors.grey[50] : const Color(0xFF2196F3).withOpacity(0.08),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.grey[200]!,
-                                width: 1,
+                                color: isRead ? Colors.grey[200]! : const Color(0xFF2196F3).withOpacity(0.3),
+                                width: isRead ? 1 : 1.5,
                               ),
                             ),
                             child: Column(
@@ -294,38 +302,35 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF2196F3).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          _getPackageAlias(packageName),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF2196F3),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        // 안읽음 표시 점
+                                        if (!isRead)
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            margin: const EdgeInsets.only(right: 8),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF2196F3),
+                                              shape: BoxShape.circle,
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      if (roomName.isNotEmpty && roomName != sender) ...[
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          roomName,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF2A2A2A),
+                                        // 채팅방 이름
+                                        Flexible(
+                                          child: Text(
+                                            displayRoomName.isNotEmpty ? displayRoomName : '알 수 없는 채팅방',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                                              color: const Color(0xFF2A2A2A),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
-                                    ],
+                                    ),
                                   ),
                                   Text(
                                     _formatTime(postTime),
@@ -336,26 +341,15 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                   ),
                                 ],
                               ),
-                              if (sender.isNotEmpty) ...[
+                              if (message.isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Text(
-                                  sender,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF2A2A2A),
-                                  ),
-                                ),
-                              ],
-                              if (message.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
                                   message,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
-                                    color: Color(0xFF2A2A2A),
+                                    color: isRead ? Colors.grey[600] : const Color(0xFF2A2A2A),
                                   ),
-                                  maxLines: 3,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],

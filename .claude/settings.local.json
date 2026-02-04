@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(git checkout:*)",
-      "Bash(flutter build:*)"
+      "Bash(flutter build:*)",
+      "Bash(flutter pub run:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub get:*)"
     ]
   }
 }

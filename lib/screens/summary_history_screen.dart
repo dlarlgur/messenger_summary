@@ -545,34 +545,61 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
               ),
         actions: [
           if (_isSelectionMode) ...[
-            // 전체 선택/해제 버튼
-            IconButton(
-              icon: Icon(
-                _selectedSummaryIds.length == _summaries.length
-                    ? Icons.deselect
-                    : Icons.select_all,
-                color: Colors.white,
-              ),
+            // 전체 선택/해제 텍스트 버튼
+            TextButton(
               onPressed: _toggleSelectAll,
-              tooltip: _selectedSummaryIds.length == _summaries.length
-                  ? '전체 해제'
-                  : '전체 선택',
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _selectedSummaryIds.length == _summaries.length
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _selectedSummaryIds.length == _summaries.length
+                        ? '전체 해제'
+                        : '전체 선택',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
             // 선택 삭제 버튼
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.white),
+              icon: Icon(
+                Icons.delete_outline,
+                color: _selectedSummaryIds.isEmpty
+                    ? Colors.white.withOpacity(0.5)
+                    : Colors.white,
+              ),
               onPressed: _selectedSummaryIds.isEmpty ? null : _deleteSelectedSummaries,
               tooltip: '선택 삭제',
             ),
           ],
-          IconButton(
-            icon: Icon(
-              _isSelectionMode ? Icons.close : Icons.checklist,
-              color: Colors.white,
+          // 선택 모드 토글 버튼
+          if (_isSelectionMode)
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: _toggleSelectionMode,
+              tooltip: '선택 모드 종료',
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.white),
+              onPressed: _toggleSelectionMode,
+              tooltip: '편집',
             ),
-            onPressed: _toggleSelectionMode,
-            tooltip: _isSelectionMode ? '선택 모드 종료' : '선택 모드',
-          ),
         ],
       ),
       body: _isLoading
