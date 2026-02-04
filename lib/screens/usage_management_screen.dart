@@ -8,6 +8,7 @@ import '../services/local_db_service.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/profile_image_service.dart';
 import '../models/chat_room.dart';
+import 'summary_history_screen.dart';
 
 /// 요약 관리 화면
 class UsageManagementScreen extends StatefulWidget {
@@ -34,6 +35,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   String? _errorMessage;
   // 자동 요약 개수 임시 값 (확인 버튼을 눌러야 저장)
   final Map<int, int> _tempAutoSummaryCounts = {};
+  // TextEditingController 관리 (커서 유지를 위해)
+  final Map<int, TextEditingController> _textControllers = {};
 
   @override
   void initState() {
@@ -59,6 +62,11 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    // TextEditingController 정리
+    for (var controller in _textControllers.values) {
+      controller.dispose();
+    }
+    _textControllers.clear();
     super.dispose();
   }
 
@@ -814,6 +822,31 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 요약 히스토리 바로가기 버튼
+            IconButton(
+              icon: const Icon(
+                Icons.history,
+                size: 20,
+              ),
+              color: const Color(0xFF2196F3),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => SummaryHistoryScreen(
+                      roomId: room.id,
+                      roomName: room.roomName,
+                    ),
+                  ),
+                );
+              },
+              tooltip: '요약 히스토리',
+            ),
+            const SizedBox(width: 4),
             Switch(
               value: room.summaryEnabled,
               onChanged: (value) => _toggleSummaryEnabled(room),
@@ -899,50 +932,68 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                           ),
                           const SizedBox(height: 16),
                           // 숫자 입력 필드
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.grey[300]!,
-                                width: 1,
-                              ),
-                            ),
-                            child: TextField(
-                              key: ValueKey('auto_summary_count_${room.id}_${_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount}'),
-                              controller: TextEditingController(
-                                text: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toString(),
-                              ),
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: InputDecoration(
-                                hintText: '5 ~ 300',
-                                suffixText: '개',
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                hintStyle: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 14,
-                                ),
-                              ),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              onChanged: (value) {
-                                final count = int.tryParse(value);
-                                if (count != null && count >= 5 && count <= 300) {
-                                  setState(() {
-                                    _tempAutoSummaryCounts[room.id] = count;
-                                  });
+                          Builder(
+                            builder: (context) {
+                              // TextEditingController 초기화 또는 재사용
+                              if (!_textControllers.containsKey(room.id)) {
+                                _textControllers[room.id] = TextEditingController(
+                                  text: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toString(),
+                                );
+                              } else {
+                                // 값이 변경되었을 때만 업데이트 (커서 위치 유지)
+                                final currentValue = _textControllers[room.id]!.text;
+                                final newValue = (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toString();
+                                if (currentValue != newValue && !_textControllers[room.id]!.selection.isValid) {
+                                  // 커서가 없을 때만 업데이트
+                                  _textControllers[room.id]!.text = newValue;
                                 }
-                              },
-                            ),
+                              }
+                              
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey[300]!,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: TextField(
+                                  key: ValueKey('auto_summary_count_${room.id}'),
+                                  controller: _textControllers[room.id]!,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: InputDecoration(
+                                    hintText: '5 ~ 300',
+                                    suffixText: '개',
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  onChanged: (value) {
+                                    final count = int.tryParse(value);
+                                    if (count != null && count >= 5 && count <= 300) {
+                                      // setState 없이 직접 업데이트 (커서 유지)
+                                      _tempAutoSummaryCounts[room.id] = count;
+                                      // 위의 개수 표시만 업데이트
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
                           // 슬라이더
@@ -954,9 +1005,13 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                             activeColor: const Color(0xFF2196F3),
                             inactiveColor: Colors.grey[300],
                             onChanged: (value) {
-                              setState(() {
-                                _tempAutoSummaryCounts[room.id] = value.toInt();
-                              });
+                              final intValue = value.toInt();
+                              _tempAutoSummaryCounts[room.id] = intValue;
+                              // TextField 값도 업데이트
+                              if (_textControllers.containsKey(room.id)) {
+                                _textControllers[room.id]!.text = intValue.toString();
+                              }
+                              setState(() {});
                             },
                           ),
                           const SizedBox(height: 12),
@@ -1082,6 +1137,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         }
         // 임시 값 제거
         _tempAutoSummaryCounts.remove(room.id);
+        // TextEditingController 정리
+        _textControllers[room.id]?.dispose();
+        _textControllers.remove(room.id);
       });
 
       // 저장 완료 토스트 표시 (항상 표시)

@@ -40,6 +40,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       _checkOverlayPermission();
+      // 시스템 알림 권한 상태 새로고침
+      final autoSummarySettingsService =
+          Provider.of<AutoSummarySettingsService>(context, listen: false);
+      autoSummarySettingsService.refreshSystemNotificationPermission();
     }
   }
 
@@ -477,10 +481,41 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     return Consumer<AutoSummarySettingsService>(
       builder: (context, autoSummarySettings, _) {
         final isEnabled = autoSummarySettings.autoSummaryNotificationEnabled;
+        final systemPermissionEnabled = autoSummarySettings.systemNotificationPermissionEnabled;
+        final appEnabled = autoSummarySettings.appNotificationEnabled;
 
         return InkWell(
           onTap: () async {
-            await autoSummarySettings.setAutoSummaryNotificationEnabled(!isEnabled);
+            // 시스템 권한이 없으면 설정 화면으로 이동
+            if (!systemPermissionEnabled) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('시스템 알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
+                    action: SnackBarAction(
+                      label: '설정',
+                      onPressed: () async {
+                        try {
+                          const methodChannel = MethodChannel('com.example.chat_llm/main');
+                          await methodChannel.invokeMethod('openAppSettings');
+                        } catch (e) {
+                          debugPrint('설정 화면 열기 실패: $e');
+                        }
+                      },
+                    ),
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              }
+              return;
+            }
+
+            // 시스템 권한이 있으면 토글
+            final success = await autoSummarySettings.setAutoSummaryNotificationEnabled(!appEnabled);
+            if (!success && mounted) {
+              // 시스템 권한 상태 새로고침
+              await autoSummarySettings.refreshSystemNotificationPermission();
+            }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -514,12 +549,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        isEnabled
-                            ? '자동 요약 완료 시 푸시 알림을 받습니다'
-                            : '자동 요약 알림이 꺼져 있습니다',
+                        !systemPermissionEnabled
+                            ? '시스템 알림 권한이 필요합니다'
+                            : isEnabled
+                                ? '자동 요약 완료 시 푸시 알림을 받습니다'
+                                : '자동 요약 알림이 꺼져 있습니다',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[600],
+                          color: !systemPermissionEnabled ? Colors.orange[700] : Colors.grey[600],
                         ),
                       ),
                     ],
@@ -527,9 +564,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 ),
                 Switch(
                   value: isEnabled,
-                  onChanged: (value) async {
-                    await autoSummarySettings.setAutoSummaryNotificationEnabled(value);
-                  },
+                  onChanged: systemPermissionEnabled
+                      ? (value) async {
+                          final success = await autoSummarySettings.setAutoSummaryNotificationEnabled(value);
+                          if (!success && mounted) {
+                            await autoSummarySettings.refreshSystemNotificationPermission();
+                          }
+                        }
+                      : null,
                   activeColor: const Color(0xFF2196F3),
                 ),
               ],

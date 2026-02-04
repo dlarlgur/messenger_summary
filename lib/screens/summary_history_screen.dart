@@ -176,13 +176,9 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         // 앞 공백 모두 제거 (원래 숫자 리스트는 들여쓰기 없이)
         result.add(trimmedLine);
       } else if (isBulletList) {
-        // 불렛 리스트 - 바로 이전 줄이 숫자 텍스트였거나 모드 중이면 들여쓰기
-        if (lastNumberLineIndex == i - 1 || inBulletList) {
-          inBulletList = true;
-          result.add('   $line');
-        } else {
-          result.add(line);
-        }
+        // 불렛 리스트 - 들여쓰기 없이 표시
+        inBulletList = true;
+        result.add(trimmedLine);
       } else {
         // 그 외 (빈 줄 포함) - 모드 종료
         inBulletList = false;
@@ -941,7 +937,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   fontStyle: FontStyle.italic,
                                 ),
                                 blockSpacing: 10,
-                                listIndent: 32,
+                                listIndent: 16,
                                 listBullet: const TextStyle(
                                   fontSize: 15,
                                   color: Color(0xFF2196F3),

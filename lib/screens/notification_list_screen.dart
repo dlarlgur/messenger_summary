@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../services/local_db_service.dart';
+import 'summary_history_screen.dart';
+import 'chat_room_detail_screen.dart';
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
@@ -11,6 +14,7 @@ class NotificationListScreen extends StatefulWidget {
 
 class _NotificationListScreenState extends State<NotificationListScreen> {
   final LocalDbService _localDb = LocalDbService();
+  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/notification');
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
 
@@ -18,6 +22,29 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   void initState() {
     super.initState();
     _loadNotifications();
+    _markAllAsReadAndUpdateBadge();
+  }
+
+  /// 모든 알림을 읽음 처리하고 배지 업데이트
+  Future<void> _markAllAsReadAndUpdateBadge() async {
+    try {
+      // 모든 알림을 읽음 처리
+      await _localDb.markAllNotificationsAsRead();
+      
+      // 배지 업데이트 (0으로 설정)
+      await _updateBadge(0);
+    } catch (e) {
+      debugPrint('알림 읽음 처리 실패: $e');
+    }
+  }
+
+  /// 배지 업데이트
+  Future<void> _updateBadge(int count) async {
+    try {
+      await _methodChannel.invokeMethod('updateNotificationBadge', {'count': count});
+    } catch (e) {
+      debugPrint('배지 업데이트 실패: $e');
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -26,7 +53,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     });
 
     try {
-      final notifications = await _localDb.getNotifications();
+      // 자동요약 알림만 조회
+      final notifications = await _localDb.getNotifications(autoSummaryOnly: true);
       if (mounted) {
         setState(() {
           _notifications = notifications;
@@ -78,6 +106,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     final success = await _localDb.deleteNotification(id);
     if (success && mounted) {
       _loadNotifications();
+      // 배지 업데이트
+      final unreadCount = await _localDb.getUnreadNotificationCount();
+      await _updateBadge(unreadCount);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('알림이 삭제되었습니다.'),
@@ -110,6 +141,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       final success = await _localDb.deleteAllNotifications();
       if (success && mounted) {
         _loadNotifications();
+        // 배지 업데이트 (0으로 설정)
+        await _updateBadge(0);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('모든 알림이 삭제되었습니다.'),
@@ -128,7 +161,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         backgroundColor: const Color(0xFF2196F3),
         elevation: 0,
         title: const Text(
-          '푸시 알림',
+          '자동 요약 알림',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -158,7 +191,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '저장된 알림이 없습니다',
+                        '저장된 자동 요약 알림이 없습니다',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -196,23 +229,68 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                         onDismissed: (direction) {
                           _deleteNotification(id);
                         },
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey[200]!,
-                              width: 1,
+                        child: InkWell(
+                          onTap: () async {
+                            // summaryId가 있으면 요약 히스토리로 이동
+                            final summaryId = notification['summary_id'] as int?;
+                            if (summaryId != null && summaryId > 0) {
+                              // summaryId로 roomId 찾기
+                              final roomId = await _localDb.getRoomIdBySummaryId(summaryId);
+                              if (roomId != null) {
+                                // roomId로 채팅방 정보 가져오기
+                                final room = await _localDb.getRoomById(roomId);
+                                if (room != null && mounted) {
+                                  // 요약 히스토리 화면으로 이동
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => SummaryHistoryScreen(
+                                        roomId: roomId,
+                                        roomName: room.roomName,
+                                        initialSummaryId: summaryId,
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                              }
+                            }
+                            
+                            // summaryId가 없거나 찾을 수 없으면 채팅방으로 이동 시도
+                            final room = await _localDb.findRoom(roomName, packageName);
+                            if (room != null && mounted) {
+                              // 채팅방 상세 화면으로 이동
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => ChatRoomDetailScreen(room: room),
+                                ),
+                              );
+                            } else if (mounted) {
+                              // 채팅방을 찾을 수 없으면 메시지 표시
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('해당 요약을 찾을 수 없습니다.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.grey[200]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -284,7 +362,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             ],
                           ),
                         ),
-                      );
+                      ),
+                    );
                     },
                   ),
                 ),

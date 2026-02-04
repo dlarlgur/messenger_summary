@@ -29,7 +29,7 @@ class MarkdownText extends StatelessWidget {
         h3: style?.copyWith(fontSize: 18, fontWeight: FontWeight.bold) ??
             const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         listBullet: style ?? const TextStyle(fontSize: 16),
-        listIndent: 24.0,
+        listIndent: 12.0,
         blockquote: style?.copyWith(
               fontStyle: FontStyle.italic,
               color: Colors.grey,

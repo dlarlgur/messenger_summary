@@ -32,6 +32,8 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -40,6 +42,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AutoSummarySettingsService()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'AI 톡비서',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -141,12 +144,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // roomId로 채팅방 정보 가져오기
         final room = await _localDb.getRoomById(roomId);
         
-        if (room != null && mounted) {
+        if (room != null) {
           // 앱이 완전히 로드된 후 요약 히스토리 화면으로 이동
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
+            final navigator = MyApp.navigatorKey.currentState;
+            if (navigator != null) {
               debugPrint('📱 요약 히스토리 화면으로 이동: roomId=$roomId, summaryId=$summaryId');
-              Navigator.of(context).push(
+              navigator.push(
                 MaterialPageRoute(
                   builder: (context) => SummaryHistoryScreen(
                     roomId: roomId,
@@ -155,6 +159,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
               );
+            } else {
+              debugPrint('⚠️ Navigator를 찾을 수 없음');
             }
           });
         } else {
@@ -242,14 +248,111 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         });
         // ⚠️ 수정: 권한이 있으면 리스너 시작
         _startListening();
+        
+        // 배지 업데이트
+        _updateNotificationBadge();
+        
+        // 자동요약 알림 설정 팝업 표시 (최초 진입 시에만)
+        _checkAndShowAutoSummaryNotificationDialog();
       }
     }
+  }
+
+  /// 자동요약 알림 설정 팝업 표시 (최초 진입 시에만)
+  Future<void> _checkAndShowAutoSummaryNotificationDialog() async {
+    try {
+      final autoSummarySettingsService =
+          Provider.of<AutoSummarySettingsService>(context, listen: false);
+      
+      // 이미 팝업을 표시했는지 확인
+      final shouldShow = await autoSummarySettingsService.shouldShowNotificationDialog();
+      
+      if (shouldShow && mounted) {
+        // 시스템 알림 권한 확인
+        final systemPermissionEnabled = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
+        
+        if (systemPermissionEnabled) {
+          // 시스템 권한이 있으면 팝업 표시
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _showAutoSummaryNotificationDialog(autoSummarySettingsService);
+            }
+          });
+        } else {
+          // 시스템 권한이 없으면 팝업 표시하지 않고, 팝업 표시 완료로 표시
+          await autoSummarySettingsService.markNotificationDialogShown();
+        }
+      }
+    } catch (e) {
+      debugPrint('자동요약 알림 팝업 확인 실패: $e');
+    }
+  }
+
+  /// 자동요약 알림 설정 팝업 표시
+  void _showAutoSummaryNotificationDialog(AutoSummarySettingsService autoSummarySettingsService) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('자동 요약 알림'),
+        content: const Text(
+          '자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n'
+          '알림을 받으려면 시스템 알림 권한이 필요합니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              // 거부 - 팝업 표시 완료로 표시하고 닫기
+              await autoSummarySettingsService.markNotificationDialogShown();
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('나중에'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // 동의 - 자동요약 알림 켜기
+              final success = await autoSummarySettingsService.setAutoSummaryNotificationEnabled(true);
+              await autoSummarySettingsService.markNotificationDialogShown();
+              
+              if (mounted) {
+                Navigator.of(context).pop();
+                
+                if (!success) {
+                  // 시스템 권한이 없으면 설정 화면으로 이동 안내
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('시스템 알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
+                      action: SnackBarAction(
+                        label: '설정',
+                        onPressed: () async {
+                          try {
+                            await methodChannel.invokeMethod('openAppSettings');
+                          } catch (e) {
+                            debugPrint('설정 화면 열기 실패: $e');
+                          }
+                        },
+                      ),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('알림 받기'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      // 앱이 포그라운드로 돌아올 때 배지 업데이트
+      _updateNotificationBadge();
       if (!mounted) return;
       debugPrint('🔄 앱 포그라운드 복귀 - 리스너 재구독 및 대화목록 새로고침');
       // 이벤트 리스너 재구독 (백그라운드에서 끊어졌을 수 있음)
@@ -261,6 +364,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _chatRoomListKey.currentState?.refreshRooms();
           // 앱이 포그라운드로 돌아올 때도 summaryId 확인
           _checkPendingSummaryId();
+          // 시스템 알림 권한 상태 새로고침
+          final autoSummarySettingsService =
+              Provider.of<AutoSummarySettingsService>(context, listen: false);
+          autoSummarySettingsService.refreshSystemNotificationPermission();
         }
       });
     } else if (state == AppLifecycleState.paused) {
@@ -333,11 +440,61 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// 배지 업데이트
+  Future<void> _updateNotificationBadge() async {
+    try {
+      final unreadCount = await _localDb.getUnreadNotificationCount();
+      await methodChannel.invokeMethod('updateNotificationBadge', {'count': unreadCount});
+      debugPrint('📊 배지 업데이트: $unreadCount개');
+    } catch (e) {
+      debugPrint('❌ 배지 업데이트 실패: $e');
+    }
+  }
+
   /// 알림 수신 → UI 갱신 (Android 네이티브에서 이미 DB에 저장됨)
   Future<void> _handleNotification(Map<String, dynamic> data) async {
     debugPrint('📩 알림 수신: $data');
 
     final packageName = data['packageName'] ?? '';
+    final type = data['type'] ?? 'notification';
+    final isAutoSummary = data['isAutoSummary'] == true || type == 'auto_summary';
+    final summaryId = data['summaryId'] as int?;
+
+    // 자동요약 알림인 경우 별도 처리
+    if (isAutoSummary) {
+      debugPrint('🤖 자동요약 알림 수신: summaryId=$summaryId');
+      
+      int postTime;
+      if (data['postTime'] != null) {
+        if (data['postTime'] is int) {
+          postTime = data['postTime'] as int;
+        } else if (data['postTime'] is num) {
+          postTime = (data['postTime'] as num).toInt();
+        } else {
+          postTime = DateTime.now().millisecondsSinceEpoch;
+        }
+      } else {
+        postTime = DateTime.now().millisecondsSinceEpoch;
+      }
+
+      final sender = data['sender'] ?? 'AI 톡비서';
+      final message = data['message'] ?? '';
+      final roomName = data['roomName'] ?? '';
+
+      await _localDb.saveNotification(
+        packageName: packageName,
+        sender: sender,
+        message: message,
+        roomName: roomName,
+        postTime: postTime,
+        isAutoSummary: true,
+        summaryId: summaryId,
+      );
+      
+      // 읽지 않은 알림 개수 조회 및 배지 업데이트
+      _updateNotificationBadge();
+      return;
+    }
 
     // 시스템 UI 알림 필터링 (com.android.systemui 등)
     if (packageName == 'com.android.systemui' || 

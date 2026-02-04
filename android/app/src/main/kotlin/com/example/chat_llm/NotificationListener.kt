@@ -1520,6 +1520,8 @@ class NotificationListener : NotificationListenerService() {
 
                 // 지원하는 메신저 알림인 경우 API 호출
                 if (isSupportedMessenger) {
+                    Log.d(TAG, "📱 지원하는 메신저 알림: $messengerName")
+                    
                     // ★★★ 빈 알림/선행 알림/요약 알림 필터링 ★★★
                     // 카카오톡은 실제 알림 전에 빈 알림을 먼저 보내거나, 그룹화된 요약 알림을 보냄
                     // 이런 알림들은 이미지 추출 시도도 하지 않고 바로 무시
@@ -1551,6 +1553,8 @@ class NotificationListener : NotificationListenerService() {
                     val message = text
                     val isPrivateChat = subText.isEmpty()
                     
+                    Log.d(TAG, "📝 알림 파싱: sender='$sender', message='${message.take(50)}', roomName='$roomName', isPrivate=$isPrivateChat")
+                    
                     // ★★★ 이미지 추출을 음소거 체크 전에 수행 (알림 삭제 전에 데이터 확보) ★★★
                     // 알림에서 이미지 데이터를 먼저 추출해두고, 그 후 음소거면 알림 삭제
                     var preExtractedImage: android.graphics.Bitmap? = null
@@ -1578,11 +1582,13 @@ class NotificationListener : NotificationListenerService() {
                             // 음소거된 채팅방이면 알림만 삭제 (이미지는 이미 추출됨)
                             try {
                                 cancelNotification(notification.key)
-                                Log.i(TAG, "🔇 음소거 채팅방 알림 삭제: roomName='$roomName'")
+                                Log.i(TAG, "🔇 음소거 채팅방 알림 삭제: roomName='$roomName' (메시지 저장은 계속 진행)")
                             } catch (e: Exception) {
                                 Log.e(TAG, "🔇 알림 삭제 실패: ${e.message}", e)
                             }
                             // return 하지 않음 - 저장은 계속 진행
+                        } else {
+                            Log.d(TAG, "🔊 음소거 아님: roomName='$roomName'")
                         }
 
                         // 2. 차단 체크
@@ -1591,12 +1597,16 @@ class NotificationListener : NotificationListenerService() {
                             // 차단된 채팅방이면 알림 즉시 삭제하고 종료
                             try {
                                 cancelNotification(notification.key)
-                                Log.i(TAG, "🚫 차단된 채팅방 알림 삭제: roomName='$roomName'")
+                                Log.i(TAG, "🚫 차단된 채팅방 알림 삭제: roomName='$roomName' (메시지 저장 스킵)")
                             } catch (e: Exception) {
                                 Log.e(TAG, "🚫 알림 삭제 실패: ${e.message}", e)
                             }
                             return  // 즉시 종료 (이미지 저장, 메시지 저장 모두 스킵)
+                        } else {
+                            Log.d(TAG, "✅ 차단 아님: roomName='$roomName'")
                         }
+                    } else {
+                        Log.w(TAG, "⚠️ roomName이 비어있음 - 메시지 저장 스킵 가능")
                     }
                     
                     // 내가 보낸 메시지인지 확인 (selfDisplayName과 비교)
@@ -1660,10 +1670,15 @@ class NotificationListener : NotificationListenerService() {
                         // 이미지 메시지가 있는 경우 저장
                         if (imageMessage != null) {
                             // 약관 동의 여부 확인
-                            if (!isAgreementAccepted()) return
+                            if (!isAgreementAccepted()) {
+                                Log.w(TAG, "⚠️ 약관 동의 안 됨 - 이미지 메시지 저장 스킵")
+                                return
+                            }
 
                             // ✅ 비동기 처리: 메시지 저장을 백그라운드에서 처리 (알림 삭제는 이미 완료)
                             if (sender.isNotEmpty() && roomName.isNotEmpty()) {
+                                Log.d(TAG, "💾 이미지 메시지 저장 시작: sender='$sender', roomName='$roomName'")
+                                
                                 // 필요한 데이터를 로컬 변수로 복사 (클로저 안전성)
                                 val imageMsg = imageMessage
                                 val savedPath = savedImagePath
@@ -1683,6 +1698,7 @@ class NotificationListener : NotificationListenerService() {
                                         
                                         // 채팅방 저장/업데이트 및 roomId 반환
                                         // 개인채팅은 요약 끄기, 그룹/오픈채팅은 요약 켜기
+                                        Log.d(TAG, "💾 이미지 채팅방 저장/업데이트 시도: roomName='$room', packageName='$pkgName'")
                                         val roomId = db.saveOrUpdateRoom(
                                             roomName = room,
                                             packageName = pkgName,
@@ -1693,6 +1709,8 @@ class NotificationListener : NotificationListenerService() {
                                             isPrivateChat = isPrivate
                                         )
 
+                                        Log.d(TAG, "💾 이미지 채팅방 저장 결과: roomId=$roomId")
+
                                         // PendingIntent 및 RemoteInput 캐시에 저장
                                         if (roomId > 0 && replyData != null) {
                                             replyIntentCache[roomId] = replyData
@@ -1701,6 +1719,7 @@ class NotificationListener : NotificationListenerService() {
                                         // 메시지 저장
                                         if (roomId > 0) {
                                             try {
+                                                Log.d(TAG, "💾 이미지 메시지 저장 시도: roomId=$roomId, sender='$senderName'")
                                                 db.saveMessage(
                                                     roomId = roomId,
                                                     sender = senderName,
@@ -1710,6 +1729,7 @@ class NotificationListener : NotificationListenerService() {
                                                 )
 
                                                 val updatedUnreadCount = db.getUnreadCount(roomId)
+                                                Log.i(TAG, "✅ 이미지 메시지 저장 성공: roomId=$roomId, unreadCount=$updatedUnreadCount")
 
                                                 // 채팅방 업데이트 브로드캐스트
                                                 val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
@@ -1726,23 +1746,31 @@ class NotificationListener : NotificationListenerService() {
 
                                                 checkAndTriggerAutoSummary(roomId, room, updatedUnreadCount)
                                             } catch (e: Exception) {
-                                                Log.e(TAG, "이미지 메시지 저장 실패: ${e.message}")
+                                                Log.e(TAG, "❌ 이미지 메시지 저장 실패: ${e.message}", e)
                                             }
+                                        } else {
+                                            Log.e(TAG, "❌ 이미지 채팅방 저장 실패: roomId=$roomId (0 이하)")
                                         }
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "이미지 메시지 DB 오류: ${e.message}")
+                                        Log.e(TAG, "❌ 이미지 메시지 DB 오류: ${e.message}", e)
                                     }
                                 }
+                            } else {
+                                Log.w(TAG, "⚠️ 이미지 메시지 저장 조건 불만족: sender.isEmpty=${sender.isEmpty()}, roomName.isEmpty=${roomName.isEmpty()}")
                             }
                             return
                         }
                     }
 
                     // 약관 동의 여부 확인
-                    if (!isAgreementAccepted()) return
+                    if (!isAgreementAccepted()) {
+                        Log.w(TAG, "⚠️ 약관 동의 안 됨 - 메시지 저장 스킵")
+                        return
+                    }
 
                     // 일반 메시지 저장
                     if (sender.isNotEmpty() && message.isNotEmpty() && roomName.isNotEmpty()) {
+                        Log.d(TAG, "💾 메시지 저장 시작: sender='$sender', roomName='$roomName', message='${message.take(50)}...'")
                         
                         // 필요한 데이터를 로컬 변수로 복사 (클로저 안전성)
                         val finalMessage = message
@@ -1760,6 +1788,7 @@ class NotificationListener : NotificationListenerService() {
                                 val replyIntentUri = extractReplyIntent(noti)
                                 val replyData = extractReplyIntentData(noti)
 
+                                Log.d(TAG, "💾 채팅방 저장/업데이트 시도: roomName='$room', packageName='$pkgName'")
                                 val roomId = db.saveOrUpdateRoom(
                                     roomName = room,
                                     packageName = pkgName,
@@ -1770,12 +1799,15 @@ class NotificationListener : NotificationListenerService() {
                                     isPrivateChat = isPrivate
                                 )
 
+                                Log.d(TAG, "💾 채팅방 저장 결과: roomId=$roomId")
+
                                 if (roomId > 0 && replyData != null) {
                                     replyIntentCache[roomId] = replyData
                                 }
 
                                 if (roomId > 0) {
                                     try {
+                                        Log.d(TAG, "💾 메시지 저장 시도: roomId=$roomId, sender='$senderName', message='${finalMessage.take(50)}...'")
                                         db.saveMessage(
                                             roomId = roomId,
                                             sender = senderName,
@@ -1785,6 +1817,7 @@ class NotificationListener : NotificationListenerService() {
                                         )
 
                                         val updatedUnreadCount = db.getUnreadCount(roomId)
+                                        Log.i(TAG, "✅ 메시지 저장 성공: roomId=$roomId, unreadCount=$updatedUnreadCount")
 
                                         val roomUpdateIntent = Intent(ACTION_ROOM_UPDATED).apply {
                                             putExtra("roomId", roomId)
@@ -1799,13 +1832,17 @@ class NotificationListener : NotificationListenerService() {
                                         sendBroadcast(roomUpdateIntent)
                                         checkAndTriggerAutoSummary(roomId, room, updatedUnreadCount)
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "메시지 저장 실패: ${e.message}")
+                                        Log.e(TAG, "❌ 메시지 저장 실패: ${e.message}", e)
                                     }
+                                } else {
+                                    Log.e(TAG, "❌ 채팅방 저장 실패: roomId=$roomId (0 이하)")
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "DB 오류: ${e.message}")
+                                Log.e(TAG, "❌ DB 오류: ${e.message}", e)
                             }
                         }
+                    } else {
+                        Log.w(TAG, "⚠️ 메시지 저장 조건 불만족: sender.isEmpty=${sender.isEmpty()}, message.isEmpty=${message.isEmpty()}, roomName.isEmpty=${roomName.isEmpty()}")
                     }
                 }
 
@@ -2441,9 +2478,22 @@ class NotificationListener : NotificationListenerService() {
      */
     private fun showAutoSummaryNotification(roomName: String, messageCount: Int, summaryId: Int) {
         try {
+            // 시스템 알림 권한 확인
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val systemNotificationEnabled = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                notificationManager.areNotificationsEnabled()
+            } else {
+                true // API 24 미만에서는 항상 true로 간주
+            }
+
+            if (!systemNotificationEnabled) {
+                Log.d(TAG, "🤖 시스템 알림 권한 없음 - 알림 생성 안 함")
+                return
+            }
+
             // 자동 요약 알림 활성화 여부 확인
             val prefs = getSharedPreferences(FLUTTER_PREFS_NAME, Context.MODE_PRIVATE)
-            val notificationEnabled = prefs.getBoolean(AUTO_SUMMARY_NOTIFICATION_ENABLED_KEY, true)
+            val notificationEnabled = prefs.getBoolean(AUTO_SUMMARY_NOTIFICATION_ENABLED_KEY, false)
 
             if (!notificationEnabled) {
                 Log.d(TAG, "🤖 자동 요약 알림 비활성화 - 알림 생성 안 함")
@@ -2456,6 +2506,15 @@ class NotificationListener : NotificationListenerService() {
 
             // 알림 채널 재생성 (진동 및 소리 설정 반영)
             updateNotificationChannelVibration(vibrationEnabled)
+            
+            // 알림 채널이 존재하는지 확인 (없으면 생성)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channel = notificationManager.getNotificationChannel(AUTO_SUMMARY_CHANNEL_ID)
+                if (channel == null) {
+                    Log.w(TAG, "🤖 알림 채널이 없음 - 재생성")
+                    createAutoSummaryNotificationChannel()
+                }
+            }
 
             // MainActivity로 이동하는 Intent 생성
             val intent = Intent(applicationContext, Class.forName("com.example.chat_llm.MainActivity")).apply {
@@ -2488,10 +2547,29 @@ class NotificationListener : NotificationListenerService() {
                 }
             }
 
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(summaryId, notificationBuilder.build())
 
             Log.i(TAG, "🤖 ✅ 자동 요약 알림 생성 완료: roomName=$roomName, messageCount=$messageCount, vibration=$vibrationEnabled")
+
+            // Flutter로 자동요약 알림 저장 요청 전송
+            try {
+                val saveNotificationIntent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
+                    putExtra("type", "auto_summary")
+                    putExtra("packageName", "com.example.chat_llm")
+                    putExtra("sender", "AI 톡비서")
+                    putExtra("message", "${roomName}의 메시지 ${messageCount}개가 요약되었습니다")
+                    putExtra("roomName", roomName)
+                    putExtra("postTime", System.currentTimeMillis())
+                    putExtra("isAutoSummary", true)
+                    putExtra("summaryId", summaryId) // Int 타입이므로 자동으로 Int로 저장됨
+                    setPackage(packageName)
+                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                }
+                sendBroadcast(saveNotificationIntent)
+                Log.d(TAG, "🤖 자동요약 알림 저장 요청 전송: summaryId=$summaryId")
+            } catch (e: Exception) {
+                Log.e(TAG, "🤖 자동요약 알림 저장 요청 실패: ${e.message}")
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "🤖 ❌ 자동 요약 알림 생성 실패: ${e.message}", e)

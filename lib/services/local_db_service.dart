@@ -11,7 +11,7 @@ class LocalDbService {
 
   // Android ChatDatabase.kt와 동일한 DB 이름 사용
   static const String _databaseName = 'chat_llm.db';
-  static const int _databaseVersion = 4; // push_notifications 테이블 추가
+  static const int _databaseVersion = 6; // push_notifications 테이블에 is_read 필드 추가
 
   // 테이블 이름 (Android와 동일)
   static const String _tableRooms = 'chat_rooms';
@@ -123,6 +123,9 @@ class LocalDbService {
         message TEXT,
         room_name TEXT,
         post_time INTEGER NOT NULL,
+        is_auto_summary INTEGER DEFAULT 0,
+        summary_id INTEGER,
+        is_read INTEGER DEFAULT 0,
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
       )
     ''');
@@ -161,10 +164,21 @@ class LocalDbService {
             message TEXT,
             room_name TEXT,
             post_time INTEGER NOT NULL,
+            is_auto_summary INTEGER DEFAULT 0,
+            summary_id INTEGER,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
           )
         ''');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_notifications_post_time ON $_tableNotifications(post_time)');
+      }
+      if (version == 5) {
+        // 자동요약 알림 필드 추가
+        await _ensureColumnExists(db, _tableNotifications, 'is_auto_summary', 'INTEGER DEFAULT 0');
+        await _ensureColumnExists(db, _tableNotifications, 'summary_id', 'INTEGER');
+      }
+      if (version == 6) {
+        // 읽음 상태 필드 추가
+        await _ensureColumnExists(db, _tableNotifications, 'is_read', 'INTEGER DEFAULT 0');
       }
     }
   }
@@ -684,10 +698,12 @@ class LocalDbService {
     String? message,
     String? roomName,
     required int postTime,
+    bool isAutoSummary = false,
+    int? summaryId,
   }) async {
     try {
       final db = await database;
-      debugPrint('📝 알림 저장 시도: packageName=$packageName, sender=$sender, message=${message?.substring(0, message.length > 50 ? 50 : message.length)}..., roomName=$roomName, postTime=$postTime');
+      debugPrint('📝 알림 저장 시도: packageName=$packageName, sender=$sender, message=${message?.substring(0, message.length > 50 ? 50 : message.length)}..., roomName=$roomName, postTime=$postTime, isAutoSummary=$isAutoSummary, summaryId=$summaryId');
       
       final id = await db.insert(
         _tableNotifications,
@@ -697,6 +713,8 @@ class LocalDbService {
           'message': message,
           'room_name': roomName,
           'post_time': postTime,
+          'is_auto_summary': isAutoSummary ? 1 : 0,
+          'summary_id': summaryId,
         },
       );
       
@@ -710,14 +728,18 @@ class LocalDbService {
   }
 
   /// 푸시 알림 목록 조회 (최신순)
+  /// 자동요약 알림만 조회하려면 autoSummaryOnly를 true로 설정
   Future<List<Map<String, dynamic>>> getNotifications({
     int? limit,
     int? offset,
+    bool autoSummaryOnly = false,
   }) async {
     try {
       final db = await database;
       final results = await db.query(
         _tableNotifications,
+        where: autoSummaryOnly ? 'is_auto_summary = 1' : null,
+        whereArgs: autoSummaryOnly ? null : null,
         orderBy: 'post_time DESC',
         limit: limit,
         offset: offset,
@@ -738,6 +760,54 @@ class LocalDbService {
     } catch (e) {
       debugPrint('알림 개수 조회 실패: $e');
       return 0;
+    }
+  }
+
+  /// 읽지 않은 알림 개수 조회 (자동요약 알림만)
+  Future<int> getUnreadNotificationCount() async {
+    try {
+      final db = await database;
+      final results = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM $_tableNotifications WHERE is_auto_summary = 1 AND is_read = 0',
+      );
+      return Sqflite.firstIntValue(results) ?? 0;
+    } catch (e) {
+      debugPrint('읽지 않은 알림 개수 조회 실패: $e');
+      return 0;
+    }
+  }
+
+  /// 모든 알림을 읽음 처리
+  Future<bool> markAllNotificationsAsRead() async {
+    try {
+      final db = await database;
+      final count = await db.update(
+        _tableNotifications,
+        {'is_read': 1},
+        where: 'is_read = 0',
+      );
+      debugPrint('✅ 모든 알림 읽음 처리 완료: $count개');
+      return true;
+    } catch (e) {
+      debugPrint('❌ 알림 읽음 처리 실패: $e');
+      return false;
+    }
+  }
+
+  /// 특정 알림을 읽음 처리
+  Future<bool> markNotificationAsRead(int id) async {
+    try {
+      final db = await database;
+      final count = await db.update(
+        _tableNotifications,
+        {'is_read': 1},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      return count > 0;
+    } catch (e) {
+      debugPrint('❌ 알림 읽음 처리 실패: $e');
+      return false;
     }
   }
 

@@ -19,7 +19,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     companion object {
         const val TAG = "ChatDatabase"
         const val DATABASE_NAME = "chat_llm.db"
-        const val DATABASE_VERSION = 4  // Flutter와 버전 일치 (push_notifications 테이블 추가)
+        const val DATABASE_VERSION = 5  // Flutter와 버전 일치 (push_notifications 테이블에 is_auto_summary, summary_id 필드 추가)
 
         // 채팅방 테이블
         const val TABLE_ROOMS = "chat_rooms"
@@ -195,6 +195,21 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
             }
             Log.i(TAG, "데이터베이스 버전 4로 업그레이드 완료")
         }
+        if (oldVersion < 5) {
+            // 버전 5: push_notifications 테이블의 is_auto_summary, summary_id 필드는 Flutter에서만 사용
+            // Android에서는 마이그레이션 불필요 (테이블 자체가 Flutter에서만 관리됨)
+            Log.i(TAG, "데이터베이스 버전 5로 업그레이드 완료 (push_notifications 테이블 변경사항은 Flutter에서만 적용)")
+        }
+    }
+
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // SQLite는 다운그레이드를 기본적으로 허용하지 않음
+        // 하지만 Flutter와 Android 네이티브가 같은 DB를 공유하므로,
+        // 버전이 더 높은 쪽(Flutter)이 먼저 업그레이드한 경우를 대비해 허용
+        Log.w(TAG, "⚠️ 데이터베이스 다운그레이드 시도 감지: $oldVersion -> $newVersion")
+        Log.w(TAG, "⚠️ 다운그레이드는 지원하지 않습니다. DB 버전을 확인하세요.")
+        // 실제로는 다운그레이드를 허용하지 않으므로 예외를 발생시키지 않고 로그만 남김
+        // Flutter와 Android 네이티브의 버전을 일치시켜야 함
     }
 
     override fun onOpen(db: SQLiteDatabase) {

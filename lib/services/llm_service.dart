@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../interceptors/auth_interceptor.dart';
@@ -76,24 +77,57 @@ class LlmService {
       );
 
       debugPrint('📌 LLM 응답 코드: ${response.statusCode}');
+      debugPrint('📌 LLM 응답 데이터 타입: ${response.data.runtimeType}');
       debugPrint('📌 LLM 응답 데이터: ${response.data}');
-      
-      // 응답 데이터 상세 로깅
-      if (response.statusCode == 200 && response.data is Map) {
-        final responseData = Map<String, dynamic>.from(response.data);
-        debugPrint('📌 요약 전문 리스폰스:');
-        debugPrint('   summarySubject: ${responseData['summarySubject'] ?? 'N/A'}');
-        debugPrint('   summaryMessage: ${responseData['summaryMessage'] ?? responseData['summary'] ?? 'N/A'}');
-        debugPrint('   summaryDetailMessage: ${responseData['summaryDetailMessage'] ?? 'N/A'}');
-        if (responseData['summaryDetailMessage'] != null) {
-          debugPrint('   summaryDetailMessage 길이: ${(responseData['summaryDetailMessage'] as String?)?.length ?? 0}');
-        }
-      }
       
       debugPrint('========== LLM 요약 요청 완료 ==========');
 
       if (response.statusCode == 200) {
-        return Map<String, dynamic>.from(response.data);
+        // 응답 데이터 타입에 따라 처리
+        Map<String, dynamic>? responseData;
+        
+        if (response.data is Map) {
+          responseData = Map<String, dynamic>.from(response.data);
+        } else if (response.data is String) {
+          final dataString = response.data as String;
+          if (dataString.isEmpty) {
+            debugPrint('⚠️ 응답 데이터가 비어있습니다.');
+            return null;
+          }
+          try {
+            // String을 JSON으로 파싱 시도
+            final decoded = jsonDecode(dataString);
+            if (decoded is Map) {
+              responseData = Map<String, dynamic>.from(decoded);
+            } else {
+              debugPrint('⚠️ 파싱된 데이터가 Map이 아닙니다: ${decoded.runtimeType}');
+              return null;
+            }
+          } catch (e) {
+            debugPrint('⚠️ 응답 데이터를 JSON으로 파싱 실패: $e');
+            debugPrint('   원본 데이터: $dataString');
+            return null;
+          }
+        } else if (response.data == null) {
+          debugPrint('⚠️ 응답 데이터가 null입니다.');
+          return null;
+        } else {
+          debugPrint('⚠️ 알 수 없는 응답 데이터 타입: ${response.data.runtimeType}');
+          return null;
+        }
+        
+        // 응답 데이터 상세 로깅
+        if (responseData != null) {
+          debugPrint('📌 요약 전문 리스폰스:');
+          debugPrint('   summarySubject: ${responseData['summarySubject'] ?? 'N/A'}');
+          debugPrint('   summaryMessage: ${responseData['summaryMessage'] ?? responseData['summary'] ?? 'N/A'}');
+          debugPrint('   summaryDetailMessage: ${responseData['summaryDetailMessage'] ?? 'N/A'}');
+          if (responseData['summaryDetailMessage'] != null) {
+            debugPrint('   summaryDetailMessage 길이: ${(responseData['summaryDetailMessage'] as String?)?.length ?? 0}');
+          }
+        }
+        
+        return responseData;
       } else {
         debugPrint('LLM 요약 실패: ${response.statusCode}, ${response.data}');
         return null;

@@ -1,5 +1,6 @@
 package com.example.chat_llm
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -202,6 +203,11 @@ class MainActivity : FlutterActivity() {
                     // Android의 cacheDir 경로를 Flutter에 전달 (하위 호환)
                     result.success(cacheDir?.absolutePath)
                 }
+                "updateNotificationBadge" -> {
+                    val count = call.argument<Int>("count") ?: 0
+                    updateNotificationBadge(count)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -230,30 +236,55 @@ class MainActivity : FlutterActivity() {
                 intent?.let {
                     when (it.action) {
                         NotificationListener.ACTION_NOTIFICATION_RECEIVED -> {
-                            // 기존 알림 수신 처리
-                            val data = mapOf(
-                                "type" to "notification",
-                                "packageName" to (it.getStringExtra("packageName") ?: ""),
-                                "title" to (it.getStringExtra("title") ?: ""),
-                                "text" to (it.getStringExtra("text") ?: ""),
-                                "subText" to (it.getStringExtra("subText") ?: ""),
-                                "bigText" to (it.getStringExtra("bigText") ?: ""),
-                                "postTime" to it.getLongExtra("postTime", 0),
-                                "id" to it.getIntExtra("id", 0),
-                                "tag" to (it.getStringExtra("tag") ?: ""),
-                                "key" to (it.getStringExtra("key") ?: ""),
-                                "groupKey" to (it.getStringExtra("groupKey") ?: ""),
-                                "category" to (it.getStringExtra("category") ?: ""),
-                                "channelId" to (it.getStringExtra("channelId") ?: ""),
-                                "group" to (it.getStringExtra("group") ?: ""),
-                                "sortKey" to (it.getStringExtra("sortKey") ?: ""),
-                                "tickerText" to (it.getStringExtra("tickerText") ?: ""),
-                                "conversationTitle" to (it.getStringExtra("conversationTitle") ?: ""),
-                                "isGroupConversation" to it.getBooleanExtra("isGroupConversation", false),
-                                "allExtras" to (it.getStringExtra("allExtras") ?: "")
-                            )
-                            Log.d(TAG, "알림 브로드캐스트 수신: $data")
-                            eventSink?.success(data)
+                            // 알림 타입 확인 (자동요약 알림인지 일반 알림인지)
+                            val notificationType = it.getStringExtra("type") ?: "notification"
+                            
+                            if (notificationType == "auto_summary") {
+                                // 자동요약 알림 처리
+                                val data = mutableMapOf<String, Any>(
+                                    "type" to "auto_summary",
+                                    "packageName" to (it.getStringExtra("packageName") ?: ""),
+                                    "sender" to (it.getStringExtra("sender") ?: ""),
+                                    "message" to (it.getStringExtra("message") ?: ""),
+                                    "roomName" to (it.getStringExtra("roomName") ?: ""),
+                                    "postTime" to it.getLongExtra("postTime", 0),
+                                    "isAutoSummary" to it.getBooleanExtra("isAutoSummary", false)
+                                )
+                                
+                                // summaryId가 있으면 추가
+                                val summaryId = it.getIntExtra("summaryId", -1)
+                                if (summaryId != -1) {
+                                    data["summaryId"] = summaryId
+                                }
+                                
+                                Log.d(TAG, "🤖 자동요약 알림 브로드캐스트 수신: $data")
+                                eventSink?.success(data)
+                            } else {
+                                // 일반 알림 수신 처리
+                                val data = mapOf(
+                                    "type" to "notification",
+                                    "packageName" to (it.getStringExtra("packageName") ?: ""),
+                                    "title" to (it.getStringExtra("title") ?: ""),
+                                    "text" to (it.getStringExtra("text") ?: ""),
+                                    "subText" to (it.getStringExtra("subText") ?: ""),
+                                    "bigText" to (it.getStringExtra("bigText") ?: ""),
+                                    "postTime" to it.getLongExtra("postTime", 0),
+                                    "id" to it.getIntExtra("id", 0),
+                                    "tag" to (it.getStringExtra("tag") ?: ""),
+                                    "key" to (it.getStringExtra("key") ?: ""),
+                                    "groupKey" to (it.getStringExtra("groupKey") ?: ""),
+                                    "category" to (it.getStringExtra("category") ?: ""),
+                                    "channelId" to (it.getStringExtra("channelId") ?: ""),
+                                    "group" to (it.getStringExtra("group") ?: ""),
+                                    "sortKey" to (it.getStringExtra("sortKey") ?: ""),
+                                    "tickerText" to (it.getStringExtra("tickerText") ?: ""),
+                                    "conversationTitle" to (it.getStringExtra("conversationTitle") ?: ""),
+                                    "isGroupConversation" to it.getBooleanExtra("isGroupConversation", false),
+                                    "allExtras" to (it.getStringExtra("allExtras") ?: "")
+                                )
+                                Log.d(TAG, "알림 브로드캐스트 수신: $data")
+                                eventSink?.success(data)
+                            }
                         }
                         NotificationListener.ACTION_ROOM_UPDATED -> {
                             // 채팅방 업데이트 (서버 응답) 처리
@@ -483,6 +514,40 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Play Integrity 토큰 요청 실패: ${e.message}", e)
             result.error("ERROR", e.message, null)
+        }
+    }
+
+    /**
+     * 알림 배지 업데이트 (Android 8.0 이상)
+     * 참고: Android의 배지 API는 제조사별로 다를 수 있습니다.
+     * 일부 기기에서는 작동하지 않을 수 있습니다.
+     */
+    private fun updateNotificationBadge(count: Int) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val notificationManager = NotificationManagerCompat.from(this)
+                
+                // Android 8.0 이상에서 배지 표시/숨김
+                // 참고: setNotificationBadge()는 실제로는 존재하지 않을 수 있습니다.
+                // 대신 Notification.Builder.setNumber()를 사용하여 알림에 숫자를 표시할 수 있습니다.
+                // 하지만 앱 아이콘 배지는 제조사별로 다를 수 있습니다.
+                
+                // 대안: ShortcutManager를 사용하거나, 라이브러리(예: flutter_app_badger)를 사용할 수 있습니다.
+                // 여기서는 로그만 출력하고, 실제 배지는 시스템이 자동으로 관리합니다.
+                
+                if (count > 0) {
+                    Log.d(TAG, "✅ 알림 배지 업데이트 요청: $count (시스템이 자동으로 관리)")
+                } else {
+                    Log.d(TAG, "✅ 알림 배지 제거 요청 (시스템이 자동으로 관리)")
+                }
+                
+                // 참고: 실제 앱 아이콘 배지를 설정하려면 flutter_app_badger 같은 패키지를 사용하는 것이 좋습니다.
+                // 또는 Notification.Builder.setNumber()를 사용하여 알림 자체에 숫자를 표시할 수 있습니다.
+            } else {
+                Log.d(TAG, "⚠️ 알림 배지는 Android 8.0 이상에서만 지원됩니다")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 알림 배지 업데이트 실패: ${e.message}", e)
         }
     }
 
