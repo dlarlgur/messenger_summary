@@ -75,6 +75,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // 알림 권한 대기 상태
   bool _wasWaitingForPermission = false;
 
+  // 알림 다이얼로그 표시 중 플래그 (중복 방지)
+  bool _isShowingNotificationDialog = false;
+
   // 읽지 않은 알림 개수 (배지 표시용)
   int _notificationCount = 0;
 
@@ -205,28 +208,33 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 알림 설정 안내 다이얼로그 표시 (첫 진입 시)
   Future<void> _showNotificationDialogIfNeeded() async {
+    // 이미 다이얼로그 표시 중이면 리턴
+    if (_isShowingNotificationDialog) return;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final hasShown = prefs.getBool('has_shown_notification_dialog') ?? false;
-      
+
       if (hasShown) return;
-      
+
       // 시스템 알림 권한 확인
       final methodChannel = const MethodChannel('com.dksw.app/notification');
       final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
-      
+
       if (hasPermission) {
         // 권한이 이미 있으면 표시하지 않음
         await prefs.setBool('has_shown_notification_dialog', true);
         return;
       }
-      
+
       if (!mounted) return;
-      
-      showDialog(
+
+      _isShowingNotificationDialog = true;
+
+      await showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('알림 설정'),
           content: const Text(
             'AI 톡비서가 메시지를 수신하려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.',
@@ -234,7 +242,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(dialogContext).pop();
                 prefs.setBool('has_shown_notification_dialog', true);
               },
               child: const Text('나중에'),
@@ -243,8 +251,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               onPressed: () async {
                 await prefs.setBool('has_shown_notification_dialog', true);
                 _wasWaitingForPermission = true;
-                if (mounted) Navigator.pop(context);
-                
+                Navigator.of(dialogContext).pop();
+
                 // 설정 화면으로 이동
                 try {
                   await methodChannel.invokeMethod('openAppSettings');
@@ -261,7 +269,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           ],
         ),
       );
+
+      _isShowingNotificationDialog = false;
     } catch (e) {
+      _isShowingNotificationDialog = false;
       debugPrint('알림 안내 다이얼로그 표시 실패: $e');
     }
   }

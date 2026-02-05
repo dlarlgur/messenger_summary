@@ -6,7 +6,9 @@
       "Bash(flutter pub run:*)",
       "Bash(flutter clean:*)",
       "Bash(flutter pub get:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

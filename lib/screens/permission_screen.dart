@@ -5,7 +5,7 @@ import '../main.dart';
 /// 권한 설정 화면
 class PermissionScreen extends StatefulWidget {
   final VoidCallback onComplete;
-  
+
   const PermissionScreen({super.key, required this.onComplete});
 
   @override
@@ -14,10 +14,9 @@ class PermissionScreen extends StatefulWidget {
 
 class _PermissionScreenState extends State<PermissionScreen> with WidgetsBindingObserver {
   static const MethodChannel _methodChannel = MethodChannel('com.dksw.app/notification');
-  
+
   bool _notificationPermissionGranted = false;
   bool _batteryOptimizationDisabled = false;
-  bool _canDrawOverlays = false;
   bool _isChecking = true;
 
   @override
@@ -49,7 +48,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
   Future<void> _checkPermissions() async {
     if (!mounted) return;
     setState(() => _isChecking = true);
-    
+
     try {
       // 알림 접근 권한 확인
       final notificationEnabled = await _methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
@@ -57,21 +56,16 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
       // 배터리 최적화 제외 확인
       final batteryOptimizationDisabled = await _methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
 
-      // 다른 앱 위에 표시 권한 확인
-      final canDrawOverlays = await _methodChannel.invokeMethod<bool>('canDrawOverlays') ?? false;
-
       debugPrint('📋 권한 상태 확인:');
       debugPrint('  알림 권한: $notificationEnabled');
       debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
-      debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
-      final allGranted = notificationEnabled && batteryOptimizationDisabled && canDrawOverlays;
+      final allGranted = notificationEnabled && batteryOptimizationDisabled;
       debugPrint('  필수 권한 모두 허용됨: $allGranted');
 
       if (mounted) {
         setState(() {
           _notificationPermissionGranted = notificationEnabled;
           _batteryOptimizationDisabled = batteryOptimizationDisabled;
-          _canDrawOverlays = canDrawOverlays;
           _isChecking = false;
         });
       }
@@ -99,20 +93,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
     }
   }
 
-  Future<void> _openOverlaySettings() async {
-    try {
-      await _methodChannel.invokeMethod('openOverlaySettings');
-    } catch (e) {
-      debugPrint('오버레이 설정 열기 실패: $e');
-    }
-  }
-
-  bool get _allRequiredPermissionsGranted => 
-      _notificationPermissionGranted && 
-      _batteryOptimizationDisabled && 
-      _canDrawOverlays;
-  
-  bool get _allPermissionsGranted => _notificationPermissionGranted && _batteryOptimizationDisabled;
+  bool get _allRequiredPermissionsGranted =>
+      _notificationPermissionGranted &&
+      _batteryOptimizationDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +108,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
-              
+
               // 헤더
               const Text(
                 '원활한 앱 서비스 이용을 위해\n아래 권한을 확인해 주세요',
@@ -135,9 +118,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                   height: 1.4,
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               Text(
                 '필수 권한',
                 style: TextStyle(
@@ -145,9 +128,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                   color: Colors.grey[600],
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 권한 목록
               Expanded(
                 child: _isChecking
@@ -164,36 +147,23 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             isGranted: _notificationPermissionGranted,
                             onTap: _openNotificationSettings,
                           ),
-                          
+
                           const SizedBox(height: 16),
-                          
-                          // 배터리 최적화 제외 (권장)
+
+                          // 배터리 최적화 제외 (필수)
                           _buildPermissionItem(
                             icon: Icons.battery_saver,
                             iconColor: const Color(0xFF4CAF50),
                             title: '배터리 사용량 최적화 중지',
                             description: 'AI 톡비서가 원활하게 메시지를 수신할 수 있도록 배터리 사용 최적화 목록에서 제외해 주세요',
-                            isRequired: false,
+                            isRequired: true,
                             isGranted: _batteryOptimizationDisabled,
                             onTap: _openBatteryOptimizationSettings,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // 다른 앱 위에 표시 (필수)
-                          _buildPermissionItem(
-                            icon: Icons.layers,
-                            iconColor: const Color(0xFF2196F3),
-                            title: '다른 앱 위에 표시',
-                            description: '다른 앱 위에 표시되도록 허용하여 더욱 편리한 사용자 경험을 제공합니다.',
-                            isRequired: true,
-                            isGranted: _canDrawOverlays,
-                            onTap: _openOverlaySettings,
                           ),
                         ],
                       ),
               ),
-              
+
               // 안내 문구
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -205,7 +175,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                   ),
                 ),
               ),
-              
+
               // 버튼
               SizedBox(
                 width: double.infinity,
@@ -215,18 +185,18 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                       ? () async {
                           debugPrint('✅ 시작하기 버튼 클릭 - 메인 화면으로 이동');
                           if (!mounted) return;
-                          
+
                           // 권한 상태 재확인 (설정에서 돌아왔을 수 있으므로)
                           await _checkPermissions();
-                          
+
                           if (!mounted) return;
-                          
+
                           // 권한이 모두 허용되었는지 최종 확인
                           // 약간의 지연을 주어 상태 업데이트가 완료되도록 함
                           await Future.delayed(const Duration(milliseconds: 300));
-                          
+
                           if (!mounted) return;
-                          
+
                           if (_allRequiredPermissionsGranted) {
                             debugPrint('✅ 모든 권한 허용 확인됨 - 메인 화면으로 이동');
                             // PermissionScreen 내부에서 직접 메인 화면으로 이동
@@ -243,7 +213,6 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             debugPrint('⚠️ 권한이 아직 허용되지 않음');
                             debugPrint('  알림 권한: $_notificationPermissionGranted');
                             debugPrint('  배터리 최적화 제외: $_batteryOptimizationDisabled');
-                            debugPrint('  다른 앱 위에 표시: $_canDrawOverlays');
                             // 권한이 없으면 다시 확인하도록 안내
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -262,7 +231,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                     ),
                   ),
                   child: Text(
-                    _allRequiredPermissionsGranted ? '시작하기' : '권한 모두 허용하기',
+                    _allRequiredPermissionsGranted ? '시작하기' : '위 권한을 모두 허용해주세요',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -317,9 +286,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 size: 24,
               ),
             ),
-            
+
             const SizedBox(width: 14),
-            
+
             // 텍스트
             Expanded(
               child: Column(
@@ -338,13 +307,11 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isRequired 
-                              ? (isGranted ? Colors.green : const Color(0xFFFF9800))
-                              : (isGranted ? Colors.green : Colors.grey[400]),
+                          color: isGranted ? Colors.green : const Color(0xFFFF9800),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isGranted ? '허용됨' : (isRequired ? '필수' : '권장'),
+                          isGranted ? '허용됨' : '필수',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -366,7 +333,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 ],
               ),
             ),
-            
+
             // 체크 또는 화살표
             if (isGranted)
               const Icon(

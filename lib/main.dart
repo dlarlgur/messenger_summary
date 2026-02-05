@@ -258,11 +258,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       debugPrint('JWT 토큰 발급 오류: $e');
     }
 
-    // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외 + 다른 앱 위에 표시)
+    // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외)
     bool notificationPermissionGranted = false;
     bool batteryOptimizationDisabled = false;
-    bool canDrawOverlays = false;
-    
+
     try {
       notificationPermissionGranted =
           await methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
@@ -277,20 +276,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       debugPrint('배터리 최적화 권한 확인 실패: $e');
     }
 
-    // 다른 앱 위에 표시 권한 확인 (필수 권한)
-    try {
-      canDrawOverlays = await methodChannel.invokeMethod<bool>('canDrawOverlays') ?? false;
-    } catch (e) {
-      debugPrint('다른 앱 위에 표시 권한 확인 실패: $e');
-    }
-
     if (mounted) {
       // 필수 권한이 모두 없으면 권한 화면으로
-      if (!notificationPermissionGranted || !batteryOptimizationDisabled || !canDrawOverlays) {
+      if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
         debugPrint('⚠️ 권한 미허용 - 권한 화면으로 이동');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
-        debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
         setState(() {
           _isPermissionGranted = false;
           _isCheckingPermissions = false; // 권한 확인 완료
@@ -300,7 +291,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         debugPrint('✅ 모든 필수 권한 허용됨 - 메인 화면 유지');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
-        debugPrint('  다른 앱 위에 표시: $canDrawOverlays');
         setState(() {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
