@@ -75,17 +75,46 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // 알림 권한 대기 상태
   bool _wasWaitingForPermission = false;
 
+  // 읽지 않은 알림 개수 (배지 표시용)
+  int _notificationCount = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initProfileService();
     _loadChatRooms();
+    _loadNotificationCount(); // 알림 배지 개수 로드
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
+    _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
 
     // 첫 진입 시 알림 설정 안내 다이얼로그 표시
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showNotificationDialogIfNeeded();
+    });
+  }
+
+  /// 읽지 않은 알림 개수 로드 (배지 표시용)
+  Future<void> _loadNotificationCount() async {
+    try {
+      final count = await _localDb.getUnreadNotificationCount();
+      if (mounted) {
+        setState(() {
+          _notificationCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint('알림 개수 로드 실패: $e');
+    }
+  }
+
+  /// 플랜 타입 미리 로드 (백그라운드에서 비동기 실행)
+  /// 컨텍스트 메뉴에서 동기 메서드로 캐시된 값을 사용하기 위함
+  void _preloadPlanType() {
+    _planService.getCurrentPlanType().then((planType) {
+      debugPrint('✅ 플랜 타입 미리 로드 완료: $planType');
+    }).catchError((e) {
+      debugPrint('⚠️ 플랜 타입 미리 로드 실패: $e');
     });
   }
 
@@ -183,7 +212,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       if (hasShown) return;
       
       // 시스템 알림 권한 확인
-      final methodChannel = const MethodChannel('com.example.chat_llm/notification');
+      final methodChannel = const MethodChannel('com.dksw.app/notification');
       final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
       
       if (hasPermission) {
@@ -204,9 +233,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           ),
           actions: [
             TextButton(
-              onPressed: () async {
-                await prefs.setBool('has_shown_notification_dialog', true);
-                if (mounted) Navigator.pop(context);
+              onPressed: () {
+                Navigator.pop(context);
+                prefs.setBool('has_shown_notification_dialog', true);
               },
               child: const Text('나중에'),
             ),
@@ -240,7 +269,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 알림 권한 허용 후 자동으로 알림 켜기
   Future<void> _checkAndEnableNotificationsAfterPermission() async {
     try {
-      final methodChannel = const MethodChannel('com.example.chat_llm/notification');
+      final methodChannel = const MethodChannel('com.dksw.app/notification');
       final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
       
       if (hasPermission) {
@@ -272,6 +301,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     // 즉시 실행하여 빠른 동기화 보장
     if (mounted) {
       _loadChatRooms(silent: true);
+      _loadNotificationCount(); // 알림 배지 개수도 업데이트
     } else {
       debugPrint('⚠️ 위젯이 dispose됨 - refreshRooms() 스킵');
     }
@@ -376,13 +406,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
   }
 
-  void _showRoomContextMenu(BuildContext context, ChatRoom room) async {
+  void _showRoomContextMenu(BuildContext context, ChatRoom room) {
     final notificationService =
         Provider.of<NotificationSettingsService>(context, listen: false);
     final isMuted = notificationService.isMuted(room.roomName);
-    
+
     // 플랜 타입 확인 (베이직 플랜일 때만 자동 요약 설정 표시)
-    final planType = await _planService.getCurrentPlanType();
+    // ✅ 동기 메서드 사용: API 호출 없이 캐시된 값 즉시 반환하여 UI 지연 방지
+    final planType = _planService.getCachedPlanTypeSync();
     final isBasicPlan = planType == 'basic';
 
     if (!mounted) return;
@@ -419,38 +450,61 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 ),
               ),
               // 대화방 이름
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE812).withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.chat_bubble_rounded,
-                        color: Color(0xFF3C1E1E),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        room.roomName,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF333333),
+              Builder(
+                builder: (context) {
+                  final profileFile = _getProfileImageFile(room.roomName);
+                  final isKakaoTalk = room.packageName == 'com.kakao.talk';
+                  ImageProvider? bgImage;
+                  if (profileFile != null && profileFile.existsSync()) {
+                    bgImage = FileImage(profileFile);
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: bgImage == null
+                              ? (isKakaoTalk ? const Color(0xFFFFE812) : const Color(0xFF64B5F6))
+                              : const Color(0xFF64B5F6),
+                          backgroundImage: bgImage,
+                          child: bgImage == null
+                              ? (isKakaoTalk
+                                  ? const Icon(
+                                      Icons.chat_bubble_rounded,
+                                      color: Color(0xFF3C1E1E),
+                                      size: 22,
+                                    )
+                                  : Text(
+                                      room.roomName.isNotEmpty
+                                          ? room.roomName[0]
+                                          : '?',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ))
+                              : null,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            room.roomName,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF333333),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               Divider(height: 1, color: Colors.grey[200]),
               const SizedBox(height: 8),
@@ -1011,27 +1065,55 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       appBar: AppBar(
         backgroundColor: const Color(0xFF2196F3),
         elevation: 0,
-        title: GestureDetector(
-          onTap: _handleTitleClick,
-          child: const Text(
-            'AI 톡비서',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
+        title: const Text(
+          'AI 톡비서',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificationListScreen(),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationListScreen(),
+                    ),
+                  );
+                  // 알림 화면에서 돌아오면 배지 개수 업데이트
+                  _loadNotificationCount();
+                },
+              ),
+              if (_notificationCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _notificationCount > 99 ? '99+' : '$_notificationCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-              );
-            },
+            ],
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.settings, color: Colors.white),
@@ -1580,7 +1662,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           content: const Text(
             '사용할 플랜을 선택하세요.\n\n'
             '• Free: 일 3회, 메시지 최대 100개\n'
-            '• Basic: 월 200회, 메시지 최대 300개',
+            '• Basic: 월 150회, 메시지 최대 300개',
           ),
           actions: [
             TextButton(

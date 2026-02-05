@@ -20,7 +20,7 @@ class PlanService {
   static const String _usageEndpoint = '/api/v1/llm/usage';
   
   // 환경 설정: true = 테스트 모드, false = 상용 모드
-  static const bool _isTestMode = true; // TODO: 상용 배포 시 false로 변경
+  static const bool _isTestMode = false; // 상용 모드
   
   /// 테스트 모드 여부 확인
   static bool get isTestMode => _isTestMode;
@@ -60,6 +60,15 @@ class PlanService {
       return _cachedPlanType!;
     }
 
+    return _cachedPlanType ?? 'free';
+  }
+
+  /// 캐시된 플랜 타입 즉시 반환 (동기 메서드)
+  ///
+  /// API 호출 없이 캐시된 값을 즉시 반환합니다.
+  /// 캐시가 없으면 기본값 'free'를 반환합니다.
+  /// UI가 즉시 반응해야 하는 경우 (예: 컨텍스트 메뉴) 이 메서드를 사용하세요.
+  String getCachedPlanTypeSync() {
     return _cachedPlanType ?? 'free';
   }
 

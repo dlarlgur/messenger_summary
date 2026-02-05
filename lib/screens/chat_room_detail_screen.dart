@@ -219,9 +219,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _chatInputBarKey = GlobalKey();
   static const MethodChannel _methodChannel =
-      MethodChannel('com.example.chat_llm/notification');
+      MethodChannel('com.dksw.app/notification');
   static const EventChannel _eventChannel =
-      EventChannel('com.example.chat_llm/notification_stream');
+      EventChannel('com.dksw.app/notification_stream');
 
   double _chatInputBarHeight = 0;
 

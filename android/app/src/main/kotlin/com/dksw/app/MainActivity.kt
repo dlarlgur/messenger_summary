@@ -1,4 +1,4 @@
-package com.example.chat_llm
+package com.dksw.app
 
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -26,9 +26,9 @@ import java.util.UUID
 class MainActivity : FlutterActivity() {
     companion object {
         const val TAG = "MainActivity"
-        const val METHOD_CHANNEL = "com.example.chat_llm/notification"
-        const val MAIN_METHOD_CHANNEL = "com.example.chat_llm/main"
-        const val EVENT_CHANNEL = "com.example.chat_llm/notification_stream"
+        const val METHOD_CHANNEL = "com.dksw.app/notification"
+        const val MAIN_METHOD_CHANNEL = "com.dksw.app/main"
+        const val EVENT_CHANNEL = "com.dksw.app/notification_stream"
         const val PLAY_INTEGRITY_CHANNEL = "com.dksw.chat_llm/play_integrity"
     }
 
@@ -493,7 +493,7 @@ class MainActivity : FlutterActivity() {
 
             // Nonce 생성 (UUID를 Base64로 인코딩)
             val nonce = UUID.randomUUID().toString()
-            Log.d(TAG, "Play Integrity 토큰 요청: cloudProjectNumber=$cloudProjectNumber, nonce=$nonce")
+            Log.d(TAG, "Play Integrity 토큰 요청: cloudProjectNumber=$cloudProjectNumber, packageName=$packageName, nonce=$nonce")
 
             val integrityManager: IntegrityManager = IntegrityManagerFactory.create(applicationContext)
             val request = IntegrityTokenRequest.builder()

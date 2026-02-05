@@ -26,7 +26,7 @@ class ProfileImageService {
   factory ProfileImageService() => _instance;
   ProfileImageService._internal();
 
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/main');
+  static const MethodChannel _methodChannel = MethodChannel('com.dksw.app/main');
 
   String? _profileDir;
   bool _initialized = false;

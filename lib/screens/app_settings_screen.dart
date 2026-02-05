@@ -5,7 +5,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'blocked_rooms_screen.dart';
 import 'usage_management_screen.dart';
+import 'subscription_screen.dart';
 import '../services/auto_summary_settings_service.dart';
+import '../services/plan_service.dart';
 
 /// 앱 설정 화면
 class AppSettingsScreen extends StatefulWidget {
@@ -18,6 +20,8 @@ class AppSettingsScreen extends StatefulWidget {
 class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindingObserver {
   String _appVersion = '';
   bool _wasWaitingForPermission = false;
+  String? _currentPlanType;
+  final PlanService _planService = PlanService();
 
   // 파란색 테마 컬러
   static const Color _primaryBlue = Color(0xFF2196F3);
@@ -27,6 +31,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadAppVersion();
+    _loadCurrentPlan();
+  }
+
+  Future<void> _loadCurrentPlan() async {
+    try {
+      final planType = await _planService.getCurrentPlanType();
+      if (mounted) {
+        setState(() {
+          _currentPlanType = planType;
+        });
+      }
+    } catch (e) {
+      debugPrint('플랜 정보 로드 실패: $e');
+    }
   }
 
   @override
@@ -200,28 +218,57 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
   /// Premium 배너 위젯
   Widget _buildPremiumBanner() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF9C27B0),  // 보라색
-            Color(0xFF7B1FA2),  // 진한 보라
-            Color(0xFFE91E63),  // 핑크
+    // 현재 플랜에 따른 표시 텍스트
+    String planDisplayName;
+    String planDescription;
+
+    switch (_currentPlanType) {
+      case 'basic':
+        planDisplayName = 'Basic 플랜';
+        planDescription = '더 많은 혜택을 원하시면 탭하세요';
+        break;
+      case 'premium':
+        planDisplayName = 'Premium 플랜';
+        planDescription = '모든 기능을 사용 중입니다';
+        break;
+      default:
+        planDisplayName = '무료 플랜';
+        planDescription = '프리미엄으로 업그레이드하세요';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const SubscriptionScreen(),
+          ),
+        ).then((_) {
+          // 구독 화면에서 돌아오면 플랜 정보 갱신
+          _loadCurrentPlan();
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF9C27B0),  // 보라색
+              Color(0xFF7B1FA2),  // 진한 보라
+              Color(0xFFE91E63),  // 핑크
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF9C27B0).withValues(alpha: 0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF9C27B0).withValues(alpha: 0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
+        child: Stack(
         children: [
           // 배경 장식
           Positioned(
@@ -284,9 +331,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
-                              'AI 톡비서 Premium',
-                              style: TextStyle(
+                            child: Text(
+                              planDisplayName,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -295,7 +342,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+                      Text(
+                        planDescription,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _buildFeatureItem('메시지 자동 요약'),
                       const SizedBox(height: 8),
                       _buildFeatureItem('메시지 최대 300개 요약'),
@@ -320,6 +375,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -483,9 +539,29 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     );
   }
 
+  Future<void> _openPlayStoreSubscription() async {
+    // 플레이스토어 구독/결제 페이지로 이동
+    const url = 'https://play.google.com/store/apps/details?id=com.dksw.app';
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('플레이스토어 열기 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('플레이스토어를 열 수 없습니다.'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _openStoreReview() async {
     // TODO: 실제 스토어 URL로 변경
-    const url = 'https://play.google.com/store/apps/details?id=com.example.chat_llm';
+    const url = 'https://play.google.com/store/apps/details?id=com.dksw.app';
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
@@ -728,7 +804,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                           onPressed: () async {
                             _markWaitingForPermission();
                             try {
-                              const methodChannel = MethodChannel('com.example.chat_llm/main');
+                              const methodChannel = MethodChannel('com.dksw.app/main');
                               await methodChannel.invokeMethod('openAppSettings');
                             } catch (e) {
                               debugPrint('설정 화면 열기 실패: $e');
@@ -820,7 +896,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
   Future<void> _openStoreShare() async {
     // TODO: 실제 스토어 URL로 변경
-    const url = 'https://play.google.com/store/apps/details?id=com.example.chat_llm';
+    const url = 'https://play.google.com/store/apps/details?id=com.dksw.app';
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {

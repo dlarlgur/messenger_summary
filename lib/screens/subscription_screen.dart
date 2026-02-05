@@ -374,7 +374,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               if (product.id == InAppPurchaseService.basicPlanMonthly) ...[
                 const Divider(),
                 const SizedBox(height: 8),
-                _buildBenefitItem('월 200회 요약 가능'),
+                _buildBenefitItem('월 150회 요약 가능'),
                 const SizedBox(height: 4),
                 _buildBenefitItem('메시지 최대 300개까지 요약'),
                 const SizedBox(height: 4),

@@ -1,4 +1,4 @@
-package com.example.chat_llm
+package com.dksw.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -43,11 +43,11 @@ import java.util.concurrent.TimeUnit
 class NotificationListener : NotificationListenerService() {
     companion object {
         const val TAG = "NotificationListener"
-        const val ACTION_NOTIFICATION_RECEIVED = "com.example.chat_llm.NOTIFICATION_RECEIVED"
-        const val ACTION_CANCEL_NOTIFICATION = "com.example.chat_llm.CANCEL_NOTIFICATION"
-        const val ACTION_CANCEL_ROOM_NOTIFICATIONS = "com.example.chat_llm.CANCEL_ROOM_NOTIFICATIONS"
-        const val ACTION_ROOM_UPDATED = "com.example.chat_llm.ROOM_UPDATED"
-        const val ACTION_SEND_MESSAGE = "com.example.chat_llm.SEND_MESSAGE"
+        const val ACTION_NOTIFICATION_RECEIVED = "com.dksw.app.NOTIFICATION_RECEIVED"
+        const val ACTION_CANCEL_NOTIFICATION = "com.dksw.app.CANCEL_NOTIFICATION"
+        const val ACTION_CANCEL_ROOM_NOTIFICATIONS = "com.dksw.app.CANCEL_ROOM_NOTIFICATIONS"
+        const val ACTION_ROOM_UPDATED = "com.dksw.app.ROOM_UPDATED"
+        const val ACTION_SEND_MESSAGE = "com.dksw.app.SEND_MESSAGE"
 
         // 알림 수신 대상 메신저 (카카오톡만)
         val SUPPORTED_MESSENGERS = mapOf(
@@ -261,7 +261,7 @@ class NotificationListener : NotificationListenerService() {
 
     /**
      * 대화방 프로필 사진을 앱 filesDir에 저장 (캐시 삭제해도 유지)
-     * 저장 경로: /data/data/com.example.chat_llm/files/profile/room/{roomName}.jpg
+     * 저장 경로: /data/data/com.dksw.app/files/profile/room/{roomName}.jpg
      */
     private fun saveRoomProfileImage(roomName: String, bitmap: Bitmap?) {
         if (bitmap == null) return
@@ -285,7 +285,7 @@ class NotificationListener : NotificationListenerService() {
 
     /**
      * 보낸사람 프로필 사진을 앱 filesDir에 저장 (캐시 삭제해도 유지)
-     * 저장 경로: /data/data/com.example.chat_llm/files/profile/sender/{hash}.jpg
+     * 저장 경로: /data/data/com.dksw.app/files/profile/sender/{hash}.jpg
      * 해시 기반 파일명으로 충돌 방지 (packageName + roomName + senderName)
      */
     private fun saveSenderProfileImage(
@@ -2517,7 +2517,7 @@ class NotificationListener : NotificationListenerService() {
             }
 
             // MainActivity로 이동하는 Intent 생성
-            val intent = Intent(applicationContext, Class.forName("com.example.chat_llm.MainActivity")).apply {
+            val intent = Intent(applicationContext, Class.forName("com.dksw.app.MainActivity")).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("summaryId", summaryId)
             }
@@ -2555,7 +2555,7 @@ class NotificationListener : NotificationListenerService() {
             try {
                 val saveNotificationIntent = Intent(ACTION_NOTIFICATION_RECEIVED).apply {
                     putExtra("type", "auto_summary")
-                    putExtra("packageName", "com.example.chat_llm")
+                    putExtra("packageName", "com.dksw.app")
                     putExtra("sender", "AI 톡비서")
                     putExtra("message", "${roomName}의 메시지 ${messageCount}개가 요약되었습니다")
                     putExtra("roomName", roomName)

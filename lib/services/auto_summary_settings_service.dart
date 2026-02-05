@@ -9,7 +9,7 @@ class AutoSummarySettingsService extends ChangeNotifier {
   static const String _soundEnabledKey = 'notification_sound_enabled';
   static const String _hasShownNotificationDialogKey = 'has_shown_auto_summary_notification_dialog';
 
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/main');
+  static const MethodChannel _methodChannel = MethodChannel('com.dksw.app/main');
 
   // 자동 요약 알림 활성화 여부 (전역 설정)
   bool _autoSummaryNotificationEnabled = false;

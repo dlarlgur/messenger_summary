@@ -14,7 +14,7 @@ class NotificationListScreen extends StatefulWidget {
 
 class _NotificationListScreenState extends State<NotificationListScreen> {
   final LocalDbService _localDb = LocalDbService();
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/notification');
+  static const MethodChannel _methodChannel = MethodChannel('com.dksw.app/notification');
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
 
@@ -215,7 +215,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                       final id = notification['id'] as int? ?? 0;
                       final isRead = (notification['is_read'] as int? ?? 0) == 1;
 
-                      // roomName에서 패키지명 제거 (예: "com.example.chat_llm 테스트방" → "테스트방")
+                      // roomName에서 패키지명 제거 (예: "com.dksw.app 테스트방" → "테스트방")
                       String displayRoomName = roomName;
                       if (roomName.startsWith('com.') && roomName.contains(' ')) {
                         displayRoomName = roomName.substring(roomName.indexOf(' ') + 1);

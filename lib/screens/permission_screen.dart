@@ -13,7 +13,7 @@ class PermissionScreen extends StatefulWidget {
 }
 
 class _PermissionScreenState extends State<PermissionScreen> with WidgetsBindingObserver {
-  static const MethodChannel _methodChannel = MethodChannel('com.example.chat_llm/notification');
+  static const MethodChannel _methodChannel = MethodChannel('com.dksw.app/notification');
   
   bool _notificationPermissionGranted = false;
   bool _batteryOptimizationDisabled = false;

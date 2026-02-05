@@ -3,7 +3,7 @@ class ApiConstants {
   // 개발 환경: 에뮬레이터에서 호스트 PC 접근 시 10.0.2.2 사용
   // 실기기: PC의 로컬 IP 사용 (예: 192.168.x.x)
   // 배포 환경: 실제 서버 URL로 변경
-  static const String baseUrl = 'https://223.130.151.39';
+  static const String baseUrl = 'https://api.dksw4.com';
 
   // 인증 API 엔드포인트
   static const String socialLogin = '/api/v1/auth/social-login';
@@ -13,6 +13,9 @@ class ApiConstants {
   // 사용자 API 엔드포인트
   static const String userMe = '/user/me';
   static const String userNickname = '/user/nickname';
+
+  // 앱 버전 체크 API 엔드포인트
+  static const String versionCheck = '/api/v1/app/version/check';
 
   // 메신저 API 엔드포인트
   static const String messengerAlarm = '/api/v1/messenger/alarm';

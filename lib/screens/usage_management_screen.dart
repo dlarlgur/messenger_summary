@@ -822,31 +822,6 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 요약 히스토리 바로가기 버튼
-            IconButton(
-              icon: const Icon(
-                Icons.history,
-                size: 20,
-              ),
-              color: const Color(0xFF2196F3),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SummaryHistoryScreen(
-                      roomId: room.id,
-                      roomName: room.roomName,
-                    ),
-                  ),
-                );
-              },
-              tooltip: '요약 히스토리',
-            ),
-            const SizedBox(width: 4),
             Switch(
               value: room.summaryEnabled,
               onChanged: (value) => _toggleSummaryEnabled(room),
@@ -860,14 +835,34 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           ],
         ),
       children: [
-        // 요약 기능 켜기/끄기
+        // 요약 히스토리로 가기
         ListTile(
-          title: const Text('AI 요약 기능'),
-          trailing: Switch(
-            value: room.summaryEnabled,
-            onChanged: (value) => _toggleSummaryEnabled(room),
-            activeColor: const Color(0xFF2196F3),
+          leading: const Icon(
+            Icons.history,
+            color: Color(0xFF2196F3),
           ),
+          title: const Text('요약 히스토리'),
+          subtitle: Text(
+            '이 채팅방의 요약 기록 보기',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: Colors.grey,
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => SummaryHistoryScreen(
+                  roomId: room.id,
+                  roomName: room.roomName,
+                ),
+              ),
+            );
+          },
         ),
         // 자동 요약 설정 (베이직 플랜 전용 - 베이직일 때만 표시)
         if (_isBasicPlan)

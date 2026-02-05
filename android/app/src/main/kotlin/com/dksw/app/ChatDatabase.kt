@@ -1,4 +1,4 @@
-package com.example.chat_llm
+package com.dksw.app
 
 import android.content.ContentValues
 import android.content.Context

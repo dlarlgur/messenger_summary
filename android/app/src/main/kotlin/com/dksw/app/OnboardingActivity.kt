@@ -1,4 +1,4 @@
-package com.example.chat_llm
+package com.dksw.app
 
 import android.app.Activity
 import android.content.Context

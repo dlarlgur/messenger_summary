@@ -10,9 +10,11 @@ import 'services/notification_settings_service.dart';
 import 'services/auto_summary_settings_service.dart';
 import 'services/profile_image_service.dart';
 import 'services/auth_service.dart';
+import 'services/app_version_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/summary_history_screen.dart';
+import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,28 +74,78 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const methodChannel =
-      MethodChannel('com.example.chat_llm/notification');
+      MethodChannel('com.dksw.app/notification');
   static const mainMethodChannel =
-      MethodChannel('com.example.chat_llm/main');
+      MethodChannel('com.dksw.app/main');
   static const eventChannel =
-      EventChannel('com.example.chat_llm/notification_stream');
+      EventChannel('com.dksw.app/notification_stream');
 
   StreamSubscription? _subscription;
   StreamSubscription? _mainMethodSubscription;
   bool _isPermissionGranted = false;
   bool _isCheckingPermissions = true; // ⚠️ 수정: 권한 확인 중인지 여부
+  bool _isForceUpdateRequired = false; // 강제 업데이트 필요 여부
+  VersionCheckResult? _versionCheckResult; // 버전 체크 결과
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
   final LocalDbService _localDb = LocalDbService();
+  final Set<int> _processedSummaryIds = {}; // 이미 처리한 summaryId 추적
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeAndCheckPermissions();
+    _checkVersionAndInitialize();
     _setupMainMethodChannel();
     _checkPendingSummaryId();
     // ⚠️ 수정: 권한 확인 완료 전까지는 리스너 시작하지 않음
     // _startListening();
+  }
+
+  /// 버전 체크 후 초기화
+  Future<void> _checkVersionAndInitialize() async {
+    debugPrint('🚀 _checkVersionAndInitialize 시작');
+    try {
+      // 버전 체크
+      final versionService = AppVersionService();
+      debugPrint('🚀 버전 체크 호출 전');
+      final result = await versionService.checkVersion();
+      debugPrint('🚀 버전 체크 완료: updateRequired=${result.updateRequired}, updateType=${result.updateType}');
+
+      if (result.updateRequired) {
+        _versionCheckResult = result;
+
+        if (result.updateType == UpdateType.force) {
+          // 강제 업데이트 필요
+          debugPrint('🚨 강제 업데이트 필요: ${result.latestVersion}');
+          setState(() {
+            _isForceUpdateRequired = true;
+            _isCheckingPermissions = false;
+          });
+
+          // 다이얼로그 표시
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              UpdateDialog.show(context, result);
+            }
+          });
+          return;
+        } else if (result.updateType == UpdateType.optional) {
+          // 선택 업데이트 - 다이얼로그 표시 후 계속 진행
+          debugPrint('📢 선택 업데이트 가능: ${result.latestVersion}');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              UpdateDialog.show(context, result);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('버전 체크 실패: $e');
+      // 버전 체크 실패 시 앱 사용 허용
+    }
+
+    // 권한 체크 및 초기화 진행
+    _initializeAndCheckPermissions();
   }
 
   /// Main MethodChannel 설정 (summaryId 수신용)
@@ -136,6 +188,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// 알림에서 받은 summaryId로 요약 히스토리 열기
   Future<void> _openSummaryFromNotification(int summaryId) async {
+    // 이미 처리한 summaryId는 무시 (중복 방지)
+    if (_processedSummaryIds.contains(summaryId)) {
+      debugPrint('📱 이미 처리한 summaryId 무시: $summaryId');
+      return;
+    }
+    _processedSummaryIds.add(summaryId);
+
     try {
       // summaryId로 roomId 찾기
       final roomId = await _localDb.getRoomIdBySummaryId(summaryId);
@@ -609,6 +668,62 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // 강제 업데이트 필요 시 업데이트 화면 표시
+    if (_isForceUpdateRequired) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.system_update,
+                  size: 80,
+                  color: Colors.orange,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  '업데이트가 필요합니다',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '앱을 계속 사용하려면\n최신 버전(${_versionCheckResult?.latestVersion ?? ""})으로\n업데이트해 주세요.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (_versionCheckResult != null) {
+                      UpdateDialog.show(context, _versionCheckResult!);
+                    }
+                  },
+                  icon: const Icon(Icons.download),
+                  label: const Text('업데이트하기'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     // ⚠️ 수정: 권한 확인 중이면 로딩 표시
     if (_isCheckingPermissions) {
       return const Scaffold(
@@ -617,7 +732,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    
+
     // ⚠️ 수정: 권한이 없으면 PermissionScreen 표시
     if (!_isPermissionGranted) {
       return PermissionScreen(
@@ -628,7 +743,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         },
       );
     }
-    
+
     // 권한이 있으면 대화목록 화면 표시
     return ChatRoomListScreen(key: _chatRoomListKey);
   }
