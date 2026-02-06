@@ -1,0 +1,128 @@
+# 서버 설정
+server:
+  port: 1309
+
+# 로그 경로 설정 (develop 환경)
+logging:
+  path: /home/dksw/aiif/logs
+
+spring:
+  application:
+    name: aiif
+  config:
+    import:
+      - classpath:ai/gemini.yml
+      - classpath:ai/gpt.yml
+  web:
+    locale: ko_KR
+  messages:
+    locale: ko_KR
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# 보안 설정
+security:
+  api-key: "ENC(6iWIerqCCu2Kwq6I8QhH2NaP+2xkhXO1ZiJ/DLaGsHYpxgtaX+TcGdr5WvdozJnWMIBjd+AhIrZKBpb7V8NQDG+LuIyCCy+r)"  # AIIF API Key (암호화됨)
+  allowed-ips: "127.0.0.1,localhost,192.168.0.0/16"  # 허용할 IP 목록 (콤마 구분, CIDR 지원은 필터에서 확장 가능)
+  encryption:
+    # 마스터 키: 환경변수 SECURITY_ENCRYPTION_MASTER_KEY 또는 여기에 설정
+    # 운영 환경에서는 반드시 환경변수로 관리하세요!
+    master-key: "bzYVvhqzpk+P6jxVdQBVZWzW736+JxYJTWiqiLqUBxg="  # Base64 인코딩된 256비트 키
+
+# AI 엔진 설정
+engine:
+  gemini:
+    # mode: "sdk" (Google Generative AI SDK 사용) or "rest" (REST API 직접 호출)
+    mode: "rest"  # sdk | rest
+    # model은 ai/gemini.yml의 gemini.default.model을 사용
+    # REST API 설정 (mode=rest일 때 사용)
+    api:
+      # Gemini REST API Key: https://aistudio.google.com/app/apikey 에서 발급
+      #key: "ENC(+ng0ye0Q+ykqNFlrqe3bxZ49clXdwcteuVLNhlrE+OUG5FiUHwapI/3R/FZyhSNpjLHKYJZe+UUpfawcXFC5klrJOg==)"
+      key: "ENC(aOriVS+VtnfVoiSd5tkFZnqRUecUd9040XUKdQb4IHlOMK/V2PUF108LO+CfHLYcBVbGxGfAWleGrYeU2znQbb0r/A==)"
+      #key: "ENC(BGHyZLZYY2vmYYmdYAWMOAe18jqebn1tekzKys2q3KfmileZPoVx3EbYiMMRWo8A9nxlWtMAnC2lZDrj/HwxHXkCgg==)"
+      #key: "ENC(lc261MbqXYrbHYeRST2sGm9HAyFTUJv/RMSXyKPQBbqSiACcJIAUsCkEk/dabL7tJjt1QMSo2Llc9bApaMK+WSbDeQ==)"
+      #key: "ENC(5G9RJ7H9jxGWDI8/UqqybH2iPEiP3PDUwR60ZhISxxc0uMLt+qcp4Q5k7J9OERbzjHXIAHygnytTuW2TdI1+U00m7A==)"
+    # Vertex AI 설정 (mode=vertex일 때 사용)
+    project-id: "gemini-paltform"
+    location: "asia-northeast3"  # 서울 리전 (Seoul)
+    service-account-key-path: "gemini-service-account-key.json"
+    # WebClient 설정
+    webclient:
+      rest:
+        base-url: "https://generativelanguage.googleapis.com/v1beta"
+      vertex:
+        base-url-pattern: "https://%s-aiplatform.googleapis.com"
+      response-timeout-seconds: 10
+      default-headers:
+        content-type: "application/json"
+    # SDK 타임아웃 설정 (초)
+    sdk:
+      timeout-seconds: 30  # Gemini SDK 호출 타임아웃 (단일 응답 및 스트리밍 모두)
+    # API 엔드포인트 URI 패턴
+    endpoints:
+      rest:
+        generate-content: "/models/%s:generateContent"
+        stream-generate-content: "/models/%s:streamGenerateContent"
+      vertex:
+        generate-content: "/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent"
+        stream-generate-content: "/v1/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent"
+  gpt:
+    base-url: "https://api.openai.com/v1"
+    webclient:
+      default-headers:
+        content-type: "application/json"
+        accept: "text/event-stream"
+    api:
+      # ENC(...) 형식으로 암호화하여 저장하세요
+      key: "ENC(P64I/NNmumCiv/6vAeM84R0PaqFzBfyBO9fiknAqObVvrxb5F+z4A4P3+pQHHurHlO7bWGxZBaSWW7LWqhITx7xBpvSGm2mG5gvPaCmfLg2HNitbwU9+mJrY1rh5vnxvGt9vId4+91KDp5iDu2prwIvt06iHKTKyOu18XRrXuYTgGf5wkm/P0PYa4XWGB01LUKn1eKjkTht2GaYeCzBTt81IqURZqX4pkaecok2jjoCb3FnBepulIXziYE1pn22l)"  # GPT API Key (암호화됨)
+    # 엔드포인트별 모델 설정
+    models:
+      # /summary 엔드포인트용 모델
+      summary: "gpt-5-mini"
+      # /ask, /stream 엔드포인트용 모델
+      default: "gpt-5-mini"
+      # /product/search 엔드포인트용 모델
+      product: "gpt-5"
+
+# YouTube Data API v3 설정
+youtube:
+  webclient:
+    base-url: "https://www.googleapis.com/youtube/v3"
+    default-headers:
+      content-type: "application/json"
+  api:
+    key: "ENC(WX+CLkr5aFP0QMxxxpVuvs+9wn8ZsDWd51d8GXPiczO7KusWKweeYmkUxNvL7Vwdkvt/vJDif2uTHv+M8WDjFphsLg==)"  # YouTube Data API v3 키 (암호화됨)
+  cache:
+    ttl-minutes: 15  # Redis 캐시 TTL (분)
+  search:
+    default-limit: 5  # 기본 조회 개수 (파라미터로 limit이 없을 때 사용)
+
+# Naver Shopping API 설정
+naver:
+  webclient:
+    base-url: "https://openapi.naver.com"
+    default-headers:
+      content-type: "application/json"
+    client-id: "ENC(GLBMjJT8MffrFaa0rKDHTjaTsMinC5L6ir82VliRtuajvbkOkpNU1uKCuZZCbcuP)"  # Naver API Client ID (암호화됨)
+    client-secret: "ENC(jl/EWNkei81r9bm114hU84mIH/vFHIeLzyzg7vzk6y5Ritw/Ll4=)"  # Naver API Client Secret (암호화됨)
+
+# 상품 검색 캐시 설정
+product:
+  cache:
+    ttl-minutes: 30  # Redis 캐시 TTL (분) - 상품 가격/재고 변동 고려하여 30분~1시간 권장
+  search:
+    default-limit: 5  # 기본 조회 개수 (파라미터로 limit이 없을 때 사용)

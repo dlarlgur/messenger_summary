@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jar xf:*)",
+      "Bash(flutter pub get:*)"
+    ]
+  }
+}

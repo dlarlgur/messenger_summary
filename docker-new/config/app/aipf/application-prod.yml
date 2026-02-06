@@ -1,0 +1,55 @@
+# 상용 환경 설정
+server:
+  port: ${SERVER_PORT:1024}
+
+spring:
+  # MySQL 설정 (상용)
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:aidb}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # JPA 설정 (상용)
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 상용에서는 validate 사용 권장
+    show-sql: false  # 상용에서는 false
+
+# AIIF 서버 연동 설정 (상용)
+aiif:
+  base-url: ${AIIF_BASE_URL}
+  api-key: ${AIIF_API_KEY:ENC(6iWIerqCCu2Kwq6I8QhH2NaP+2xkhXO1ZiJ/DLaGsHYpxgtaX+TcGdr5WvdozJnWMIBjd+AhIrZKBpb7V8NQDG+LuIyCCy+r)}  # AIIF API Key (암호화됨, 환경변수로 오버라이드 가능)
+
+# 보안 설정 (상용)
+security:
+  encryption:
+    # 마스터 키: 반드시 환경변수 SECURITY_ENCRYPTION_MASTER_KEY로 설정 필요
+    master-key: ${SECURITY_ENCRYPTION_MASTER_KEY}  # Base64 인코딩된 256비트 키
+
+# 소셜 로그인 설정 (상용)
+social:
+  naver:
+    client-id: "ENC(GLBMjJT8MffrFaa0rKDHTjaTsMinC5L6ir82VliRtuajvbkOkpNU1uKCuZZCbcuP)"  # Naver API Client ID (암호화됨)
+    client-secret: "ENC(jl/EWNkei81r9bm114hU84mIH/vFHIeLzyzg7vzk6y5Ritw/Ll4=)"  # Naver API Client Secret (암호화됨)
+    redirect-uri: ${NAVER_REDIRECT_URI}  # 네이버 로그인 리다이렉트 URI (환경 변수로 설정 필요)
+  kakao:
+    client-id: "ENC(5tHvCs6WAsIbXMTPpnyqZJuFRabbUoRkMFPXTg0j43RUX4S0ogy/6XM3NvaGo3g7zPizBUYZEXzvjl/k)"  # Kakao REST API Key (암호화됨)
+    client-secret: "ENC(VU5w5yiL8cIvujEReMftD0SOom22JBWhhmfcqT7NysuXlToSydWT1pPaSr4IqVLF/+WT68j4UDiZ387W)"  # Kakao Client Secret (암호화됨)
+    redirect-uri: ${KAKAO_REDIRECT_URI}  # 카카오 로그인 리다이렉트 URI (환경 변수로 설정 필요)
+  google:
+    client-id: "ENC(tmn+mIQKWkkG2Zp7Yb+mdpv2+XTcXr8xuXLI5DCBX4SEmVl/fr0wfU4O7goR/o4SUQ0OjxCVXDrxXqumwhfGnZXFOkHvqCkyyqOdpHvAb/QMac/fjHOQcOqIfMZ/hrtD+RRGjQ==)"  # Google API Client ID (암호화됨)
+    client-secret: "ENC(PKB5IhRaKnTbNo0KcrFXzSrSXiPLOsOTDjMHiueZuIGQCI0Yqd2ImUbHrLGigfbIfXipJWzaJYMDZOzYWN+W)"  # Google API Client Secret (암호화됨)
+    redirect-uri: ${GOOGLE_REDIRECT_URI}  # 구글 로그인 리다이렉트 URI (환경 변수로 설정 필요)
+
+# JWT 설정 (상용)
+jwt:
+  secret: ${JWT_SECRET}  # 반드시 환경 변수로 설정 필요
+
+# AI 설정 (상용)
+ai:
+  default-ai-div: ${AI_DEFAULT_DIV:gemini}  # /ask, /stream용 기본 AI 엔진 (gemini, gpt)
+  summary:
+    default-ai-div: ${AI_SUMMARY_DIV:gemini}  # /summary, /summary/stream용 AI 엔진 (gemini, gpt)
+
+

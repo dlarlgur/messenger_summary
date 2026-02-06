@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: aidb-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    networks:
+      - aiapp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: aidb-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - aiapp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  aiif:
+    build:
+      context: ../apps/aiif
+      dockerfile: Dockerfile
+    container_name: aiif-app
+    restart: unless-stopped
+    ports:
+      - "1024:1309"
+    environment:
+      SPRING_PROFILES_ACTIVE: develop
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      SECURITY_ENCRYPTION_MASTER_KEY: ${SECURITY_ENCRYPTION_MASTER_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - aiapp-network
+    volumes:
+      - aiif-logs:/home/dksw/aiif/logs
+
+  aipf:
+    build:
+      context: ../apps/aipf
+      dockerfile: Dockerfile
+    container_name: aipf-app
+    restart: unless-stopped
+    ports:
+      - "2022:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: develop
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      AIIF_BASE_URL: ${AIIF_BASE_URL}
+      AIIF_API_KEY: ${AIIF_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      SECURITY_ENCRYPTION_MASTER_KEY: ${SECURITY_ENCRYPTION_MASTER_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      aiif:
+        condition: service_started
+    networks:
+      - aiapp-network
+    volumes:
+      - aipf-logs:/home/dksw/aipf/logs
+
+  nginx:
+    image: nginx:alpine
+    container_name: aiapp-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - aiif
+      - aipf
+    networks:
+      - aiapp-network
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot
+    container_name: aiapp-certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  aiapp-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  aiif-logs:
+  aipf-logs:

@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(java:*)",
+      "Bash(javac:*)",
+      "Bash(mvn compile:*)",
+      "Bash(./gradlew clean build:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(cat:*)",
+      "Bash(ssh-copy-id:*)",
+      "Bash(ssh dksw@223.130.151.39 -o StrictHostKeyChecking=no \"cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys\")",
+      "Bash(chmod:*)",
+      "Bash(ssh:*)",
+      "Bash(ls:*)",
+      "Bash(./deploy.sh:*)",
+      "Bash(tar:*)",
+      "Bash(./deploy-simple.sh:*)",
+      "Bash(sshpass:*)",
+      "Bash(/tmp/check-status.exp)",
+      "Bash(/tmp/fix-mysql.exp)",
+      "Bash(/tmp/setup-ssl.exp)",
+      "Bash(/tmp/restart-with-ssl.exp)",
+      "Bash(curl:*)",
+      "Bash(./gradlew build:*)",
+      "Bash(gradle build:*)",
+      "Bash(./gradlew bootJar)",
+      "Bash(flutter build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: GenerationConfigFactory에서 summary 프로필이 gemini.yml 참조하도록 수정\n\n- createForSummary 메서드가 JSON 파일 대신 gemini.yml의 summary 프로필을 직접 사용하도록 변경\n- createForAnswer, createForProduct와 동일한 패턴으로 통일\n- temperature, topP, topK, maxOutputTokens, responseMimeType, enableGoogleSearch 설정 적용\n- RPM 빌드 설정, 인증 필터, 프롬프트 및 스키마 개선 등 기타 변경사항 포함\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(flutter --version:*)",
+      "Bash(tree:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)"
+    ]
+  }
+}

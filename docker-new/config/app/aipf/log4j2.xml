@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <!-- Profile-specific log path from system property -->
+        <Property name="LOG_PATH">${sys:LOG_PATH:-./logs}</Property>
+        <Property name="DEBUG_LOG">${LOG_PATH}/aipf_debug.log</Property>
+        <Property name="TRACE_LOG">${LOG_PATH}/aipf_trace.log</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- Console Output -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8"/>
+            <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+
+        <!-- Debug Log File - Application logs -->
+        <RollingFile name="DebugFile"
+                     fileName="${DEBUG_LOG}"
+                     filePattern="${LOG_PATH}/aipf_debug.%d{yyyy-MM-dd}.%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30">
+                <Delete basePath="${LOG_PATH}" maxDepth="1">
+                    <IfFileName glob="aipf_debug.*.log" />
+                    <IfAccumulatedFileSize exceeds="2GB" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <!-- Trace Log File - API Request/Response only -->
+        <RollingFile name="TraceFile"
+                     fileName="${TRACE_LOG}"
+                     filePattern="${LOG_PATH}/aipf_trace.%d{yyyy-MM-dd}.%i.log">
+            <PatternLayout pattern="${LOG_PATTERN}" charset="UTF-8"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30">
+                <Delete basePath="${LOG_PATH}" maxDepth="1">
+                    <IfFileName glob="aipf_trace.*.log" />
+                    <IfAccumulatedFileSize exceeds="2GB" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <!-- API Trace Filter - Only to trace log file -->
+        <Logger name="com.dksw.aipf.filter.ApiTraceFilter" level="INFO" additivity="false">
+            <AppenderRef ref="TraceFile"/>
+        </Logger>
+
+        <!-- Application Package - Info level -->
+        <Logger name="com.dksw.aipf" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="DebugFile"/>
+        </Logger>
+
+        <!-- Spring Framework -->
+        <Logger name="org.springframework" level="WARN"/>
+        <Logger name="org.springframework.web" level="WARN"/>
+        <Logger name="org.springframework.web.reactive.function.client" level="INFO"/>
+
+        <!-- Reactor -->
+        <Logger name="reactor.netty" level="WARN"/>
+
+        <!-- Root Logger -->
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="DebugFile"/>
+        </Root>
+    </Loggers>
+</Configuration>

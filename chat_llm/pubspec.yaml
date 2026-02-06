@@ -1,0 +1,93 @@
+name: chat_llm
+description: AI Chat LLM Mobile App
+publish_to: 'none'
+version: 1.0.3+8
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 상태 관리
+  provider: ^6.1.1
+  
+  # HTTP 통신
+  http: ^1.1.0
+  dio: ^5.4.0
+  
+  # 로컬 저장소
+  shared_preferences: ^2.2.2
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  flutter_secure_storage: ^9.0.0
+
+  # UI
+  cupertino_icons: ^1.0.6
+  flutter_svg: ^2.0.9
+  flutter_markdown: ^0.7.1
+  
+  # 웹뷰/URL
+  url_launcher: ^6.2.2
+  webview_flutter: ^4.4.2
+  
+  # 유틸리티
+  uuid: ^4.2.1
+  intl: ^0.20.2
+  path_provider: ^2.1.1
+  crypto: ^3.0.3
+
+  # 디바이스 정보
+  device_info_plus: ^12.3.0
+  package_info_plus: ^9.0.0
+
+  # 위치
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+
+  # 이미지 저장
+  gal: ^2.3.0
+
+  # 인앱 결제
+  in_app_purchase: ^3.1.11
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/ai_talk.png
+    - assets/images/
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/ai_talk.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#4A90E2"
+  adaptive_icon_foreground: "assets/ai_talk.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#4A90E2"
+  image: "assets/ai_talk.png"
+  android: true
+  ios: true

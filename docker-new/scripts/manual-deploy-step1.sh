@@ -1,0 +1,25 @@
+#!/bin/bash
+# Step 1: 서버에 기존 컨테이너 중지 및 디렉토리 생성
+
+echo "===================="
+echo "Step 1: 서버 준비"
+echo "===================="
+echo ""
+echo "다음 명령을 서버에서 실행하세요:"
+echo ""
+echo "1. 서버 접속:"
+echo "   ssh dksw@223.130.151.39"
+echo "   (비밀번호: dksw.123)"
+echo ""
+echo "2. 기존 컨테이너 중지:"
+echo "   cd /home/dksw/aiapp/docker 2>/dev/null && docker-compose down -v || echo 'No containers'"
+echo ""
+echo "3. 디렉토리 생성:"
+echo "   mkdir -p /home/dksw/aiapp/{config/{env,app/{aiif,aipf},nginx/conf.d,mysql,redis},docker,data/{mysql,redis,logs/{aiif,aipf}},apps/{aiif/target,aipf/target}}"
+echo ""
+echo "4. 로그아웃:"
+echo "   exit"
+echo ""
+echo "===================="
+echo "완료 후 Enter를 누르세요..."
+read

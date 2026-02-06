@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Cleartext Traffic (HTTP) 완전 금지 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- 시스템 기본 CA 인증서 신뢰 -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- 디버그 빌드에서도 HTTPS만 허용 (보안 강화) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
