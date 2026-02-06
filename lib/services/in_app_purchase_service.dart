@@ -6,6 +6,19 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'plan_service.dart';
 
+/// 구매 검증 결과
+class PurchaseVerificationResult {
+  final bool success;
+  final String message;
+  final String? planType;
+
+  PurchaseVerificationResult({
+    required this.success,
+    required this.message,
+    this.planType,
+  });
+}
+
 /// 인앱 결제 서비스
 class InAppPurchaseService {
   static final InAppPurchaseService _instance = InAppPurchaseService._internal();
@@ -14,13 +27,21 @@ class InAppPurchaseService {
 
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
-  
+
   // 상품 ID 정의
   static const String basicPlanMonthly = 'basic_plan_monthly';
   static const Set<String> _productIds = {basicPlanMonthly};
 
   bool _isInitialized = false;
   final PlanService _planService = PlanService();
+
+  // 검증 결과 스트림
+  final StreamController<PurchaseVerificationResult> _verificationResultController =
+      StreamController<PurchaseVerificationResult>.broadcast();
+
+  /// 검증 결과 스트림 (UI에서 구독)
+  Stream<PurchaseVerificationResult> get verificationResultStream =>
+      _verificationResultController.stream;
 
   /// 인앱 결제 초기화
   Future<bool> initialize() async {
@@ -213,17 +234,38 @@ class InAppPurchaseService {
       if (result != null && result['success'] == true) {
         debugPrint('✅ 플랜 구독 완료: ${result['planType']}');
         debugPrint('📅 만료일: ${result['expiresAt']}');
-        
+
         // 플랜 정보 캐시 무효화 (다음 조회 시 최신 정보 가져옴)
         _planService.invalidateCache();
+
+        // 성공 결과 전송
+        _verificationResultController.add(PurchaseVerificationResult(
+          success: true,
+          message: '플랜이 활성화되었습니다.',
+          planType: result['planType'] as String?,
+        ));
       } else {
         debugPrint('❌ 플랜 구독 실패');
-        if (result != null) {
+        String errorMessage = '서버 검증에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        if (result != null && result['error'] != null) {
           debugPrint('에러 메시지: ${result['error']}');
+          errorMessage = result['error'] as String;
         }
+
+        // 실패 결과 전송
+        _verificationResultController.add(PurchaseVerificationResult(
+          success: false,
+          message: errorMessage,
+        ));
       }
     } catch (e) {
       debugPrint('❌ 구매 성공 처리 중 오류: $e');
+
+      // 에러 결과 전송
+      _verificationResultController.add(PurchaseVerificationResult(
+        success: false,
+        message: '서버 검증 중 오류가 발생했습니다.',
+      ));
     }
   }
 
@@ -258,6 +300,7 @@ class InAppPurchaseService {
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
+    _verificationResultController.close();
     _isInitialized = false;
     debugPrint('✅ 인앱 결제 서비스 정리 완료');
   }

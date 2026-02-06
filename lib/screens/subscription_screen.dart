@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/in_app_purchase_service.dart';
@@ -14,25 +15,70 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final InAppPurchaseService _purchaseService = InAppPurchaseService();
   final PlanService _planService = PlanService();
-  
+
   List<ProductDetails> _products = [];
   bool _isLoading = true;
   String? _error;
   String? _currentPlanType;
   bool _isPurchasing = false;
+  StreamSubscription<PurchaseVerificationResult>? _verificationSubscription;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToVerificationResults();
     _initialize();
+  }
+
+  /// 검증 결과 스트림 구독
+  void _subscribeToVerificationResults() {
+    _verificationSubscription = _purchaseService.verificationResultStream.listen(
+      (result) {
+        if (!mounted) return;
+
+        if (result.success) {
+          // 성공: 플랜 정보 갱신 및 성공 메시지
+          _planService.invalidateCache();
+          _loadCurrentPlan();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          // 실패: 에러 메시지 표시
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: '다시 시도',
+                textColor: Colors.white,
+                onPressed: _restorePurchases,
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  /// 현재 플랜 로드
+  Future<void> _loadCurrentPlan() async {
+    final planType = await _planService.getCurrentPlanType();
+    if (mounted) {
+      setState(() {
+        _currentPlanType = planType;
+      });
+    }
   }
 
   Future<void> _initialize() async {
     // 현재 플랜 조회
-    final planType = await _planService.getCurrentPlanType();
-    setState(() {
-      _currentPlanType = planType;
-    });
+    await _loadCurrentPlan();
 
     // 인앱 결제 초기화 및 상품 조회
     await _loadProducts();
@@ -137,22 +183,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     try {
       await _purchaseService.restorePurchases();
-      
+
       if (!mounted) return;
       Navigator.pop(context);
 
+      // 복원 요청만 완료, 실제 결과는 스트림에서 받음
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('구매 복원이 완료되었습니다.'),
+          content: Text('구매 복원 요청 중... 잠시만 기다려주세요.'),
           duration: Duration(seconds: 2),
         ),
       );
-
-      // 플랜 정보 갱신
-      final planType = await _planService.getCurrentPlanType();
-      setState(() {
-        _currentPlanType = planType;
-      });
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
@@ -167,6 +208,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   void dispose() {
+    _verificationSubscription?.cancel();
     _purchaseService.dispose();
     super.dispose();
   }

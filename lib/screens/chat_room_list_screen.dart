@@ -90,11 +90,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _loadNotificationCount(); // 알림 배지 개수 로드
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
     _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
-
-    // 첫 진입 시 알림 설정 안내 다이얼로그 표시
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showNotificationDialogIfNeeded();
-    });
+    // 알림 설정 다이얼로그는 main.dart에서 처리 (중복 방지)
   }
 
   /// 읽지 않은 알림 개수 로드 (배지 표시용)

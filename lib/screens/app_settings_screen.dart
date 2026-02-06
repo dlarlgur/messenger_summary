@@ -36,6 +36,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
   Future<void> _loadCurrentPlan() async {
     try {
+      // 설정 화면 진입 시 항상 서버에서 최신 플랜 정보 조회
+      _planService.invalidateCache();
       final planType = await _planService.getCurrentPlanType();
       if (mounted) {
         setState(() {

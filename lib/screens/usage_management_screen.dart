@@ -286,6 +286,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     final isFree = planType == 'free';
     final usagePercent = limit > 0 ? (currentUsage / limit).clamp(0.0, 1.0) : 0.0;
     final remaining = (limit - currentUsage).clamp(0, limit);
+    // 사용량이 제한을 초과하면 제한값으로 표시 (예: 4/3 → 3/3)
+    final displayUsage = currentUsage > limit ? limit : currentUsage;
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -421,6 +423,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   }) {
     final isNearLimit = usagePercent >= 0.8;
     final isExceeded = currentUsage >= limit;
+    // 사용량이 제한을 초과하면 제한값으로 표시 (예: 4/3 → 3/3)
+    final displayUsage = currentUsage > limit ? limit : currentUsage;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -542,7 +546,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$currentUsage / $limit',
+                    '$displayUsage / $limit',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
