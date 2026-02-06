@@ -5,11 +5,15 @@ Thumbs.db
 # IDE
 .idea/
 *.iml
+*.ipr
+*.iws
 .vscode/
 *.swp
 *.swo
+.atom/
+.history
 
-# Flutter
+# Flutter/Dart/Pub related
 **/build/
 **/.dart_tool/
 **/.flutter-plugins
@@ -18,6 +22,21 @@ Thumbs.db
 **/.pub-cache/
 **/.pub/
 **/pubspec.lock
+**/doc/api/
+**/ios/Flutter/.last_build_id
+/coverage/
+.buildlog/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio
+/android/app/debug
+/android/app/profile
+/android/app/release
 
 # Java/Maven
 **/target/
@@ -25,6 +44,9 @@ Thumbs.db
 *.jar
 *.war
 *.log
+
+# Python
+*.pyc
 
 # Node
 **/node_modules/
@@ -41,3 +63,8 @@ Thumbs.db
 # Secrets
 **/secrets/
 **/credentials/
+
+# Swift
+.build/
+.swiftpm/
+migrate_working_dir/
