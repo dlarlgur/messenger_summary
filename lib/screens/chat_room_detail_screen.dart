@@ -635,7 +635,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('메시지 전송에 실패했습니다.'),
-              duration: Duration(seconds: 2),
+              duration: Duration(seconds: 1),
             ),
           );
         }
@@ -645,8 +645,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('메시지 전송 중 오류가 발생했습니다: $e'),
-            duration: const Duration(seconds: 2),
+            content: Text('메시지 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -3198,7 +3198,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           content: Text(
               '${DateFormat('yyyy년 M월 d일').format(targetDate)}의 메시지가 없습니다'),
           backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -4158,7 +4158,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('요약 요청 중 오류가 발생했습니다: $e'),
+            content: Text('요약 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -4175,8 +4175,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.75,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
+        minChildSize: 0.65,
+        maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [0.75, 0.95],
         expand: false,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
@@ -4193,7 +4195,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           child: ListView(
             controller: scrollController,
             padding: EdgeInsets.zero,
-            physics: const BouncingScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             children: [
               // 핸들바
               Center(
@@ -4302,8 +4304,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 padding: EdgeInsets.symmetric(
                   horizontal: MediaQuery.of(context).size.width * 0.05,
                 ),
-                child: SizedBox(
-                  height: 100, // 높이를 더 넉넉하게 (오버플로우 방지)
+                child: IntrinsicHeight(
                   child: Row(
                     children: [
                       Expanded(
@@ -4346,6 +4347,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               _buildSummaryContentCard(
                 summaryMessage: summaryData['summaryMessage'] ?? '',
                 summaryDetailMessage: summaryData['summaryDetailMessage'],
+                parentScrollController: scrollController,
               ),
             ],
           ),
@@ -4367,7 +4369,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Widget _buildInfoCard(
       IconData icon, String value, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
@@ -4379,21 +4381,24 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min, // 최소 크기만 사용
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: color.withOpacity(0.9),
-              letterSpacing: -0.3,
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: color.withOpacity(0.9),
+                letterSpacing: -0.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           Text(
@@ -4414,6 +4419,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Widget _buildSummaryContentCard({
     required String summaryMessage,
     String? summaryDetailMessage,
+    ScrollController? parentScrollController,
   }) {
     bool _showDetail = false; // builder 밖에서 선언하여 상태 유지
 
@@ -4529,6 +4535,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     setState(() {
                       _showDetail = !_showDetail;
                     });
+                    // 상세보기 펼칠 때 해당 위치로 스크롤 이동
+                    if (_showDetail && parentScrollController != null && parentScrollController.hasClients) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (parentScrollController.hasClients) {
+                          parentScrollController.animateTo(
+                            parentScrollController.position.maxScrollExtent,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        }
+                      });
+                    }
                   },
                   borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(20),
@@ -4702,8 +4720,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   /// 시간 범위 포맷팅
   String _formatTimeRange(String startTime, String endTime) {
     if (startTime.isEmpty || endTime.isEmpty) return '-';
-    // "09:30 - 14:42" 형태로 반환
-    return '$startTime~$endTime';
+    return '$startTime\n~$endTime';
   }
 
   /// 요약 히스토리 화면으로 이동
@@ -4956,7 +4973,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('링크를 열 수 없습니다.'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   }
@@ -5002,7 +5019,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('메시지가 복사되었습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -5014,7 +5031,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           const SnackBar(
             content: Text('메시지 복사에 실패했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -5332,7 +5349,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           SnackBar(
             content: Text('$deletedCount개의 메시지가 삭제되었습니다.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -5343,7 +5360,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           const SnackBar(
             content: Text('메시지 삭제에 실패했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -6057,7 +6074,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           const SnackBar(
             content: Text('이미지가 갤러리에 저장되었습니다.'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
         HapticFeedback.mediumImpact();
@@ -6069,7 +6086,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           const SnackBar(
             content: Text('이미지 저장에 실패했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -6080,7 +6097,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           const SnackBar(
             content: Text('이미지 저장 중 오류가 발생했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }

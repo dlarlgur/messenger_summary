@@ -112,7 +112,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('알림이 삭제되었습니다.'),
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 1),
         ),
       );
     }
@@ -146,7 +146,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('모든 알림이 삭제되었습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -276,7 +276,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('해당 요약을 찾을 수 없습니다.'),
-                                  duration: Duration(seconds: 2),
+                                  duration: Duration(seconds: 1),
                                 ),
                               );
                             }

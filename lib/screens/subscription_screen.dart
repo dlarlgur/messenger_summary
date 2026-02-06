@@ -44,7 +44,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             SnackBar(
               content: Text(result.message),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 1),
             ),
           );
         } else {
@@ -53,7 +53,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             SnackBar(
               content: Text(result.message),
               backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 2),
               action: SnackBarAction(
                 label: '다시 시도',
                 textColor: Colors.white,
@@ -144,14 +144,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('구매가 진행 중입니다. 완료되면 플랜이 자동으로 활성화됩니다.'),
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 1),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('구매 시작에 실패했습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -160,8 +160,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       Navigator.pop(context); // 로딩 다이얼로그 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('구매 중 오류가 발생했습니다: $e'),
-          duration: const Duration(seconds: 2),
+          content: Text('구매 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          duration: const Duration(seconds: 1),
         ),
       );
     } finally {
@@ -182,25 +182,45 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
 
     try {
+      // 스트림에서 결과를 타임아웃과 함께 대기
+      final resultFuture = _purchaseService.verificationResultStream
+          .first
+          .timeout(const Duration(seconds: 10));
+
       await _purchaseService.restorePurchases();
 
-      if (!mounted) return;
-      Navigator.pop(context);
+      try {
+        final result = await resultFuture;
+        if (!mounted) return;
+        Navigator.pop(context);
 
-      // 복원 요청만 완료, 실제 결과는 스트림에서 받음
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('구매 복원 요청 중... 잠시만 기다려주세요.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.success
+                ? '구매가 복원되었습니다.'
+                : '구매 복원 실패: ${result.message}'),
+            backgroundColor: result.success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      } on TimeoutException {
+        if (!mounted) return;
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('복원할 구매 내역이 없습니다.'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('구매 복원 중 오류가 발생했습니다: $e'),
-          duration: const Duration(seconds: 2),
+          content: Text('구매 복원 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -382,14 +402,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    product.price,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2196F3),
+                  Flexible(
+                    child: Text(
+                      product.price,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2196F3),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   if (!isCurrentPlan && !_isPurchasing)
                     ElevatedButton(
                       onPressed: () => _purchasePlan(product),

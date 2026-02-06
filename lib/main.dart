@@ -301,8 +301,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 배지 업데이트
         _updateNotificationBadge();
         
-        // 자동요약 알림 설정 팝업 표시 (최초 진입 시에만)
-        _checkAndShowAutoSummaryNotificationDialog();
+        // 자동요약 알림 설정 팝업 제거 (두 번 눌러야 하는 문제)
       }
     }
   }
@@ -383,7 +382,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           }
                         },
                       ),
-                      duration: const Duration(seconds: 5),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }

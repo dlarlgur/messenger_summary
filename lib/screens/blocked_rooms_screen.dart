@@ -59,7 +59,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${room.roomName} 차단이 해제되었습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     } else if (mounted) {
@@ -67,7 +67,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
         const SnackBar(
           content: Text('차단 해제에 실패했습니다.'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 1),
         ),
       );
     }

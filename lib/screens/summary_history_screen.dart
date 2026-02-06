@@ -251,7 +251,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('요약 히스토리 로딩 실패: $e'),
+            content: Text('요약 히스토리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -393,7 +393,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('삭제 실패: $e'),
+            content: Text('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -482,7 +482,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('삭제 실패: $e'),
+            content: Text('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -695,8 +695,10 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.9,
-        minChildSize: 0.5,
+        minChildSize: 0.75,
         maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [0.9, 0.95],
         expand: false,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
@@ -792,6 +794,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
               Expanded(
                 child: ListView(
                   controller: scrollController,
+                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.all(20),
                   children: [
                     // 요약 메시지

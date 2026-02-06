@@ -90,7 +90,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _loadNotificationCount(); // 알림 배지 개수 로드
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
     _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
-    // 알림 설정 다이얼로그는 main.dart에서 처리 (중복 방지)
+    // 알림 다이얼로그 제거
   }
 
   /// 읽지 않은 알림 개수 로드 (배지 표시용)
@@ -292,7 +292,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('알림 권한이 허용되어 모든 채팅방 알림이 켜졌습니다.'),
-              duration: Duration(seconds: 2),
+              duration: Duration(seconds: 1),
             ),
           );
         }
@@ -577,7 +577,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                               ? '${room.roomName} 알림이 켜졌습니다.'
                               : '${room.roomName} 알림이 꺼졌습니다.',
                         ),
-                        duration: const Duration(seconds: 2),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   }
@@ -700,7 +700,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('모든 채팅방이 읽음 처리되었습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -711,7 +711,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           const SnackBar(
             content: Text('읽음 처리에 실패했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -746,7 +746,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           content: Text(newSummaryEnabled
               ? '✨ AI 요약 기능이 켜졌습니다.'
               : 'AI 요약 기능이 꺼졌습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     } else {
@@ -754,7 +754,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('요약 기능 설정 변경에 실패했습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -777,7 +777,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(newPinned ? '상단에 고정되었습니다.' : '고정이 해제되었습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -963,7 +963,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${room.roomName} 채팅방이 차단되었습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     } else if (mounted) {
@@ -971,7 +971,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         const SnackBar(
           content: Text('채팅방 차단에 실패했습니다.'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 1),
         ),
       );
     }
@@ -1002,7 +1002,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('${room.roomName} 대화방이 삭제되었습니다.'),
-                    duration: const Duration(seconds: 2),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               } else {
@@ -1010,7 +1010,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   const SnackBar(
                     content: Text('대화방 삭제에 실패했습니다.'),
                     backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
+                    duration: Duration(seconds: 1),
                   ),
                 );
               }
@@ -1654,7 +1654,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
         return;
@@ -1743,14 +1743,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('플랜이 ${planType.toUpperCase()}로 설정되었습니다.'),
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('플랜 설정에 실패했습니다.'),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -1759,8 +1759,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       Navigator.pop(context); // 로딩 다이얼로그 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('플랜 설정 중 오류가 발생했습니다: $e'),
-          duration: const Duration(seconds: 2),
+          content: Text('플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          duration: const Duration(seconds: 1),
         ),
       );
     }

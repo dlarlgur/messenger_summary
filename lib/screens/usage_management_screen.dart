@@ -41,6 +41,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   @override
   void initState() {
     super.initState();
+    // initialRoomId가 있으면 GlobalKey를 미리 생성
+    if (widget.initialRoomId != null) {
+      _roomKeys[widget.initialRoomId!] = GlobalKey();
+    }
     _initProfileService();
     _loadData();
   }
@@ -75,6 +79,13 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
       _loadUsage(),
       _loadSummaryEnabledRooms(),
     ]);
+
+    // 두 로딩이 모두 완료된 후 initialRoomId로 스크롤
+    if (widget.initialRoomId != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToInitialRoom();
+      });
+    }
   }
 
   Future<void> _loadUsage() async {
@@ -132,13 +143,6 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           _summaryEnabledRooms = rooms;
           _isLoadingRooms = false;
         });
-        
-        // initialRoomId가 있으면 해당 채팅방으로 스크롤
-        if (widget.initialRoomId != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _scrollToInitialRoom();
-          });
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -173,7 +177,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           content: Text(newSummaryEnabled
               ? '${room.roomName}의 요약 기능이 켜졌습니다.'
               : '${room.roomName}의 요약 기능이 꺼졌습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     } else {
@@ -182,7 +186,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           const SnackBar(
             content: Text('요약 기능 설정 변경에 실패했습니다.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -1079,7 +1083,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           const SnackBar(
             content: Text('자동 요약 기능은 베이직 플랜에서만 사용 가능합니다.'),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -1105,7 +1109,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           content: Text(enabled
               ? '${room.roomName}의 자동 요약이 켜졌습니다.'
               : '${room.roomName}의 자동 요약이 꺼졌습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -1145,7 +1149,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${room.roomName}의 자동 요약 개수가 ${clampedCount}개로 저장되었습니다.'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1),
           backgroundColor: const Color(0xFF2196F3),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -1157,9 +1161,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   }
 
   /// initialRoomId가 있으면 해당 채팅방으로 스크롤
-  void _scrollToInitialRoom() {
-    if (widget.initialRoomId == null) return;
-    
+  void _scrollToInitialRoom([int retryCount = 0]) {
+    if (widget.initialRoomId == null || !mounted) return;
+
     final key = _roomKeys[widget.initialRoomId];
     if (key?.currentContext != null) {
       Scrollable.ensureVisible(
@@ -1168,6 +1172,11 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         curve: Curves.easeInOut,
         alignment: 0.1, // 상단에서 10% 위치에 배치
       );
+    } else if (retryCount < 3) {
+      // 위젯이 아직 렌더링되지 않았으면 다음 프레임에서 재시도
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToInitialRoom(retryCount + 1);
+      });
     }
   }
 }

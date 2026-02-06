@@ -189,29 +189,39 @@ class UpdateDialog extends StatelessWidget {
   }
 
   Future<void> _openStore(BuildContext context) async {
-    final storeUrl = versionResult.storeUrl;
-    if (storeUrl == null || storeUrl.isEmpty) {
-      // 스토어 URL이 없으면 기본 URL 사용
-      final defaultUrl = Platform.isAndroid
-          ? 'https://play.google.com/store/apps/details?id=com.dksw.app'
-          : 'https://apps.apple.com/app/id0000000000';
+    const packageName = 'com.dksw.app';
 
-      final uri = Uri.parse(defaultUrl);
+    if (Platform.isAndroid) {
+      // market:// 스킴으로 Play Store 앱 직접 열기 (캐시 우회)
+      final marketUri = Uri.parse('market://details?id=$packageName');
+      try {
+        final launched = await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+        if (launched) return;
+      } catch (_) {}
+
+      // market:// 실패 시 웹 URL 폴백
+      final webUri = Uri.parse('https://play.google.com/store/apps/details?id=$packageName');
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } else {
+      // iOS
+      final storeUrl = versionResult.storeUrl;
+      final url = (storeUrl != null && storeUrl.isNotEmpty)
+          ? storeUrl
+          : 'https://apps.apple.com/app/id0000000000';
+      final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
       }
-      return;
     }
 
-    final uri = Uri.parse(storeUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('스토어를 열 수 없습니다.')),
-        );
-      }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('스토어를 열 수 없습니다.')),
+      );
     }
   }
 }

@@ -217,7 +217,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('필수 권한을 모두 허용해주세요.'),
-                                duration: Duration(seconds: 2),
+                                duration: Duration(seconds: 1),
                               ),
                             );
                           }
@@ -296,11 +296,15 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       const SizedBox(width: 8),

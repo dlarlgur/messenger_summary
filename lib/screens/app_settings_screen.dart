@@ -798,22 +798,34 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
               onTap: () async {
                 if (!systemPermissionEnabled) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
-                        action: SnackBarAction(
-                          label: '설정',
-                          onPressed: () async {
-                            _markWaitingForPermission();
-                            try {
-                              const methodChannel = MethodChannel('com.dksw.app/main');
-                              await methodChannel.invokeMethod('openAppSettings');
-                            } catch (e) {
-                              debugPrint('설정 화면 열기 실패: $e');
-                            }
-                          },
-                        ),
-                        duration: const Duration(seconds: 5),
+                    showDialog(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('알림 권한 필요'),
+                        content: const Text('자동 요약 알림을 받으려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('취소'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              _markWaitingForPermission();
+                              try {
+                                const methodChannel = MethodChannel('com.dksw.app/main');
+                                await methodChannel.invokeMethod('openAppSettings');
+                              } catch (e) {
+                                debugPrint('설정 화면 열기 실패: $e');
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2196F3),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('설정으로 이동'),
+                          ),
+                        ],
                       ),
                     );
                   }
