@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'blocked_rooms_screen.dart';
 import 'usage_management_screen.dart';
 import 'subscription_screen.dart';
+import 'how_to_use_screen.dart';
+import 'about_screen.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/plan_service.dart';
 
@@ -186,7 +188,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             subtitle: '앱 사용 가이드',
             iconColor: _primaryBlue,
             onTap: () {
-              _showHowToUse();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const HowToUseScreen(),
+                ),
+              );
             },
           ),
           _buildStyledMenuItem(
@@ -195,7 +201,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             subtitle: '앱 소개 및 기능 안내',
             iconColor: _primaryBlue,
             onTap: () {
-              _showAbout();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AboutScreen(),
+                ),
+              );
             },
             isLast: true,
           ),
@@ -928,53 +938,5 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     }
   }
 
-  void _showHowToUse() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('AI 톡비서 사용방법'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'AI 톡비서는 카카오톡 대화를 자동으로 수집하고 AI로 요약해주는 앱입니다.\n\n'
-            '1. 알림 접근 권한을 허용해주세요.\n'
-            '2. 카카오톡에서 대화가 오면 자동으로 수집됩니다.\n'
-            '3. 대화방에서 요약 버튼을 눌러 요약을 생성할 수 있습니다.\n'
-            '4. 요약 히스토리에서 이전 요약을 확인할 수 있습니다.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showAbout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('AI 톡비서 란'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'AI 톡비서는 카카오톡 대화를 AI로 요약해주는 스마트한 메신저 어시스턴트입니다.\n\n'
-            '주요 기능:\n'
-            '• 카카오톡 대화 자동 수집\n'
-            '• AI 기반 대화 요약\n'
-            '• 요약 히스토리 관리\n'
-            '• 채팅방별 요약 기능\n\n'
-            '더 효율적인 메신저 사용을 경험해보세요!',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
-  }
 }

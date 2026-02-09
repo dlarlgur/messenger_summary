@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../models/chat_message.dart';
 import '../services/local_db_service.dart';
 import '../config/constants.dart';
@@ -25,7 +26,12 @@ class SummaryHistoryScreen extends StatefulWidget {
 
 class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
   final LocalDbService _localDb = LocalDbService();
-  List<SummaryItem> _summaries = [];
+  List<SummaryItem> _allSummaries = []; // 모든 요약
+  List<SummaryItem> _summaries = []; // 현재 날짜의 요약
+  List<DateTime> _availableDates = []; // 요약이 있는 날짜 목록
+  DateTime _selectedDate = DateTime.now(); // 선택된 날짜
+  int _currentDateIndex = 0; // 현재 날짜 인덱스
+  late PageController _pageController;
   bool _isLoading = true;
   Set<int> _selectedSummaryIds = {};
   bool _isSelectionMode = false;
@@ -206,6 +212,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
     _loadSummaries();
   }
 
@@ -230,10 +237,67 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         return bTime.compareTo(aTime); // 최신이 먼저
       });
 
+      // 날짜 목록 추출 (중복 제거, 최신순)
+      final dateSet = <DateTime>{};
+      for (final summary in sortedSummaries) {
+        final date = summary.summaryTo ?? summary.summaryFrom;
+        if (date != null) {
+          final dateOnly = DateTime(date.year, date.month, date.day);
+          dateSet.add(dateOnly);
+        }
+      }
+      final availableDates = dateSet.toList()
+        ..sort((a, b) => b.compareTo(a)); // 최신순
+
+      // 초기 선택 날짜 설정
+      DateTime initialDate = DateTime.now();
+      int initialIndex = 0;
+      
+      if (widget.initialSummaryId != null) {
+        // initialSummaryId가 있으면 해당 요약의 날짜로 설정
+        final matchingSummary = sortedSummaries.firstWhere(
+          (s) => s.summaryId == widget.initialSummaryId,
+          orElse: () => sortedSummaries.isNotEmpty ? sortedSummaries.first : sortedSummaries.first,
+        );
+        if (matchingSummary.summaryTo != null || matchingSummary.summaryFrom != null) {
+          final date = matchingSummary.summaryTo ?? matchingSummary.summaryFrom!;
+          initialDate = DateTime(date.year, date.month, date.day);
+          initialIndex = availableDates.indexWhere(
+            (d) => d.year == initialDate.year && d.month == initialDate.month && d.day == initialDate.day,
+          );
+          if (initialIndex == -1) {
+            initialIndex = 0;
+            initialDate = availableDates.isNotEmpty ? availableDates.first : DateTime.now();
+          }
+        }
+      } else if (availableDates.isNotEmpty) {
+        // 오늘 날짜가 있으면 오늘, 없으면 가장 최신 날짜
+        final today = DateTime.now();
+        final todayOnly = DateTime(today.year, today.month, today.day);
+        if (availableDates.contains(todayOnly)) {
+          initialDate = todayOnly;
+          initialIndex = availableDates.indexOf(todayOnly);
+        } else {
+          initialDate = availableDates.first;
+          initialIndex = 0;
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _summaries = sortedSummaries;
+          _allSummaries = sortedSummaries;
+          _availableDates = availableDates;
+          _selectedDate = initialDate;
+          _currentDateIndex = initialIndex;
+          _updateSummariesForDate(initialDate);
           _isLoading = false;
+        });
+
+        // PageController 초기 위치 설정 (PageView가 빌드된 후)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _availableDates.isNotEmpty && _pageController.hasClients) {
+            _pageController.jumpToPage(_currentDateIndex);
+          }
         });
         
         // initialSummaryId가 있으면 해당 요약 자동으로 열기
@@ -259,19 +323,94 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
     }
   }
 
+  /// 선택된 날짜의 요약만 필터링
+  void _updateSummariesForDate(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    _summaries = _allSummaries.where((summary) {
+      final summaryDate = summary.summaryTo ?? summary.summaryFrom;
+      if (summaryDate == null) return false;
+      final summaryDateOnly = DateTime(summaryDate.year, summaryDate.month, summaryDate.day);
+      return summaryDateOnly == dateOnly;
+    }).toList();
+  }
+
+  /// 날짜 변경
+  void _onDateChanged(DateTime date, int index) {
+    setState(() {
+      _selectedDate = date;
+      _currentDateIndex = index;
+      _updateSummariesForDate(date);
+    });
+  }
+
+  /// 이전 날짜로 이동 (과거로)
+  void _goToPreviousDate() {
+    if (_currentDateIndex < _availableDates.length - 1) {
+      final newIndex = _currentDateIndex + 1;
+      _pageController.animateToPage(
+        newIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// 다음 날짜로 이동 (최신으로)
+  void _goToNextDate() {
+    if (_currentDateIndex > 0) {
+      final newIndex = _currentDateIndex - 1;
+      _pageController.animateToPage(
+        newIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// 달력으로 날짜 선택
+  Future<void> _showCalendarPicker() async {
+    final selectedDate = await showDialog<DateTime>(
+      context: context,
+      builder: (context) => _CalendarPickerDialog(
+        availableDates: _availableDates,
+        initialDate: _selectedDate,
+      ),
+    );
+
+    if (selectedDate != null && mounted) {
+      final index = _availableDates.indexWhere(
+        (d) => d.year == selectedDate.year && d.month == selectedDate.month && d.day == selectedDate.day,
+      );
+      if (index != -1) {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
   /// initialSummaryId에 해당하는 요약 자동으로 열기
   void _openInitialSummary() {
     if (widget.initialSummaryId == null) return;
     
-    final matchingSummaries = _summaries.where(
+    final matchingSummary = _allSummaries.firstWhere(
       (s) => s.summaryId == widget.initialSummaryId,
+      orElse: () => _allSummaries.first,
     );
     
-    if (matchingSummaries.isNotEmpty) {
-      _showSummaryDetail(matchingSummaries.first);
+    if (matchingSummary.summaryId == widget.initialSummaryId) {
+      _showSummaryDetail(matchingSummary);
     } else {
       debugPrint('⚠️ 요약을 찾을 수 없음: summaryId=${widget.initialSummaryId}');
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   /// 선택 모드 토글
@@ -497,11 +636,11 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
     final dateOnly = DateTime(date.year, date.month, date.day);
 
     if (dateOnly == today) {
-      return '오늘';
+      return '오늘 (${DateFormat('M월 d일', 'ko_KR').format(date)})';
     } else if (dateOnly == today.subtract(const Duration(days: 1))) {
-      return '어제';
+      return '어제 (${DateFormat('M월 d일', 'ko_KR').format(date)})';
     } else {
-      return DateFormat('M월 d일', 'ko_KR').format(date);
+      return DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(date);
     }
   }
 
@@ -608,7 +747,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                 valueColor: AlwaysStoppedAnimation<Color>(Color(AppColors.summaryPrimary)),
               ),
             )
-          : _summaries.isEmpty
+          : _availableDates.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -629,37 +768,174 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _summaries.length,
-                  itemBuilder: (context, index) {
-                    final summary = _summaries[index];
-                    final isSelected = _selectedSummaryIds.contains(summary.summaryId);
-                    final isFirst = index == 0;
-                    final isLast = index == _summaries.length - 1;
+              : Column(
+                  children: [
+                    // 날짜 선택 헤더
+                    _buildDateHeader(),
+                    // 요약 목록
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        reverse: false, // 최신이 왼쪽에 오도록 (인덱스 0이 최신)
+                        physics: const BouncingScrollPhysics(), // iOS 스타일 스크롤
+                        onPageChanged: (index) {
+                          if (index < _availableDates.length && index >= 0) {
+                            _onDateChanged(_availableDates[index], index);
+                          }
+                        },
+                        itemCount: _availableDates.length,
+                        itemBuilder: (context, index) {
+                          final date = _availableDates[index];
+                          final summariesForDate = _allSummaries.where((summary) {
+                            final summaryDate = summary.summaryTo ?? summary.summaryFrom;
+                            if (summaryDate == null) return false;
+                            final summaryDateOnly = DateTime(
+                              summaryDate.year,
+                              summaryDate.month,
+                              summaryDate.day,
+                            );
+                            final dateOnly = DateTime(date.year, date.month, date.day);
+                            return summaryDateOnly == dateOnly;
+                          }).toList();
 
-                    // 날짜 구분선 표시 여부 결정
-                    DateTime? prevDate;
-                    if (index > 0) {
-                      final prevSummary = _summaries[index - 1];
-                      prevDate = prevSummary.summaryTo ?? prevSummary.summaryFrom;
-                    }
-                    final currentDate = summary.summaryTo ?? summary.summaryFrom;
-                    final showDateDivider = prevDate == null ||
-                        (currentDate != null &&
-                            DateTime(prevDate.year, prevDate.month, prevDate.day) !=
-                                DateTime(currentDate.year, currentDate.month, currentDate.day));
+                          if (summariesForDate.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    '이 날짜의 요약이 없습니다',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
 
-                    return Column(
-                      children: [
-                        if (showDateDivider && currentDate != null)
-                          _buildDateDivider(currentDate),
-                        _buildSummaryCard(summary, isSelected),
-                        if (isLast) const SizedBox(height: 16),
-                      ],
-                    );
-                  },
+                          return ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: summariesForDate.length,
+                            itemBuilder: (context, itemIndex) {
+                              final summary = summariesForDate[itemIndex];
+                              final isSelected = _selectedSummaryIds.contains(summary.summaryId);
+                              final isLast = itemIndex == summariesForDate.length - 1;
+
+                              return Column(
+                                children: [
+                                  _buildSummaryCard(summary, isSelected),
+                                  if (isLast) const SizedBox(height: 16),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
+    );
+  }
+
+  /// 날짜 선택 헤더
+  Widget _buildDateHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 이전 날짜 버튼
+          IconButton(
+            icon: Icon(
+              Icons.chevron_left,
+              color: _currentDateIndex < _availableDates.length - 1
+                  ? const Color(AppColors.summaryPrimary)
+                  : Colors.grey[300],
+            ),
+            onPressed: _currentDateIndex < _availableDates.length - 1
+                ? _goToPreviousDate
+                : null,
+          ),
+          // 날짜 표시 및 달력 버튼
+          Expanded(
+            child: GestureDetector(
+              onTap: _showCalendarPicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(AppColors.summaryPrimary).withValues(alpha: 0.1),
+                      const Color(AppColors.summaryPrimary).withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(AppColors.summaryPrimary).withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: const Color(AppColors.summaryPrimary),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDate(_selectedDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(AppColors.summaryPrimary),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${_summaries.length}개)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // 다음 날짜 버튼
+          IconButton(
+            icon: Icon(
+              Icons.chevron_right,
+              color: _currentDateIndex > 0
+                  ? const Color(AppColors.summaryPrimary)
+                  : Colors.grey[300],
+            ),
+            onPressed: _currentDateIndex > 0 ? _goToNextDate : null,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1264,6 +1540,177 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     ),
                   ],
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 달력 선택 다이얼로그
+class _CalendarPickerDialog extends StatefulWidget {
+  final List<DateTime> availableDates;
+  final DateTime initialDate;
+
+  const _CalendarPickerDialog({
+    required this.availableDates,
+    required this.initialDate,
+  });
+
+  @override
+  State<_CalendarPickerDialog> createState() => _CalendarPickerDialogState();
+}
+
+class _CalendarPickerDialogState extends State<_CalendarPickerDialog> {
+  late DateTime _selectedDate;
+  late DateTime _focusedDay;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    _focusedDay = widget.initialDate;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 헤더
+            Row(
+              children: [
+                const Text(
+                  '날짜 선택',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // 달력
+            TableCalendar(
+              firstDay: widget.availableDates.isNotEmpty
+                  ? widget.availableDates.last
+                  : DateTime.utc(2020, 1, 1),
+              lastDay: widget.availableDates.isNotEmpty
+                  ? widget.availableDates.first
+                  : DateTime.now(),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDate, day);
+              },
+              availableCalendarFormats: const {
+                CalendarFormat.month: '월',
+              },
+              calendarFormat: CalendarFormat.month,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              locale: 'ko_KR',
+              enabledDayPredicate: (day) {
+                final dayOnly = DateTime(day.year, day.month, day.day);
+                return widget.availableDates.any((date) =>
+                    date.year == dayOnly.year &&
+                    date.month == dayOnly.month &&
+                    date.day == dayOnly.day);
+              },
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+                selectedDecoration: BoxDecoration(
+                  color: const Color(AppColors.summaryPrimary),
+                  shape: BoxShape.circle,
+                ),
+                todayDecoration: BoxDecoration(
+                  color: const Color(AppColors.summaryPrimary).withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
+                disabledDecoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey[100],
+                ),
+                defaultTextStyle: TextStyle(
+                  color: Colors.grey[800],
+                  fontWeight: FontWeight.w500,
+                ),
+                selectedTextStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                todayTextStyle: TextStyle(
+                  color: const Color(AppColors.summaryPrimary),
+                  fontWeight: FontWeight.bold,
+                ),
+                disabledTextStyle: TextStyle(
+                  color: Colors.grey[400],
+                ),
+              ),
+              headerStyle: HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                leftChevronIcon: const Icon(Icons.chevron_left),
+                rightChevronIcon: const Icon(Icons.chevron_right),
+              ),
+              onDaySelected: (selectedDay, focusedDay) {
+                final dayOnly = DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+                final isAvailable = widget.availableDates.any((date) =>
+                    date.year == dayOnly.year &&
+                    date.month == dayOnly.month &&
+                    date.day == dayOnly.day);
+                
+                if (isAvailable) {
+                  setState(() {
+                    _selectedDate = dayOnly;
+                    _focusedDay = focusedDay;
+                  });
+                }
+              },
+              onPageChanged: (focusedDay) {
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            // 확인 버튼
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(_selectedDate);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(AppColors.summaryPrimary),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  '선택',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],

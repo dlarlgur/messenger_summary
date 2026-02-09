@@ -463,9 +463,9 @@ class NotificationListener : NotificationListenerService() {
                                messageText.contains("스티커", ignoreCase = true)
 
         if (isEmojiOrSticker) {
-            // 이모티콘은 emoticon_dir 경로라 FileProvider 권한 없음 - URI 접근 시도 안 함
-            Log.d(TAG, "🎨 이모티콘/스티커 → URI 접근 스킵, 텍스트만 저장")
-            return null
+            // 이모티콘/스티커 이미지 추출 시도
+            Log.d(TAG, "🎨 이모티콘/스티커 → 이미지 추출 시도")
+            return extractEmojiOrStickerImage(extras)
         }
 
         // 일반 사진/링크 이미지 추출
@@ -1554,7 +1554,7 @@ class NotificationListener : NotificationListenerService() {
                     val isPrivateChat = subText.isEmpty()
                     
                     Log.d(TAG, "📝 알림 파싱: sender='$sender', message='${message.take(50)}', roomName='$roomName', isPrivate=$isPrivateChat")
-                    
+
                     // ★★★ 이미지 추출을 음소거 체크 전에 수행 (알림 삭제 전에 데이터 확보) ★★★
                     // 알림에서 이미지 데이터를 먼저 추출해두고, 그 후 음소거면 알림 삭제
                     var preExtractedImage: android.graphics.Bitmap? = null
@@ -1566,12 +1566,8 @@ class NotificationListener : NotificationListenerService() {
                         preExtractedRoomProfile = extractRoomProfileImage(noti)
                         preExtractedSenderProfile = extractSenderProfileImage(noti, bundle, subText.isEmpty())
 
-                        // 공유 이미지 선추출 (이모티콘/스티커 제외)
-                        val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) ||
-                                               message.contains("스티커", ignoreCase = true)
-                        if (!isEmojiOrSticker) {
-                            preExtractedImage = extractSharedImage(noti, bundle, message)
-                        }
+                        // 공유 이미지 선추출 (이모티콘/스티커 포함)
+                        preExtractedImage = extractSharedImage(noti, bundle, message)
                     }
 
                     // ★★★ 음소거 및 차단 체크 ★★★
@@ -1591,16 +1587,10 @@ class NotificationListener : NotificationListenerService() {
                             Log.d(TAG, "🔊 음소거 아님: roomName='$roomName'")
                         }
 
-                        // 2. 차단 체크
+                        // 2. 차단 체크 (저장만 스킵, 알림은 유지)
                         val isBlocked = isRoomBlocked(roomName, packageName)
                         if (isBlocked) {
-                            // 차단된 채팅방이면 알림 즉시 삭제하고 종료
-                            try {
-                                cancelNotification(notification.key)
-                                Log.i(TAG, "🚫 차단된 채팅방 알림 삭제: roomName='$roomName' (메시지 저장 스킵)")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "🚫 알림 삭제 실패: ${e.message}", e)
-                            }
+                            Log.i(TAG, "🚫 차단된 채팅방: roomName='$roomName' (메시지 저장 스킵, 알림 유지)")
                             return  // 즉시 종료 (이미지 저장, 메시지 저장 모두 스킵)
                         } else {
                             Log.d(TAG, "✅ 차단 아님: roomName='$roomName'")
@@ -1650,19 +1640,20 @@ class NotificationListener : NotificationListenerService() {
                         val isEmojiOrSticker = message.contains("이모티콘", ignoreCase = true) ||
                                                message.contains("스티커", ignoreCase = true)
 
-                        if (!isEmojiOrSticker && preExtractedImage != null) {
+                        if (preExtractedImage != null) {
                             // 선추출된 이미지 크기 검증 후 저장
-                            val minSize = if (isSystemMessage || isLinkMessage) 200 else 300
+                            // 이모티콘/스티커는 크기가 작으므로 최소 크기 조건 완화
+                            val minSize = if (isEmojiOrSticker) 30 else if (isSystemMessage || isLinkMessage) 200 else 300
                             val isLargeEnough = preExtractedImage.width >= minSize || preExtractedImage.height >= minSize
 
                             if (isLargeEnough) {
                                 savedImagePath = saveNotificationImage(roomName, preExtractedImage, notification.postTime)
                             }
                         }
-                        
+
                         // 이미지 메시지 처리
                         if (savedImagePath != null) {
-                            imageMessage = if (isLinkMessage) "[LINK:$savedImagePath]$message" else "[IMAGE:$savedImagePath]사진을 보냈습니다"
+                            imageMessage = if (isLinkMessage) "[LINK:$savedImagePath]$message" else if (isEmojiOrSticker) "[IMAGE:$savedImagePath]$message" else "[IMAGE:$savedImagePath]"
                         } else if (isLinkMessage) {
                             imageMessage = message
                         }

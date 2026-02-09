@@ -15,6 +15,8 @@ import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.os.Build
+import android.view.ViewGroup
 
 class OnboardingActivity : Activity() {
     companion object {
@@ -60,6 +62,7 @@ class OnboardingActivity : Activity() {
 
         initViews()
         setupListeners()
+        applySystemBarInsets()
     }
 
     private fun initViews() {
@@ -134,6 +137,32 @@ class OnboardingActivity : Activity() {
         }
     }
     
+    /**
+     * 시스템 네비게이션바 영역만큼 하단 패딩 적용 (모든 기종 대응)
+     */
+    private fun applySystemBarInsets() {
+        val contentView = findViewById<ViewGroup>(android.R.id.content) ?: return
+        val rootView = contentView.getChildAt(0) ?: return
+
+        rootView.setOnApplyWindowInsetsListener { view, insets ->
+            val bottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetBottom
+            }
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                (24 * resources.displayMetrics.density).toInt() + bottomInset
+            )
+            insets
+        }
+
+        rootView.requestApplyInsets()
+    }
+
     /**
      * 약관 전문 보기 (브라우저 열기)
      */

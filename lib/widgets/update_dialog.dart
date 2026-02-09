@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/app_version_service.dart';
 
 /// 앱 업데이트 다이얼로그
-class UpdateDialog extends StatelessWidget {
+class UpdateDialog extends StatefulWidget {
   final VersionCheckResult versionResult;
   final VoidCallback? onLater;
 
@@ -33,8 +33,15 @@ class UpdateDialog extends StatelessWidget {
   }
 
   @override
+  State<UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<UpdateDialog> {
+  bool _skipToday = false;
+
+  @override
   Widget build(BuildContext context) {
-    final isForceUpdate = versionResult.updateType == UpdateType.force;
+    final isForceUpdate = widget.versionResult.updateType == UpdateType.force;
 
     return PopScope(
       canPop: !isForceUpdate,
@@ -71,8 +78,8 @@ class UpdateDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildVersionInfo(),
-            if (versionResult.releaseNote != null &&
-                versionResult.releaseNote!.isNotEmpty) ...[
+            if (widget.versionResult.releaseNote != null &&
+                widget.versionResult.releaseNote!.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 '업데이트 내용',
@@ -83,6 +90,7 @@ class UpdateDialog extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
@@ -91,7 +99,7 @@ class UpdateDialog extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 120),
                 child: SingleChildScrollView(
                   child: Text(
-                    versionResult.releaseNote!,
+                    widget.versionResult.releaseNote!,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[700],
@@ -100,14 +108,52 @@ class UpdateDialog extends StatelessWidget {
                 ),
               ),
             ],
+            // 오늘 하루 보지 않기 체크박스 (강제 업데이트가 아닐 때만)
+            if (!isForceUpdate) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _skipToday,
+                    onChanged: (value) {
+                      setState(() {
+                        _skipToday = value ?? false;
+                      });
+                    },
+                    activeColor: Colors.blue,
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _skipToday = !_skipToday;
+                        });
+                      },
+                      child: Text(
+                        '오늘 하루 보지 않기',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
         actions: [
           if (!isForceUpdate)
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                // 오늘 하루 보지 않기 체크 시 저장
+                if (_skipToday) {
+                  final versionService = AppVersionService();
+                  await versionService.skipUpdateDialogToday();
+                }
                 Navigator.of(context).pop();
-                onLater?.call();
+                widget.onLater?.call();
               },
               child: Text(
                 '나중에',
@@ -152,7 +198,7 @@ class UpdateDialog extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                versionResult.latestVersion ?? '-',
+                widget.versionResult.latestVersion ?? '-',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -161,7 +207,7 @@ class UpdateDialog extends StatelessWidget {
               ),
             ],
           ),
-          if (versionResult.updateType == UpdateType.force)
+          if (widget.versionResult.updateType == UpdateType.force)
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -174,7 +220,7 @@ class UpdateDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  versionResult.minVersion ?? '-',
+                  widget.versionResult.minVersion ?? '-',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -207,7 +253,7 @@ class UpdateDialog extends StatelessWidget {
       }
     } else {
       // iOS
-      final storeUrl = versionResult.storeUrl;
+      final storeUrl = widget.versionResult.storeUrl;
       final url = (storeUrl != null && storeUrl.isNotEmpty)
           ? storeUrl
           : 'https://apps.apple.com/app/id0000000000';

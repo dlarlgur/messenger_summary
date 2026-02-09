@@ -15,6 +15,7 @@ import '../services/llm_service.dart';
 import '../services/notification_settings_service.dart';
 import '../services/profile_image_service.dart';
 import '../services/privacy_masking_service.dart';
+import '../services/plan_service.dart';
 import '../config/constants.dart';
 import 'summary_history_screen.dart';
 
@@ -47,6 +48,14 @@ class ChatRoomDetailScreen extends StatefulWidget {
 class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     with WidgetsBindingObserver {
   final LocalDbService _localDb = LocalDbService();
+  final PlanService _planService = PlanService();
+
+  /// 플랜에 따른 최대 메시지 선택 개수 반환
+  /// 무료 플랜: 50개, Basic 플랜: 200개
+  Future<int> _getMaxMessageCount() async {
+    final isBasic = await _planService.isBasicPlan();
+    return isBasic ? 200 : 50;
+  }
 
   /// 마크다운 전처리 (서버에서 받은 마크다운을 올바르게 파싱하도록 정리)
   String _preprocessMarkdown(String text) {
@@ -302,6 +311,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     _initProfileService();
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_checkScrollPosition);
+    
+    // FAQ 채팅방인 경우 서버에서 최신 FAQ 가져와서 업데이트
+    if (widget.room.packageName == 'com.dksw.app.faq') {
+      _updateFAQRoomMessages();
+    }
+    
     _loadMessages();
     _startListeningNotifications();
 
@@ -312,6 +327,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _measureChatInputBarHeight();
     });
+  }
+
+  /// FAQ 채팅방 메시지 최신화 (서버에서 최신 FAQ 가져오기)
+  Future<void> _updateFAQRoomMessages() async {
+    try {
+      debugPrint('🔄 FAQ 채팅방 최신화 시작');
+      await _localDb.updateFAQRoomMessages();
+      debugPrint('✅ FAQ 채팅방 최신화 완료');
+      // 메시지 다시 로드
+      if (mounted) {
+        _loadMessages();
+      }
+    } catch (e) {
+      debugPrint('❌ FAQ 채팅방 최신화 실패: $e');
+    }
   }
 
   void _measureChatInputBarHeight() {
@@ -721,7 +751,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   /// 보낸사람 프로필 이미지 가져오기
   /// - 개인 프로필이 있으면 개인 프로필 반환
   /// - 없으면 대화방 프로필로 fallback
+  /// - FAQ 채팅방의 "AI 톡비서"는 로고 이미지 사용
   File? _getSenderProfileImage(String sender) {
+    // FAQ 채팅방의 "AI 톡비서"는 로고 이미지 사용 (null 반환하여 AssetImage 사용)
+    if (widget.room.packageName == 'com.dksw.app.faq' && sender == 'AI 톡비서') {
+      return null; // AssetImage 사용
+    }
+    
     return _profileService.getSenderProfile(
       packageName: widget.room.packageName,
       roomName: widget.room.roomName,
@@ -772,7 +808,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
             // 자동으로 요약 모드 진입 (안 읽은 메시지 개수만큼 선택)
-            final unreadCount = widget.room.unreadCount.clamp(5, 300);
+            final maxCount = await _getMaxMessageCount();
+            final unreadCount = widget.room.unreadCount.clamp(5, maxCount);
             await _enterSummaryMode(unreadCount);
             debugPrint('🔄 안 읽은 메시지 $unreadCount개 - 자동 요약 모드 진입');
           });
@@ -1248,17 +1285,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       return;
     }
 
-    // 최대 300개로 제한
-    final requestedCount = messageCount.clamp(1, 300);
+    // 플랜에 따른 최대 개수 확인
+    final maxCount = await _getMaxMessageCount();
+    final requestedCount = messageCount.clamp(1, maxCount);
 
     // 요청된 개수가 현재 로드된 메시지보다 많으면 추가로 로드
     if (requestedCount > _messages.length && _hasMore) {
-      // 필요한 만큼 메시지 로드 (최대 300개까지)
+      // 필요한 만큼 메시지 로드 (최대 개수까지)
       final neededCount = requestedCount - _messages.length;
       final pagesToLoad = (neededCount / _pageSize).ceil();
 
       for (int i = 0;
-          i < pagesToLoad && _hasMore && _messages.length < 300;
+          i < pagesToLoad && _hasMore && _messages.length < maxCount;
           i++) {
         try {
           final response = await _localDb.getRoomMessages(
@@ -1279,8 +1317,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             }
           });
 
-          // 300개에 도달하면 중단
-          if (_messages.length >= 300) break;
+          // 최대 개수에 도달하면 중단
+          if (_messages.length >= maxCount) break;
         } catch (e) {
           debugPrint('메시지 추가 로드 실패: $e');
           break;
@@ -1292,9 +1330,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     setState(() {
       _isSummaryMode = true;
-      // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
-      final maxCount = _messages.length.clamp(1, 300);
-      _selectedMessageCount = requestedCount.clamp(1, maxCount);
+      // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
+      final actualMaxCount = _messages.length.clamp(1, maxCount);
+      _selectedMessageCount = requestedCount.clamp(1, actualMaxCount);
       _selectionStartIndex = 0; // 최신 메시지부터 시작
     });
 
@@ -1338,13 +1376,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   /// 메시지 터치로 선택 시작 (실제 메시지 개수에 맞춤)
-  void _startSelectionAt(int index) {
+  Future<void> _startSelectionAt(int index) async {
     if (!_isSummaryMode) {
-      _enterSummaryMode(1); // await 없이 호출 (비동기지만 결과를 기다릴 필요 없음)
+      await _enterSummaryMode(1);
     }
 
-    // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
-    final maxCount = _messages.length.clamp(1, 300);
+    // 플랜에 따른 최대 개수 확인
+    final planMaxCount = await _getMaxMessageCount();
+    // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
+    final maxCount = _messages.length.clamp(1, planMaxCount);
     final newCount = (index + 1).clamp(1, maxCount);
 
     setState(() {
@@ -1356,11 +1396,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   /// 드래그로 선택 영역 확장 (실제 메시지 개수에 맞춤)
-  void _expandSelectionTo(int index) {
+  Future<void> _expandSelectionTo(int index) async {
     if (!_isSummaryMode || _selectionStartIndex == null) return;
 
-    // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
-    final maxCount = _messages.length.clamp(1, 300);
+    // 플랜에 따른 최대 개수 확인
+    final planMaxCount = await _getMaxMessageCount();
+    // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
+    final maxCount = _messages.length.clamp(1, planMaxCount);
     final newCount = (index + 1).clamp(1, maxCount);
 
     if (newCount != _selectedMessageCount) {
@@ -1390,17 +1432,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
   /// 요약 개수 변경 (실제 메시지 개수에 맞춤)
   Future<void> _updateSummaryCount(int newCount) async {
-    // 최대 300개로 제한
-    final requestedCount = newCount.clamp(1, 300);
+    // 플랜에 따른 최대 개수 확인
+    final maxCount = await _getMaxMessageCount();
+    final requestedCount = newCount.clamp(1, maxCount);
 
     // 요청된 개수가 현재 로드된 메시지보다 많으면 추가로 로드
     if (requestedCount > _messages.length && _hasMore) {
-      // 필요한 만큼 메시지 로드 (최대 300개까지)
+      // 필요한 만큼 메시지 로드 (최대 개수까지)
       final neededCount = requestedCount - _messages.length;
       final pagesToLoad = (neededCount / _pageSize).ceil();
 
       for (int i = 0;
-          i < pagesToLoad && _hasMore && _messages.length < 300;
+          i < pagesToLoad && _hasMore && _messages.length < maxCount;
           i++) {
         try {
           final response = await _localDb.getRoomMessages(
@@ -1421,8 +1464,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             }
           });
 
-          // 300개에 도달하면 중단
-          if (_messages.length >= 300) break;
+          // 최대 개수에 도달하면 중단
+          if (_messages.length >= maxCount) break;
         } catch (e) {
           debugPrint('메시지 추가 로드 실패: $e');
           break;
@@ -1432,10 +1475,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     if (!mounted) return;
 
-    // 최소 1개, 최대는 실제 메시지 개수 또는 300개 중 작은 값
-    final maxCount = _messages.length.clamp(1, 300);
+    // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
+    final actualMaxCount = _messages.length.clamp(1, maxCount);
     setState(() {
-      _selectedMessageCount = requestedCount.clamp(1, maxCount);
+      _selectedMessageCount = requestedCount.clamp(1, actualMaxCount);
     });
 
     // 스크롤 위치 업데이트 (블럭 시작점이 상단 25%에 오도록)
@@ -1468,9 +1511,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Future<void> _showCountInputDialog() async {
     if (!mounted) return;
 
+    // 플랜에 따른 최대 개수 확인
+    final maxCount = await _getMaxMessageCount();
+    
     // 다이얼로그 호출 전 필요한 데이터 미리 계산
     final int currentMessageCount = _messages.length;
-    const int maxCount = 300; // 최대 300개 고정
     final int currentSelected = _selectedMessageCount;
 
     final TextEditingController controller = TextEditingController(
@@ -1502,7 +1547,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               // 유효성 검사
               if (count == null || count < 5 || count > maxCount) {
                 setDialogState(() {
-                  errorMessage = '5 ~ 300 사이의 숫자를 입력해주세요.';
+                  errorMessage = '5 ~ $maxCount 사이의 숫자를 입력해주세요.';
                 });
                 return; // 에러 발생 시 다이얼로그 유지
               }
@@ -1541,7 +1586,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '최대 300개까지 가능 (현재 $currentMessageCount개)',
+                    '최대 $maxCount개까지 가능 (현재 ${currentSelected}개 선택됨)',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
@@ -2212,16 +2257,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                             // 요약 모드일 때 제스처 감지 추가
                                             if (_isSummaryMode) {
                                               messageWidget = GestureDetector(
-                                                onTap: () =>
-                                                    _startSelectionAt(index),
-                                                onLongPressStart: (details) {
-                                                  _startSelectionAt(index);
+                                                onTap: () async =>
+                                                    await _startSelectionAt(index),
+                                                onLongPressStart: (details) async {
+                                                  await _startSelectionAt(index);
                                                   setState(() {
                                                     _isDraggingSelection = true;
                                                   });
                                                 },
                                                 onLongPressMoveUpdate:
-                                                    (details) {
+                                                    (details) async {
                                                   if (_isDraggingSelection) {
                                                     // 현재 드래그 위치의 메시지 인덱스 계산
                                                     // 위로 이동할수록 인덱스 증가 (더 오래된 메시지)
@@ -2241,7 +2286,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                                                 _messages
                                                                         .length -
                                                                     1);
-                                                    _expandSelectionTo(
+                                                    await _expandSelectionTo(
                                                         newIndex);
                                                   }
                                                 },
@@ -3813,7 +3858,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     if (hasUnreadMessages) {
       // 읽지 않은 메시지 5개 이상: 눈에 띄는 AI 요약하기 버튼 (그라데이션 + 애니메이션)
-      final summaryCount = unreadCount.clamp(1, 300); // 최대 300개
+      // 동기적으로 플랜 타입 가져오기
+      final planType = _planService.getCachedPlanTypeSync();
+      final maxCount = planType == 'basic' ? 200 : 50;
+      final summaryCount = unreadCount.clamp(1, maxCount);
       return Container(
         height: MediaQuery.of(context).size.width * 0.1,
         decoration: BoxDecoration(
@@ -3903,6 +3951,23 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Future<void> _requestSummary() async {
     if (!mounted) return;
     if (_selectedMessageCount == 0 || _messages.isEmpty) return;
+
+    // 플랜에 따른 최대 개수 확인
+    final maxCount = await _getMaxMessageCount();
+    
+    // 무료 플랜에서 50개를 넘으면 요약 불가
+    if (_selectedMessageCount > maxCount) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '무료 플랜에서는 최대 ${maxCount}개까지만 요약할 수 있습니다.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
 
     // 선택된 메시지들 추출 (최신 메시지부터 위로 N개)
     // ⚠️ ListView.reverse=true이므로 index 0이 최신 메시지
@@ -4001,11 +4066,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             .toSet();
         final participantCount = uniqueSenders.length;
 
-        // 시간 형식 변환 (HH:mm 형식)
-        final startTime =
-            DateFormat('HH:mm').format(selectedMessages.first.createTime);
-        final endTime =
-            DateFormat('HH:mm').format(selectedMessages.last.createTime);
+        // 대화 시간 계산 (시작 시간과 종료 시간의 차이)
+        final startTime = selectedMessages.first.createTime;
+        final endTime = selectedMessages.last.createTime;
+        final duration = endTime.difference(startTime);
 
         // 요약 모드 먼저 종료 (블럭 선택 해제)
         debugPrint('🔵 요약 완료 - _exitSummaryMode 호출 전');
@@ -4020,8 +4084,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           'summarySubject': summarySubject,
           'messageCount': selectedMessages.length,
           'participantCount': participantCount, // 참여자 수 추가
-          'startTime': startTime, // 시작 시간 추가
-          'endTime': endTime, // 종료 시간 추가
+          'duration': duration, // 대화 시간 추가
           'summaryFrom': selectedMessages.first.createTime.toIso8601String(),
           'summaryTo': selectedMessages.last.createTime.toIso8601String(),
         });
@@ -4194,7 +4257,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           ),
           child: ListView(
             controller: scrollController,
-            padding: EdgeInsets.zero,
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 24,
+            ),
             physics: const ClampingScrollPhysics(),
             children: [
               // 핸들바
@@ -4328,10 +4393,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       Expanded(
                         child: _buildInfoCard(
                           Icons.schedule_rounded,
-                          _formatTimeRange(
-                            summaryData['startTime'] ?? '',
-                            summaryData['endTime'] ?? '',
-                          ),
+                          _formatDuration(summaryData['duration'] as Duration?),
                           '시간',
                           Colors.orange,
                         ),
@@ -4717,10 +4779,22 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     );
   }
 
-  /// 시간 범위 포맷팅
-  String _formatTimeRange(String startTime, String endTime) {
-    if (startTime.isEmpty || endTime.isEmpty) return '-';
-    return '$startTime\n~$endTime';
+  /// 대화 시간 포맷팅 (예: "1시간 30분", "45분")
+  String _formatDuration(Duration? duration) {
+    if (duration == null) return '-';
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    
+    if (hours > 0 && minutes > 0) {
+      return '${hours}시간 ${minutes}분';
+    } else if (hours > 0) {
+      return '${hours}시간';
+    } else if (minutes > 0) {
+      return '${minutes}분';
+    } else {
+      return '1분 미만';
+    }
   }
 
   /// 요약 히스토리 화면으로 이동
@@ -5183,28 +5257,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       color: Color(AppColors.summaryPrimary).withOpacity(0.3),
                     ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.none,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Scrollbar(
                     child: SingleChildScrollView(
-                      child: TextField(
-                        controller: textController,
-                        focusNode: focusNode,
-                        maxLines: null,
-                        readOnly: true,
-                        showCursor: true,
-                        enableInteractiveSelection: true,
-                        selectionControls: MaterialTextSelectionControls(),
-                        cursorColor: Color(AppColors.summaryPrimary),
+                      child: SelectableText(
+                        message,
                         style: const TextStyle(
                           fontSize: 15,
                           height: 1.5,
                           color: Colors.black87,
                         ),
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.all(14),
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
+                        selectionControls: MaterialTextSelectionControls(),
+                        onSelectionChanged: (selection, cause) {
+                          textController.selection = selection;
+                        },
                       ),
                     ),
                   ),
@@ -5455,9 +5522,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     int? messageIndex,
   }) {
     final profileFile = _getSenderProfileImage(message.sender);
+    final isFAQ = widget.room.packageName == 'com.dksw.app.faq';
 
-    // 내가 보낸 메시지인지 확인 (정확한 매칭만 허용)
-    final isSentByMe = message.sender == '나';
+    // 내가 보낸 메시지인지 확인
+    // FAQ 채팅방: "사용자"는 오른쪽, "AI 톡비서"는 왼쪽
+    // 일반 채팅방: "나"는 오른쪽, 그 외는 왼쪽
+    final isSentByMe = isFAQ 
+        ? message.sender == '사용자'  // FAQ: 사용자는 오른쪽
+        : message.sender == '나';    // 일반: "나"는 오른쪽
 
     // 배경색 결정 - 내가 보낸 메시지는 연한 노란색, 다른 사람은 흰색
     final Color bubbleColor = isSentByMe
@@ -5517,22 +5589,34 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             if (showName)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: profileFile != null
+                child: isFAQ && message.sender == 'AI 톡비서'
                     ? ClipOval(
-                        child: Image.file(
-                          profileFile,
-                          key: ValueKey(profileFile.path),
+                        child: Image.asset(
+                          'assets/ai_talk.png',
                           width: 38,
                           height: 38,
                           fit: BoxFit.cover,
-                          cacheWidth: 76,
-                          cacheHeight: 76,
                           errorBuilder: (context, error, stackTrace) {
                             return _buildDefaultAvatar(message.sender);
                           },
                         ),
                       )
-                    : _buildDefaultAvatar(message.sender),
+                    : profileFile != null
+                        ? ClipOval(
+                            child: Image.file(
+                              profileFile,
+                              key: ValueKey(profileFile.path),
+                              width: 38,
+                              height: 38,
+                              fit: BoxFit.cover,
+                              cacheWidth: 76,
+                              cacheHeight: 76,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildDefaultAvatar(message.sender);
+                              },
+                            ),
+                          )
+                        : _buildDefaultAvatar(message.sender),
               )
             else
               const SizedBox(width: 46), // 프로필 공간 유지
@@ -5577,11 +5661,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                         ),
                       // 텍스트가 있으면 말풍선으로 표시
-                      // ⚠️ 수정: 이모티콘은 이미지 경로가 없어도 "이모티콘을 보냈습니다" 텍스트 표시
-                      // 사진은 이미지가 있을 때만 시스템 메시지 제외, 이모티콘은 항상 표시
+                      // 이모티콘: 이미지 없을 때만 "이모티콘을 보냈습니다" 표시, 이미지 있으면 숨김
+                      // 사진: "사진을 보냈습니다" 텍스트는 항상 숨김
                       if (message.message.isNotEmpty &&
-                          (message.message == '이모티콘을 보냈습니다' ||
-                           (message.message != '사진을 보냈습니다' && message.message.trim().isNotEmpty)))
+                          (message.message == '이모티콘을 보냈습니다' && message.imagePath == null ||
+                           (message.message != '사진을 보냈습니다' && message.message != '이모티콘을 보냈습니다' && message.message.trim().isNotEmpty)))
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisAlignment: isSentByMe

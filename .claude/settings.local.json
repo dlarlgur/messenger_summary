@@ -8,7 +8,17 @@
       "Bash(flutter pub get:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash($ANDROID_HOME/emulator/emulator:*)",
+      "Bash($HOME/Library/Android/sdk/emulator/emulator:*)",
+      "Bash($HOME/Library/Android/sdk/tools/bin/avdmanager list:*)",
+      "Bash($HOME/Library/Android/sdk/cmdline-tools/latest/bin/avdmanager:*)",
+      "Bash($HOME/Library/Android/sdk/cmdline-tools/latest/bin/sdkmanager:*)",
+      "Bash(/usr/bin/env sh:*)",
+      "Bash(ANDROID_HOME=\"$HOME/Library/Android/sdk\")",
+      "Bash(bash:*)",
+      "Bash(export ANDROID_HOME=\"/Users/ghim/Library/Android/sdk\":*)",
+      "Bash(/Users/ghim/Library/Android/sdk/emulator/emulator:*)"
     ]
   }
 }

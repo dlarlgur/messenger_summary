@@ -25,4 +25,18 @@ class PlayIntegrityService {
       return null;
     }
   }
+
+  /// Android ID 가져오기 (기기 고유 식별자)
+  static Future<String?> getDeviceId() async {
+    try {
+      final result = await _channel.invokeMethod<String>('getDeviceId');
+      return result;
+    } on PlatformException catch (e) {
+      print('Device ID 조회 실패: ${e.message}');
+      return null;
+    } catch (e) {
+      print('Device ID 조회 실패: $e');
+      return null;
+    }
+  }
 }

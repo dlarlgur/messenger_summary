@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/chat_room.dart';
 import '../models/chat_message.dart';
+import 'faq_service.dart';
 
 class LocalDbService {
   static final LocalDbService _instance = LocalDbService._internal();
@@ -419,6 +420,263 @@ class LocalDbService {
       'create_time': createTime.millisecondsSinceEpoch,
       'room_name': roomName,
     });
+  }
+
+  // ============ FAQ 관련 ============
+
+  /// FAQ 채팅방 생성 및 메시지 저장 (서버에서 FAQ 가져오기)
+  /// 반환값: true = 새로 생성됨, false = 이미 존재함
+  Future<bool> createFAQRoomIfNeeded() async {
+    const String faqRoomName = 'AI 톡비서 FAQ';
+    const String faqPackageName = 'com.dksw.app.faq';
+    
+    final db = await database;
+    
+    // FAQ 채팅방이 이미 있는지 확인
+    final existing = await db.query(
+      _tableRooms,
+      where: 'room_name = ? AND package_name = ?',
+      whereArgs: [faqRoomName, faqPackageName],
+    );
+    
+    if (existing.isNotEmpty) {
+      final roomId = existing.first['id'] as int;
+      final messageCount = await db.rawQuery(
+        'SELECT COUNT(*) as cnt FROM $_tableMessages WHERE room_id = ?',
+        [roomId],
+      );
+      final count = Sqflite.firstIntValue(messageCount) ?? 0;
+      
+      if (count > 0) {
+        debugPrint('✅ FAQ 채팅방이 이미 존재하고 메시지도 있습니다.');
+        return false;
+      }
+    }
+    
+    // 서버에서 FAQ 가져오기
+    final faqService = FAQService();
+    final faqData = await faqService.getFAQ();
+    
+    if (faqData == null) {
+      debugPrint('⚠️ 서버에서 FAQ를 가져올 수 없습니다.');
+      return false;
+    }
+    
+    final List<dynamic> faqs = faqData['faqs'] as List<dynamic>? ?? [];
+    
+    if (faqs.isEmpty) {
+      debugPrint('⚠️ FAQ 목록이 비어있습니다.');
+      return false;
+    }
+    
+    // FAQ 채팅방 생성 또는 업데이트
+    final now = DateTime.now();
+    final nowMillis = now.millisecondsSinceEpoch;
+    
+    int roomId;
+    if (existing.isNotEmpty) {
+      roomId = existing.first['id'] as int;
+      await db.update(
+        _tableRooms,
+        {
+          'last_message': faqRoomName,
+          'last_sender': 'AI 톡비서',
+          'last_message_time': nowMillis,
+          'updated_at': nowMillis,
+          'pinned': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [roomId],
+      );
+    } else {
+      roomId = await db.insert(_tableRooms, {
+        'room_name': faqRoomName,
+        'package_name': faqPackageName,
+        'package_alias': 'AI 톡비서',
+        'last_message': faqRoomName,
+        'last_sender': 'AI 톡비서',
+        'last_message_time': nowMillis,
+        'unread_count': 1,
+        'pinned': 0,
+        'blocked': 0,
+        'muted': 0,
+        'summary_enabled': 0,
+        'category': 'SYSTEM',
+        'participant_count': 0,
+        'created_at': nowMillis,
+        'updated_at': nowMillis,
+      });
+    }
+    
+    // FAQ Q&A를 대화형식으로 메시지 저장
+    int messageTime = nowMillis;
+    for (var faq in faqs) {
+      final Map<String, dynamic> faqMap = faq as Map<String, dynamic>;
+      final String question = faqMap['question'] as String? ?? '';
+      final String answer = faqMap['answer'] as String? ?? '';
+      
+      if (question.isEmpty || answer.isEmpty) {
+        continue;
+      }
+      
+      // 질문 메시지 저장 (사용자)
+      messageTime += 1000; // 1초 간격
+      await db.insert(_tableMessages, {
+        'room_id': roomId,
+        'sender': '사용자',
+        'message': question,
+        'create_time': messageTime,
+        'room_name': faqRoomName,
+      });
+      
+      // 답변 메시지 저장 (AI 톡비서)
+      // 답변 내용 포맷팅: 개행 문자를 유지하고, 필요시 추가 포맷팅
+      String formattedAnswer = answer;
+      // 개행이 없으면 적절한 위치에 개행 추가 (문장 끝, 마침표 후 등)
+      if (!formattedAnswer.contains('\n')) {
+        // 마침표나 느낌표 뒤에 공백이 있으면 개행으로 변경
+        formattedAnswer = formattedAnswer.replaceAllMapped(
+          RegExp(r'([.!?])\s+'),
+          (match) => '${match.group(1)}\n',
+        );
+        // "참고해주세요", "설정해주세요" 같은 문구 앞에 개행 추가
+        formattedAnswer = formattedAnswer.replaceAllMapped(
+          RegExp(r'([.!?])\n?([가-힣]+해주세요)'),
+          (match) => '${match.group(1)}\n${match.group(2)}',
+        );
+      }
+      // 연속된 개행을 2개로 제한
+      formattedAnswer = formattedAnswer.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+      // 앞뒤 공백 제거
+      formattedAnswer = formattedAnswer.trim();
+      
+      messageTime += 1000; // 1초 간격
+      await db.insert(_tableMessages, {
+        'room_id': roomId,
+        'sender': 'AI 톡비서',
+        'message': formattedAnswer,
+        'create_time': messageTime,
+        'room_name': faqRoomName,
+      });
+    }
+    
+    debugPrint('✅ FAQ 채팅방 및 메시지 생성 완료 (대화형식, ${faqs.length}개 Q&A)');
+    return existing.isEmpty; // 새로 생성된 경우 true 반환
+  }
+
+  /// FAQ 채팅방 메시지 업데이트 (서버에서 최신 FAQ 가져와서)
+  Future<void> updateFAQRoomMessages() async {
+    const String faqRoomName = 'AI 톡비서 FAQ';
+    const String faqPackageName = 'com.dksw.app.faq';
+    
+    final db = await database;
+    
+    // FAQ 채팅방 찾기
+    final existing = await db.query(
+      _tableRooms,
+      where: 'room_name = ? AND package_name = ?',
+      whereArgs: [faqRoomName, faqPackageName],
+    );
+    
+    if (existing.isEmpty) {
+      debugPrint('⚠️ FAQ 채팅방을 찾을 수 없습니다.');
+      return;
+    }
+    
+    final roomId = existing.first['id'] as int;
+    
+    // 서버에서 최신 FAQ 가져오기
+    final faqService = FAQService();
+    final faqData = await faqService.getFAQ();
+    
+    if (faqData == null) {
+      debugPrint('⚠️ 서버에서 FAQ를 가져올 수 없습니다.');
+      return;
+    }
+    
+    final List<dynamic> faqs = faqData['faqs'] as List<dynamic>? ?? [];
+    
+    if (faqs.isEmpty) {
+      debugPrint('⚠️ FAQ 목록이 비어있습니다.');
+      return;
+    }
+    
+    // 기존 메시지 모두 삭제
+    await db.delete(
+      _tableMessages,
+      where: 'room_id = ?',
+      whereArgs: [roomId],
+    );
+    
+    // 최신 FAQ Q&A를 대화형식으로 메시지 저장
+    final now = DateTime.now();
+    final nowMillis = now.millisecondsSinceEpoch;
+    int messageTime = nowMillis;
+    
+    for (var faq in faqs) {
+      final Map<String, dynamic> faqMap = faq as Map<String, dynamic>;
+      final String question = faqMap['question'] as String? ?? '';
+      final String answer = faqMap['answer'] as String? ?? '';
+      
+      if (question.isEmpty || answer.isEmpty) {
+        continue;
+      }
+      
+      // 질문 메시지 저장 (사용자)
+      messageTime += 1000; // 1초 간격
+      await db.insert(_tableMessages, {
+        'room_id': roomId,
+        'sender': '사용자',
+        'message': question,
+        'create_time': messageTime,
+        'room_name': faqRoomName,
+      });
+      
+      // 답변 메시지 저장 (AI 톡비서)
+      // 답변 내용 포맷팅: 개행 문자를 유지하고, 필요시 추가 포맷팅
+      String formattedAnswer = answer;
+      // 개행이 없으면 적절한 위치에 개행 추가 (문장 끝, 마침표 후 등)
+      if (!formattedAnswer.contains('\n')) {
+        // 마침표나 느낌표 뒤에 공백이 있으면 개행으로 변경
+        formattedAnswer = formattedAnswer.replaceAllMapped(
+          RegExp(r'([.!?])\s+'),
+          (match) => '${match.group(1)}\n',
+        );
+        // "참고해주세요", "설정해주세요" 같은 문구 앞에 개행 추가
+        formattedAnswer = formattedAnswer.replaceAllMapped(
+          RegExp(r'([.!?])\n?([가-힣]+해주세요)'),
+          (match) => '${match.group(1)}\n${match.group(2)}',
+        );
+      }
+      // 연속된 개행을 2개로 제한
+      formattedAnswer = formattedAnswer.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+      // 앞뒤 공백 제거
+      formattedAnswer = formattedAnswer.trim();
+      
+      messageTime += 1000; // 1초 간격
+      await db.insert(_tableMessages, {
+        'room_id': roomId,
+        'sender': 'AI 톡비서',
+        'message': formattedAnswer,
+        'create_time': messageTime,
+        'room_name': faqRoomName,
+      });
+    }
+    
+    // 채팅방 정보 업데이트
+    await db.update(
+      _tableRooms,
+      {
+        'last_message': faqRoomName,
+        'last_sender': 'AI 톡비서',
+        'last_message_time': messageTime,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [roomId],
+    );
+    
+    debugPrint('✅ FAQ 채팅방 메시지 최신화 완료 (대화형식, ${faqs.length}개 Q&A)');
   }
 
   /// 메시지 삭제

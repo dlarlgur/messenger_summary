@@ -130,6 +130,11 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "cloudProjectNumber is required", null)
                     }
                 }
+                "getDeviceId" -> {
+                    val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                    Log.d(TAG, "Android ID 조회: ${androidId?.take(8)}...")
+                    result.success(androidId)
+                }
                 else -> result.notImplemented()
             }
         }

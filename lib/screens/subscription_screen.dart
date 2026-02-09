@@ -443,7 +443,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 const SizedBox(height: 8),
                 _buildBenefitItem('월 150회 요약 가능'),
                 const SizedBox(height: 4),
-                _buildBenefitItem('메시지 최대 300개까지 요약'),
+                _buildBenefitItem('메시지 최대 200개까지 요약'),
                 const SizedBox(height: 4),
                 _buildBenefitItem('자동 요약 기능 사용 가능'),
               ],

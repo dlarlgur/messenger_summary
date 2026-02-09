@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/constants.dart';
 
@@ -84,6 +85,8 @@ class AppVersionService {
   factory AppVersionService() => _instance;
   AppVersionService._internal();
 
+  static const String _skipUpdateDateKey = 'skip_update_dialog_date';
+
   /// 버전 체크
   /// 서버에서 최신 버전 정보를 조회하고 현재 앱 버전과 비교
   Future<VersionCheckResult> checkVersion() async {
@@ -138,5 +141,42 @@ class AppVersionService {
   Future<int> getCurrentBuildNumber() async {
     final packageInfo = await PackageInfo.fromPlatform();
     return int.tryParse(packageInfo.buildNumber) ?? 0;
+  }
+
+  /// 오늘 하루 다이얼로그 보지 않기 설정
+  Future<void> skipUpdateDialogToday() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now();
+      final todayString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      await prefs.setString(_skipUpdateDateKey, todayString);
+      debugPrint('📱 오늘 하루 업데이트 다이얼로그 숨김 설정: $todayString');
+    } catch (e) {
+      debugPrint('📱 오늘 하루 보지 않기 설정 실패: $e');
+    }
+  }
+
+  /// 오늘 다이얼로그를 보지 않기로 설정했는지 확인
+  Future<bool> shouldSkipUpdateDialogToday() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final skipDateString = prefs.getString(_skipUpdateDateKey);
+      
+      if (skipDateString == null) {
+        return false;
+      }
+
+      final today = DateTime.now();
+      final todayString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      
+      // 오늘 날짜와 저장된 날짜가 같으면 스킵
+      final shouldSkip = skipDateString == todayString;
+      debugPrint('📱 업데이트 다이얼로그 스킵 확인: skipDate=$skipDateString, today=$todayString, shouldSkip=$shouldSkip');
+      
+      return shouldSkip;
+    } catch (e) {
+      debugPrint('📱 오늘 하루 보지 않기 확인 실패: $e');
+      return false;
+    }
   }
 }

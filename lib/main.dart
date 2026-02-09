@@ -14,6 +14,7 @@ import 'services/app_version_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/summary_history_screen.dart';
+import 'screens/app_guide_screen.dart';
 import 'widgets/update_dialog.dart';
 
 void main() async {
@@ -85,6 +86,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _isPermissionGranted = false;
   bool _isCheckingPermissions = true; // ⚠️ 수정: 권한 확인 중인지 여부
   bool _isForceUpdateRequired = false; // 강제 업데이트 필요 여부
+  bool _showGuide = false; // 사용 가이드 표시 여부
   VersionCheckResult? _versionCheckResult; // 버전 체크 결과
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
   final LocalDbService _localDb = LocalDbService();
@@ -101,7 +103,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // _startListening();
   }
 
-  /// 버전 체크 후 초기화
+  /// 버전 체크 후 초기화 (강제 업데이트만 체크)
   Future<void> _checkVersionAndInitialize() async {
     debugPrint('🚀 _checkVersionAndInitialize 시작');
     try {
@@ -111,34 +113,24 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final result = await versionService.checkVersion();
       debugPrint('🚀 버전 체크 완료: updateRequired=${result.updateRequired}, updateType=${result.updateType}');
 
-      if (result.updateRequired) {
+      if (result.updateRequired && result.updateType == UpdateType.force) {
+        // 강제 업데이트만 앱 시작 시 처리
         _versionCheckResult = result;
+        debugPrint('🚨 강제 업데이트 필요: ${result.latestVersion}');
+        setState(() {
+          _isForceUpdateRequired = true;
+          _isCheckingPermissions = false;
+        });
 
-        if (result.updateType == UpdateType.force) {
-          // 강제 업데이트 필요
-          debugPrint('🚨 강제 업데이트 필요: ${result.latestVersion}');
-          setState(() {
-            _isForceUpdateRequired = true;
-            _isCheckingPermissions = false;
-          });
-
-          // 다이얼로그 표시
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              UpdateDialog.show(context, result);
-            }
-          });
-          return;
-        } else if (result.updateType == UpdateType.optional) {
-          // 선택 업데이트 - 다이얼로그 표시 후 계속 진행
-          debugPrint('📢 선택 업데이트 가능: ${result.latestVersion}');
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              UpdateDialog.show(context, result);
-            }
-          });
-        }
+        // 다이얼로그 표시
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            UpdateDialog.show(context, result);
+          }
+        });
+        return;
       }
+      // 일반 업데이트는 대화 목록 화면에서 처리
     } catch (e) {
       debugPrint('버전 체크 실패: $e');
       // 버전 체크 실패 시 앱 사용 허용
@@ -291,17 +283,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         debugPrint('✅ 모든 필수 권한 허용됨 - 메인 화면 유지');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+        // 가이드 표시 여부 확인
+        final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
+
         setState(() {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
+          _showGuide = !hasSeenGuide;
         });
-        // ⚠️ 수정: 권한이 있으면 리스너 시작
-        _startListening();
-        
-        // 배지 업데이트
-        _updateNotificationBadge();
-        
-        // 자동요약 알림 설정 팝업 제거 (두 번 눌러야 하는 문제)
+
+        // 가이드를 보여줄 때는 리스너/배지 시작 불필요 (가이드 끝나면 MainScreen 재생성)
+        if (hasSeenGuide) {
+          // ⚠️ 수정: 권한이 있으면 리스너 시작
+          _startListening();
+
+          // 배지 업데이트
+          _updateNotificationBadge();
+        }
       }
     }
   }
@@ -731,6 +729,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _initializeAndCheckPermissions();
         },
       );
+    }
+
+    // 사용 가이드 표시 (최초 진입 시)
+    if (_showGuide) {
+      return const AppGuideScreen();
     }
 
     // 권한이 있으면 대화목록 화면 표시

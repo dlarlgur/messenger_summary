@@ -47,11 +47,21 @@ class AuthService {
         return null;
       }
 
+      // Android ID 가져오기 (기기 고유 식별자)
+      final deviceId = await PlayIntegrityService.getDeviceId();
+      if (deviceId == null) {
+        print('❌ Device ID 조회 실패');
+        return null;
+      }
+
       // 서버에 토큰 전송하여 JWT 발급
       // 주의: 이 요청은 AuthInterceptor를 거치지 않도록 별도의 Dio 인스턴스 사용
       final response = await _dio.post(
         _tokenEndpoint,
-        data: {'integrityToken': integrityToken},
+        data: {
+          'integrityToken': integrityToken,
+          'deviceId': deviceId,
+        },
       );
 
       if (response.statusCode == 200 && response.data != null) {

@@ -13,6 +13,8 @@ import '../services/notification_settings_service.dart';
 import '../services/profile_image_service.dart';
 import '../services/auth_service.dart';
 import '../services/plan_service.dart';
+import '../services/app_version_service.dart';
+import '../widgets/update_dialog.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
 import 'notification_list_screen.dart';
@@ -80,17 +82,40 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   // 읽지 않은 알림 개수 (배지 표시용)
   int _notificationCount = 0;
+  
+  // 버전 체크 완료 여부 (한 번만 체크)
+  bool _hasCheckedVersion = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initProfileService();
-    _loadChatRooms();
+    _initializeAndLoadRooms(); // FAQ 채팅방 확인 및 생성 후 대화목록 로드
     _loadNotificationCount(); // 알림 배지 개수 로드
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
     _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
     // 알림 다이얼로그 제거
+  }
+
+  /// FAQ 채팅방 확인 및 생성 후 대화목록 로드
+  Future<void> _initializeAndLoadRooms() async {
+    // FAQ 채팅방 확인 및 생성
+    await _checkAndCreateFAQRoom();
+    // 대화목록 로드
+    _loadChatRooms();
+  }
+
+  /// FAQ 채팅방 확인 및 생성
+  Future<void> _checkAndCreateFAQRoom() async {
+    try {
+      final created = await _localDb.createFAQRoomIfNeeded();
+      if (created) {
+        debugPrint('✅ FAQ 채팅방이 새로 생성되었습니다.');
+      }
+    } catch (e) {
+      debugPrint('FAQ 채팅방 생성 실패: $e');
+    }
   }
 
   /// 읽지 않은 알림 개수 로드 (배지 표시용)
@@ -115,6 +140,34 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }).catchError((e) {
       debugPrint('⚠️ 플랜 타입 미리 로드 실패: $e');
     });
+  }
+
+  /// 일반 업데이트 체크 (대화 목록 로드 시)
+  Future<void> _checkOptionalUpdate() async {
+    try {
+      final versionService = AppVersionService();
+      final result = await versionService.checkVersion();
+      
+      if (result.updateRequired && result.updateType == UpdateType.optional) {
+        // 오늘 하루 보지 않기 체크
+        final shouldSkip = await versionService.shouldSkipUpdateDialogToday();
+        if (shouldSkip) {
+          debugPrint('📢 선택 업데이트 가능하지만 오늘 하루 보지 않기로 설정됨');
+          return;
+        }
+        
+        // 팝업 표시
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              UpdateDialog.show(context, result);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('일반 업데이트 체크 실패: $e');
+    }
   }
 
   @override
@@ -342,8 +395,40 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     try {
+      // FAQ 채팅방이 없으면 생성 (매번 확인)
+      await _checkAndCreateFAQRoom();
+      
       final rooms = await _localDb.getChatRooms();
       debugPrint('📋 DB에서 ${rooms.length}개 대화방 조회 완료');
+      
+      // 플랜 확인: Free 플랜이면 자동요약 설정 자동으로 끄기
+      final planType = await _planService.getCurrentPlanType();
+      final isBasicPlan = planType == 'basic';
+      
+      // Free 플랜이면 자동요약 설정이 켜져 있는 모든 대화방의 자동요약 끄기
+      if (!isBasicPlan) {
+        final updatedRooms = <ChatRoom>[];
+        for (final room in rooms) {
+          if (room.autoSummaryEnabled) {
+            debugPrint('🔄 Free 플랜 감지: ${room.roomName}의 자동요약 설정 끄기');
+            final updatedRoom = await _localDb.updateRoomSettings(
+              room.id,
+              autoSummaryEnabled: false,
+            );
+            if (updatedRoom != null) {
+              updatedRooms.add(updatedRoom);
+            } else {
+              // 업데이트 실패 시 기존 room 사용하되 autoSummaryEnabled만 false로
+              updatedRooms.add(room.copyWith(autoSummaryEnabled: false));
+            }
+          } else {
+            updatedRooms.add(room);
+          }
+        }
+        // 업데이트된 rooms 사용
+        rooms.clear();
+        rooms.addAll(updatedRooms);
+      }
       
       // 각 채팅방의 최신 메시지 확인 (내가 보낸 메시지가 최신이면 그것을 표시)
       final messageCache = <int, String>{};
@@ -396,6 +481,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           final truncatedMsg = lastMsg.length > 30 ? '${lastMsg.substring(0, 30)}...' : lastMsg;
           debugPrint('   최신 대화방: ${latestRoom.roomName}, 마지막 메시지: $truncatedMsg, 읽지않음: ${latestRoom.unreadCount}');
         }
+      }
+      
+      // 일반 업데이트 체크 (대화 목록 로드 시, silent 모드가 아니고 아직 체크하지 않았을 때만)
+      if (!silent && mounted && !_hasCheckedVersion) {
+        _hasCheckedVersion = true;
+        _checkOptionalUpdate();
       } else {
         debugPrint('✅ UI 업데이트 완료: ${_chatRooms.length}개 대화방 표시');
       }
@@ -461,8 +552,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 builder: (context) {
                   final profileFile = _getProfileImageFile(room.roomName);
                   final isKakaoTalk = room.packageName == 'com.kakao.talk';
+                  final isFAQ = room.packageName == 'com.dksw.app.faq';
                   ImageProvider? bgImage;
-                  if (profileFile != null && profileFile.existsSync()) {
+                  
+                  // FAQ 채팅방은 AI 톡비서 로고 사용
+                  if (isFAQ) {
+                    bgImage = const AssetImage('assets/ai_talk.png');
+                  } else if (profileFile != null && profileFile.existsSync()) {
                     bgImage = FileImage(profileFile);
                   }
                   
@@ -1280,8 +1376,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                             Builder(
                                               builder: (context) {
                                                 final profileFile = _getProfileImageFile(room.roomName);
+                                                final isFAQ = room.packageName == 'com.dksw.app.faq';
                                                 ImageProvider? bgImage;
-                                                if (profileFile != null) {
+                                                
+                                                // FAQ 채팅방은 AI 톡비서 로고 사용
+                                                if (isFAQ) {
+                                                  bgImage = const AssetImage('assets/ai_talk.png');
+                                                } else if (profileFile != null) {
                                                   bgImage = FileImage(profileFile);
                                                 } else if (room.profileImageUrl != null) {
                                                   bgImage = NetworkImage(room.profileImageUrl!);
@@ -1513,30 +1614,32 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     return Container(
-      height: 50,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
         ),
       ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: tabItems.length,
-        itemBuilder: (context, index) {
-          final item = tabItems[index];
-          final packageName = item['packageName']!;
-          final packageAlias = item['alias']!;
-          final isSelected = _selectedPackageName == packageName;
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: tabItems.map((item) {
+              final packageName = item['packageName']!;
+              final packageAlias = item['alias']!;
+              final isSelected = _selectedPackageName == packageName;
 
-          return _buildTabItem(
-            packageAlias,
-            isSelected,
-            () => setState(() => _selectedPackageName = packageName),
-            packageName: packageName,
-          );
-        },
+              return _buildTabItem(
+                packageAlias,
+                isSelected,
+                () => setState(() => _selectedPackageName = packageName),
+                packageName: packageName,
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -1547,42 +1650,40 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final isKakaoTalk = packageName == 'com.kakao.talk';
     // 카카오톡 노란색: #FEE500
     final selectedColor = isKakaoTalk ? const Color(0xFFFEE500) : const Color(0xFF2196F3);
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? selectedColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 카카오톡 아이콘
-              if (isKakaoTalk && isSelected)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(
-                    Icons.chat_bubble,
-                    size: 16,
-                    color: Colors.black87,
-                  ),
-                ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected 
-                      ? (isKakaoTalk ? Colors.black87 : Colors.white)
-                      : Colors.black87,
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 카카오톡 아이콘
+            if (isKakaoTalk && isSelected)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  Icons.chat_bubble,
+                  size: 16,
+                  color: Colors.black87,
                 ),
               ),
-            ],
-          ),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? (isKakaoTalk ? Colors.black87 : Colors.white)
+                    : Colors.black87,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1599,20 +1700,35 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 필터링된 채팅방 목록 반환
   List<ChatRoom> _getFilteredRooms() {
+    const String faqPackageName = 'com.dksw.app.faq';
+    
+    // FAQ 채팅방은 항상 포함 (맨 아래에)
+    final faqRooms = _chatRooms.where((room) => room.packageName == faqPackageName).toList();
+    
+    // FAQ 채팅방을 제외한 나머지 채팅방
+    final otherRooms = _chatRooms.where((room) => room.packageName != faqPackageName).toList();
+    
     if (_selectedPackageName == null) {
       if (LocalDbService.supportedMessengers.isNotEmpty) {
         final firstPackage = LocalDbService.supportedMessengers.first['packageName'];
         if (firstPackage != null) {
-          return _chatRooms.where((room) => room.packageName == firstPackage).toList();
+          final filtered = otherRooms.where((room) => room.packageName == firstPackage).toList();
+          // FAQ 채팅방과 합치기 (FAQ는 맨 아래에)
+          return [...filtered, ...faqRooms];
         }
       }
-      if (_chatRooms.isNotEmpty) {
-        final firstPackage = _chatRooms.first.packageName;
-        return _chatRooms.where((room) => room.packageName == firstPackage).toList();
+      if (otherRooms.isNotEmpty) {
+        final firstPackage = otherRooms.first.packageName;
+        final filtered = otherRooms.where((room) => room.packageName == firstPackage).toList();
+        // FAQ 채팅방과 합치기 (FAQ는 맨 아래에)
+        return [...filtered, ...faqRooms];
       }
-      return [];
+      return faqRooms;
     }
-    return _chatRooms.where((room) => room.packageName == _selectedPackageName).toList();
+    
+    // 선택된 패키지의 채팅방 + FAQ 채팅방 (FAQ는 맨 아래에)
+    final filtered = otherRooms.where((room) => room.packageName == _selectedPackageName).toList();
+    return [...filtered, ...faqRooms];
   }
 
   /// 타이틀 클릭 처리 (5번 누르면 플랜 선택)
