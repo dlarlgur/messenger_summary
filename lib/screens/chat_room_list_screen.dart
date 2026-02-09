@@ -106,13 +106,33 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _loadChatRooms();
   }
 
-  /// FAQ 채팅방 확인 및 생성
+  /// FAQ 채팅방 확인 및 생성 (하루에 한 번만)
   Future<void> _checkAndCreateFAQRoom() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      const lastFAQCheckKey = 'last_faq_room_check_time';
+      const checkIntervalHours = 24; // 24시간마다 체크
+      
+      // 마지막 체크 시간 확인
+      final lastCheckTimeMillis = prefs.getInt(lastFAQCheckKey);
+      if (lastCheckTimeMillis != null) {
+        final lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckTimeMillis);
+        final hoursSinceLastCheck = DateTime.now().difference(lastCheckTime).inHours;
+        
+        if (hoursSinceLastCheck < checkIntervalHours) {
+          debugPrint('⏭️ FAQ 채팅방 체크 스킵: ${hoursSinceLastCheck}시간 전에 체크됨 (${checkIntervalHours}시간 간격)');
+          return;
+        }
+      }
+      
+      debugPrint('🔄 FAQ 채팅방 체크 시작');
       final created = await _localDb.createFAQRoomIfNeeded();
       if (created) {
         debugPrint('✅ FAQ 채팅방이 새로 생성되었습니다.');
       }
+      
+      // 체크 시간 저장
+      await prefs.setInt(lastFAQCheckKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       debugPrint('FAQ 채팅방 생성 실패: $e');
     }
@@ -378,7 +398,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _loadChatRooms();
   }
 
-  Future<void> _loadChatRooms({bool silent = false}) async {
+  Future<void> _loadChatRooms({bool silent = false, bool skipFAQCheck = false}) async {
     // ⚠️ 보수적 수정: silent 모드에서도 로그 출력 (대화목록 동기화 문제 디버깅용)
     if (silent) {
       debugPrint('🔄 _loadChatRooms(silent=true) 호출됨 - 대화방 목록 새로고침');
@@ -395,8 +415,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     try {
-      // FAQ 채팅방이 없으면 생성 (매번 확인)
-      await _checkAndCreateFAQRoom();
+      // FAQ 채팅방이 없으면 생성 (하루에 한 번만 확인)
+      if (!skipFAQCheck) {
+        await _checkAndCreateFAQRoom();
+      }
       
       final rooms = await _localDb.getChatRooms();
       debugPrint('📋 DB에서 ${rooms.length}개 대화방 조회 완료');
@@ -501,6 +523,66 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// 특정 채팅방만 업데이트 (전체 새로고침 대신)
+  Future<void> _updateSingleRoom(int roomId) async {
+    try {
+      // 해당 채팅방만 DB에서 조회
+      final updatedRoom = await _localDb.getRoomById(roomId);
+      if (updatedRoom == null) {
+        debugPrint('⚠️ 채팅방을 찾을 수 없음: roomId=$roomId');
+        return;
+      }
+
+      // 최신 메시지 확인
+      String? latestMessageText;
+      try {
+        final latestMessage = await _localDb.getLatestMessage(roomId);
+        if (latestMessage != null) {
+          final latestSender = latestMessage['sender'] as String;
+          final latestMsg = latestMessage['message'] as String;
+          
+          if (latestSender == '나') {
+            latestMessageText = _formatMessageText(latestMsg);
+          } else {
+            latestMessageText = _formatMessageText(updatedRoom.lastMessage);
+          }
+        } else {
+          latestMessageText = _formatMessageText(updatedRoom.lastMessage);
+        }
+      } catch (e) {
+        debugPrint('최신 메시지 조회 실패 (roomId: $roomId): $e');
+        latestMessageText = _formatMessageText(updatedRoom.lastMessage);
+      }
+
+      if (!mounted) return;
+
+      // 목록에서 해당 채팅방 찾아서 업데이트
+      setState(() {
+        final index = _chatRooms.indexWhere((r) => r.id == roomId);
+        if (index >= 0) {
+          _chatRooms[index] = updatedRoom;
+          if (latestMessageText != null) {
+            _lastMessageCache[roomId] = latestMessageText;
+          }
+          _sortChatRooms();
+          debugPrint('✅ 채팅방 업데이트 완료: ${updatedRoom.roomName} (읽지않음: ${updatedRoom.unreadCount})');
+        } else {
+          // 목록에 없으면 추가 (새 채팅방)
+          _chatRooms.add(updatedRoom);
+          if (latestMessageText != null) {
+            _lastMessageCache[roomId] = latestMessageText;
+          }
+          _sortChatRooms();
+          debugPrint('✅ 새 채팅방 추가: ${updatedRoom.roomName}');
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ 채팅방 업데이트 실패 (roomId: $roomId): $e');
+      // 실패 시 전체 새로고침 (fallback)
+      _loadChatRooms(silent: true, skipFAQCheck: true);
     }
   }
 
@@ -1347,10 +1429,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                           _sortChatRooms();
                                         }
                                       });
+                                    } else {
+                                      // 상세화면에서 돌아왔을 때 해당 채팅방만 업데이트 (전체 새로고침 X)
+                                      _updateSingleRoom(room.id);
                                     }
-                                    // ✅ 핵심 수정: 상세화면에서 나올 때 무조건 새로고침하여 읽음 상태 등 최신 정보 반영
-                                    debugPrint('🔄 상세화면에서 복귀 - 대화목록 새로고침 및 DB Observer 재시작');
-                                    _loadChatRooms(silent: true);
                                     // ✅ 핵심 수정: DB Observer 재시작 (EventChannel 대신)
                                     _startDbObserver();
                                   },

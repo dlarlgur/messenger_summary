@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -38,6 +39,9 @@ class InAppPurchaseService {
   // 검증 결과 스트림
   final StreamController<PurchaseVerificationResult> _verificationResultController =
       StreamController<PurchaseVerificationResult>.broadcast();
+
+  // 활성 구독의 purchaseToken 캐시 (앱 실행 시 구독 부활용)
+  String? _cachedPurchaseToken;
 
   /// 검증 결과 스트림 (UI에서 구독)
   Stream<PurchaseVerificationResult> get verificationResultStream =>
@@ -171,6 +175,22 @@ class InAppPurchaseService {
       } else if (purchase.status == PurchaseStatus.purchased ||
                  purchase.status == PurchaseStatus.restored) {
         debugPrint('✅ 구매 성공: ${purchase.productID}');
+        
+        // purchaseToken 캐시 저장 (기기 변경 시 구독 부활용)
+        if (Platform.isAndroid) {
+          final verificationData = purchase.verificationData;
+          if (verificationData.serverVerificationData.isNotEmpty) {
+            _cachedPurchaseToken = verificationData.serverVerificationData;
+            debugPrint('💾 purchaseToken 캐시 저장: ${_cachedPurchaseToken!.substring(0, math.min(8, _cachedPurchaseToken!.length))}...');
+          }
+        } else if (Platform.isIOS) {
+          final verificationData = purchase.verificationData;
+          if (verificationData.serverVerificationData.isNotEmpty) {
+            _cachedPurchaseToken = verificationData.serverVerificationData;
+            debugPrint('💾 purchaseToken 캐시 저장: ${_cachedPurchaseToken!.substring(0, math.min(8, _cachedPurchaseToken!.length))}...');
+          }
+        }
+        
         await _handlePurchaseSuccess(purchase);
       }
 
@@ -182,6 +202,9 @@ class InAppPurchaseService {
   }
 
   /// 구매 성공 처리
+  /// 
+  /// 새로운 구매 또는 구매 복원 시 호출됨
+  /// 기기 변경 시에도 올바르게 처리하기 위해 getCurrentPlan()을 사용
   Future<void> _handlePurchaseSuccess(PurchaseDetails purchase) async {
     try {
       String? purchaseToken;
@@ -224,7 +247,31 @@ class InAppPurchaseService {
       debugPrint('📱 플랫폼: $platform');
       debugPrint('🛒 상품 ID: ${purchase.productID}');
 
-      // 서버에 구독 요청
+      // 기기 변경 시나리오를 고려하여 getCurrentPlan() 사용
+      // 이 메서드는 purchaseToken으로 기존 구독을 찾아서 deviceIdHash를 업데이트함
+      final currentPlan = await _planService.getCurrentPlan(purchaseToken: purchaseToken);
+      
+      if (currentPlan != null) {
+        final planType = currentPlan['planType'] as String?;
+        debugPrint('✅ 플랜 복원/활성화 완료: $planType');
+        
+        if (planType != null && planType != 'free') {
+          // 플랜 정보 캐시 무효화 (다음 조회 시 최신 정보 가져옴)
+          _planService.invalidateCache();
+
+          // 성공 결과 전송
+          _verificationResultController.add(PurchaseVerificationResult(
+            success: true,
+            message: '플랜이 활성화되었습니다.',
+            planType: planType,
+          ));
+          return;
+        }
+      }
+
+      // getCurrentPlan()으로 처리되지 않은 경우 (새로운 구매)
+      // subscribePlan()으로 새 구독 등록 시도
+      debugPrint('📝 새로운 구매로 간주, subscribePlan() 호출');
       final result = await _planService.subscribePlan(
         purchaseToken: purchaseToken,
         productId: purchase.productID,
@@ -293,6 +340,40 @@ class InAppPurchaseService {
       debugPrint('✅ 구매 복원 요청 완료');
     } catch (e) {
       debugPrint('❌ 구매 복원 실패: $e');
+    }
+  }
+
+  /// 캐시된 purchaseToken 조회 (앱 실행 시 구독 부활용)
+  /// 
+  /// 반환값: 캐시된 purchaseToken (있으면), null (없으면)
+  String? getCachedPurchaseToken() {
+    return _cachedPurchaseToken;
+  }
+
+  /// 과거 구매 내역 조회 및 purchaseToken 캐시 업데이트
+  /// Android의 queryPurchasesAsync()에 해당
+  /// 
+  /// restorePurchases()를 호출하면 purchaseStream을 통해 과거 구매 내역이 전달되고,
+  /// _handlePurchaseUpdate()에서 purchaseToken이 캐시됩니다.
+  Future<void> queryPastPurchases() async {
+    if (!_isInitialized) {
+      final initialized = await initialize();
+      if (!initialized) {
+        debugPrint('❌ 인앱 결제 초기화 실패, 구매 내역 조회 불가');
+        return;
+      }
+    }
+
+    try {
+      debugPrint('📱 과거 구매 내역 조회 시도 (restorePurchases 호출)');
+      await _inAppPurchase.restorePurchases();
+      debugPrint('✅ 구매 복원 요청 완료 (purchaseStream을 통해 결과 수신 예정)');
+      
+      // 주의: restorePurchases()는 비동기로 purchaseStream을 통해 결과를 전달하므로
+      // 실제 purchaseToken은 _handlePurchaseUpdate()에서 캐시됩니다.
+      // 따라서 이 메서드는 호출만 하고, 실제 purchaseToken은 getCachedPurchaseToken()으로 조회해야 합니다.
+    } catch (e) {
+      debugPrint('❌ 과거 구매 내역 조회 실패: $e');
     }
   }
 

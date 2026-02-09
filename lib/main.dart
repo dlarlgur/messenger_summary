@@ -11,6 +11,8 @@ import 'services/auto_summary_settings_service.dart';
 import 'services/profile_image_service.dart';
 import 'services/auth_service.dart';
 import 'services/app_version_service.dart';
+import 'services/plan_service.dart';
+import 'services/in_app_purchase_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/summary_history_screen.dart';
@@ -96,18 +98,88 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkVersionAndInitialize();
+    _fastInitialize();
     _setupMainMethodChannel();
     _checkPendingSummaryId();
     // ⚠️ 수정: 권한 확인 완료 전까지는 리스너 시작하지 않음
     // _startListening();
   }
 
-  /// 버전 체크 후 초기화 (강제 업데이트만 체크)
-  Future<void> _checkVersionAndInitialize() async {
-    debugPrint('🚀 _checkVersionAndInitialize 시작');
+  /// 빠른 초기화: JWT 토큰이 있으면 즉시 화면 표시
+  Future<void> _fastInitialize() async {
+    debugPrint('🚀 빠른 초기화 시작');
+    
     try {
-      // 버전 체크
+      // 1. JWT 토큰 확인 (빠르게)
+      final authService = AuthService();
+      final token = await authService.getJwtToken();
+      
+      if (token != null) {
+        debugPrint('✅ JWT 토큰 있음 - 즉시 화면 표시');
+        // JWT 토큰이 있으면 즉시 화면 표시 (권한 체크는 백그라운드에서)
+        if (mounted) {
+          setState(() {
+            _isCheckingPermissions = false; // 화면 표시 허용
+            _isPermissionGranted = true; // 일단 권한 있음으로 설정 (백그라운드에서 재확인)
+          });
+        }
+        
+        // 백그라운드에서 나머지 작업 처리
+        _backgroundInitialize();
+      } else {
+        debugPrint('⚠️ JWT 토큰 없음 - 전체 초기화 진행');
+        // JWT 토큰이 없으면 전체 초기화 진행
+        await _fullInitialize();
+      }
+    } catch (e) {
+      debugPrint('❌ 빠른 초기화 실패: $e');
+      // 실패 시 전체 초기화 진행
+      await _fullInitialize();
+    }
+  }
+
+  /// 전체 초기화 (JWT 토큰이 없을 때)
+  Future<void> _fullInitialize() async {
+    debugPrint('🚀 전체 초기화 시작');
+    
+    // 버전 체크와 JWT 토큰 발급을 비동기로 동시에 실행
+    final versionCheckFuture = _checkVersion();
+    final jwtTokenFuture = _getJwtToken();
+    
+    // 두 작업 모두 완료될 때까지 대기
+    await Future.wait([versionCheckFuture, jwtTokenFuture]);
+    
+    // JWT 토큰이 발급된 후 구독 정보 조회
+    await _checkSubscription();
+    
+    // 권한 체크 및 초기화 진행
+    _initializeAndCheckPermissions();
+  }
+
+  /// 백그라운드 초기화 (JWT 토큰이 있을 때)
+  void _backgroundInitialize() {
+    debugPrint('🔄 백그라운드 초기화 시작');
+    
+    // 모든 작업을 백그라운드에서 비동기로 처리
+    Future.microtask(() async {
+      try {
+        // 1. 버전 체크 (강제 업데이트만 체크)
+        await _checkVersion();
+        
+        // 2. 구독 정보 조회 (기기 변경 시 구독 부활 포함)
+        await _checkSubscription();
+        
+        // 3. 권한 체크 (백그라운드에서 처리)
+        await _initializeAndCheckPermissions();
+      } catch (e) {
+        debugPrint('❌ 백그라운드 초기화 오류: $e');
+      }
+    });
+  }
+  
+  /// 버전 체크 (비동기, 백그라운드에서 실행)
+  Future<void> _checkVersion() async {
+    try {
       final versionService = AppVersionService();
       debugPrint('🚀 버전 체크 호출 전');
       final result = await versionService.checkVersion();
@@ -117,17 +189,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 강제 업데이트만 앱 시작 시 처리
         _versionCheckResult = result;
         debugPrint('🚨 강제 업데이트 필요: ${result.latestVersion}');
-        setState(() {
-          _isForceUpdateRequired = true;
-          _isCheckingPermissions = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isForceUpdateRequired = true;
+            _isCheckingPermissions = false;
+          });
 
-        // 다이얼로그 표시
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            UpdateDialog.show(context, result);
-          }
-        });
+          // 다이얼로그 표시
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              UpdateDialog.show(context, result);
+            }
+          });
+        }
         return;
       }
       // 일반 업데이트는 대화 목록 화면에서 처리
@@ -135,9 +209,93 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       debugPrint('버전 체크 실패: $e');
       // 버전 체크 실패 시 앱 사용 허용
     }
+  }
+  
+  /// JWT 토큰 발급 (비동기)
+  Future<void> _getJwtToken() async {
+    try {
+      final authService = AuthService();
+      final token = await authService.getJwtToken();
+      if (token != null) {
+        debugPrint('✅ JWT 토큰 발급 성공 (자동 요약 준비 완료)');
+      } else {
+        debugPrint('⚠️ JWT 토큰 발급 실패 - 자동 요약 불가');
+      }
+    } catch (e) {
+      debugPrint('JWT 토큰 발급 오류: $e');
+    }
+  }
+  
+  /// 구독 체크 (백그라운드에서 실행, 최적화됨)
+  Future<void> _checkSubscription() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const lastSyncKey = 'last_subscription_sync_time';
+      const syncIntervalHours = 24; // 24시간마다 동기화
+      
+      // 마지막 동기화 시간 확인
+      final lastSyncTimeMillis = prefs.getInt(lastSyncKey);
+      if (lastSyncTimeMillis != null) {
+        final lastSyncTime = DateTime.fromMillisecondsSinceEpoch(lastSyncTimeMillis);
+        final hoursSinceLastSync = DateTime.now().difference(lastSyncTime).inHours;
+        
+        if (hoursSinceLastSync < syncIntervalHours) {
+          debugPrint('⏭️ 구독 동기화 스킵: ${hoursSinceLastSync}시간 전에 동기화됨 (${syncIntervalHours}시간 간격)');
+          return;
+        }
+      }
+      
+      debugPrint('🔄 구독 동기화 시작 (마지막 동기화: ${lastSyncTimeMillis != null ? DateTime.fromMillisecondsSinceEpoch(lastSyncTimeMillis) : "없음"})');
+      
+      final planService = PlanService();
+      final purchaseService = InAppPurchaseService();
+      
+      // 1. 인앱 결제 서비스 초기화 (백그라운드에서)
+      final initialized = await purchaseService.initialize();
+      if (!initialized) {
+        debugPrint('⚠️ 인앱 결제 초기화 실패, 구독 정보만 조회');
+        // 인앱 결제 초기화 실패해도 구독 정보는 조회 시도
+        final currentPlan = await planService.getCurrentPlan();
+        if (currentPlan != null) {
+          debugPrint('✅ 구독 정보 조회 성공: planType=${currentPlan['planType']}');
+          // 동기화 시간 저장
+          await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
+        }
+        return;
+      }
 
-    // 권한 체크 및 초기화 진행
-    _initializeAndCheckPermissions();
+      // 2. 과거 구매 내역 조회 (기기 변경 시 구독 부활용)
+      // restorePurchases()를 호출하면 purchaseStream을 통해 과거 구매 내역이 전달됨
+      purchaseService.queryPastPurchases(); // await 제거 (백그라운드에서 처리)
+      
+      // 3. 잠시 대기 (purchaseStream에서 purchaseToken 캐시될 시간 확보)
+      // 주의: restorePurchases()는 비동기로 purchaseStream을 통해 결과를 전달하므로
+      // 실제 purchaseToken은 _handlePurchaseUpdate()에서 캐시됩니다.
+      // 따라서 짧은 딜레이 후 캐시된 purchaseToken을 조회합니다.
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // 4. 캐시된 purchaseToken 조회
+      final purchaseToken = purchaseService.getCachedPurchaseToken();
+      
+      // 5. 구독 정보 동기화 (purchaseToken이 있으면 함께 전송)
+      final currentPlan = await planService.getCurrentPlan(
+        purchaseToken: purchaseToken,
+      );
+      
+      if (currentPlan != null) {
+        debugPrint('✅ 구독 정보 동기화 성공: planType=${currentPlan['planType']}');
+        if (purchaseToken != null) {
+          debugPrint('✅ purchaseToken으로 구독 부활 시도 완료');
+        }
+        
+        // 동기화 시간 저장
+        await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
+      } else {
+        debugPrint('⚠️ 구독 정보 동기화 실패');
+      }
+    } catch (e) {
+      debugPrint('구독 정보 동기화 오류: $e');
+    }
   }
 
   /// Main MethodChannel 설정 (summaryId 수신용)
@@ -236,20 +394,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // 자동 요약 설정 초기화
     await autoSummarySettingsService.initialize();
 
-    // JWT 토큰 미리 발급 (자동 요약에서 사용)
-    // Play Integrity 검증 후 JWT 토큰을 SharedPreferences에 저장
-    try {
-      final authService = AuthService();
-      final token = await authService.getJwtToken();
-      if (token != null) {
-        debugPrint('✅ JWT 토큰 발급 성공 (자동 요약 준비 완료)');
-      } else {
-        debugPrint('⚠️ JWT 토큰 발급 실패 - 자동 요약 불가');
-      }
-    } catch (e) {
-      debugPrint('JWT 토큰 발급 오류: $e');
-    }
-
     // 필수 권한 확인 (알림 접근 권한 + 배터리 최적화 제외)
     bool notificationPermissionGranted = false;
     bool batteryOptimizationDisabled = false;
@@ -269,13 +413,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
 
     if (mounted) {
-      // 필수 권한이 모두 없으면 권한 화면으로
+      // 필수 권한이 모두 없으면 권한 화면으로 이동하지 않고 대화목록 유지
+      // (권한은 사용자가 설정에서 직접 설정하도록 유도)
       if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
-        debugPrint('⚠️ 권한 미허용 - 권한 화면으로 이동');
+        debugPrint('⚠️ 권한 미허용 - 대화목록 유지 (권한은 설정에서 설정 가능)');
         debugPrint('  알림 권한: $notificationPermissionGranted');
         debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
+        // 권한이 없어도 대화목록은 유지 (권한 화면으로 강제 이동하지 않음)
         setState(() {
-          _isPermissionGranted = false;
+          _isPermissionGranted = true; // 대화목록 유지
           _isCheckingPermissions = false; // 권한 확인 완료
         });
       } else {

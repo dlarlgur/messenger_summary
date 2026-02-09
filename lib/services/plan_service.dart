@@ -16,6 +16,7 @@ class PlanService {
   // 상용 환경용 (일반 사용자 API)
   static const String _planSubscribeEndpoint = '/api/v1/plan/subscribe';
   static const String _planCancelEndpoint = '/api/v1/plan/cancel';
+  static const String _planCurrentEndpoint = '/api/v1/plan/current';
   
   static const String _usageEndpoint = '/api/v1/llm/usage';
   
@@ -224,6 +225,49 @@ class PlanService {
     } catch (e) {
       debugPrint('❌ Free 플랜 설정 에러: $e');
       return false;
+    }
+  }
+
+  /// 현재 구독 정보 조회 (기기 변경 시에도 구독 정보 동기화)
+  /// 
+  /// 서버에서 현재 deviceIdHash에 해당하는 구독 정보를 조회합니다.
+  /// 기기가 변경되었을 때도 올바른 구독 정보를 가져올 수 있습니다.
+  /// 
+  /// [purchaseToken] - Google Play에서 조회한 purchaseToken (옵셔널, 기기 변경 시 구독 부활용)
+  /// 
+  /// 서버 응답 예시:
+  /// {
+  ///   "planType": "basic",
+  ///   "expiresAt": "2024-02-29T23:59:59",
+  ///   "limit": 200,
+  ///   "period": "monthly"
+  /// }
+  Future<Map<String, dynamic>?> getCurrentPlan({String? purchaseToken}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (purchaseToken != null && purchaseToken.isNotEmpty) {
+        queryParams['purchaseToken'] = purchaseToken;
+      }
+
+      final response = await _dio.get(
+        _planCurrentEndpoint,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (response.statusCode == 200) {
+        final result = Map<String, dynamic>.from(response.data);
+        // 캐시 업데이트
+        _cachedPlanType = result['planType'] as String? ?? 'free';
+        _lastFetchTime = DateTime.now();
+        debugPrint('✅ 현재 구독 정보 조회 성공: planType=$_cachedPlanType');
+        return result;
+      } else {
+        debugPrint('❌ 현재 구독 정보 조회 실패: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('❌ 현재 구독 정보 조회 에러: $e');
+      return null;
     }
   }
 

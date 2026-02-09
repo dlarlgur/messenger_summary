@@ -53,6 +53,7 @@ class AuthService {
         print('❌ Device ID 조회 실패');
         return null;
       }
+      print('📱 Device ID: ${deviceId.substring(0, deviceId.length > 8 ? 8 : deviceId.length)}... (전체 길이: ${deviceId.length})');
 
       // 서버에 토큰 전송하여 JWT 발급
       // 주의: 이 요청은 AuthInterceptor를 거치지 않도록 별도의 Dio 인스턴스 사용
@@ -67,6 +68,7 @@ class AuthService {
       if (response.statusCode == 200 && response.data != null) {
         final accessToken = response.data['accessToken'] as String?;
         final deviceIdHash = response.data['deviceIdHash'] as String?;
+        print('🔐 Device ID Hash: ${deviceIdHash?.substring(0, deviceIdHash != null && deviceIdHash.length > 8 ? 8 : deviceIdHash?.length ?? 0)}... (전체 길이: ${deviceIdHash?.length ?? 0})');
 
           if (accessToken != null) {
           // Secure Storage에 저장
