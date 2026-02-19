@@ -19,8 +19,10 @@ import com.google.android.play.core.integrity.IntegrityTokenRequest
 import com.google.android.play.core.integrity.IntegrityTokenResponse
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
 import java.util.UUID
 
 class MainActivity : FlutterActivity() {
@@ -30,6 +32,22 @@ class MainActivity : FlutterActivity() {
         const val MAIN_METHOD_CHANNEL = "com.dksw.app/main"
         const val EVENT_CHANNEL = "com.dksw.app/notification_stream"
         const val PLAY_INTEGRITY_CHANNEL = "com.dksw.chat_llm/play_integrity"
+    }
+
+    /**
+     * 예열된 Flutter 엔진을 사용하도록 설정
+     * MyApplication에서 미리 예열한 엔진을 재사용하여 즉시 화면 표시
+     * 엔진이 없을 경우 null을 반환하여 새 엔진을 생성하도록 함
+     */
+    override fun getCachedEngineId(): String? {
+        val cachedEngine = FlutterEngineCache.getInstance().get(MyApplication.FLUTTER_ENGINE_ID)
+        return if (cachedEngine != null) {
+            Log.d(TAG, "✅ 캐시된 Flutter 엔진 사용")
+            MyApplication.FLUTTER_ENGINE_ID
+        } else {
+            Log.w(TAG, "⚠️ 캐시된 Flutter 엔진 없음 - 새 엔진 생성")
+            null // null을 반환하면 FlutterActivity가 새 엔진을 생성함
+        }
     }
 
     private var eventSink: EventChannel.EventSink? = null
@@ -59,10 +77,41 @@ class MainActivity : FlutterActivity() {
             // MethodChannel이 준비되어 있으면 즉시 전달
             mainMethodChannel?.invokeMethod("openSummary", summaryId)
         }
+
+        // 페이월 알림 클릭 시 구독 화면 열기
+        val openSubscription = intent?.getBooleanExtra("openSubscription", false) ?: false
+        if (openSubscription) {
+            Log.d(TAG, "openSubscription 받음 - 구독 화면 열기")
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("flutter.pending_open_subscription", true).apply()
+            mainMethodChannel?.invokeMethod("openSubscription", null)
+        }
+        
+        // OnboardingActivity에서 넘어왔는지 확인
+        val fromOnboarding = intent?.getBooleanExtra("fromOnboarding", false) ?: false
+        if (fromOnboarding) {
+            Log.d(TAG, "OnboardingActivity에서 넘어옴 - 권한 확인 필요")
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("flutter.from_onboarding", true).apply()
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // 네이티브 광고 팩토리 등록
+        // 채팅방 목록 사이 광고 (흰색 배경)
+        GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "chatListNativeAd",
+            NativeAdChatItemFactory(applicationContext)
+        )
+        // 상단 고정 광고 (연한 회색 배경)
+        GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine,
+            "topNativeAd",
+            NativeAdTopFactory(applicationContext)
+        )
 
         // Main MethodChannel 설정 (파일 경로, 권한 확인 등)
         mainMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MAIN_METHOD_CHANNEL)
@@ -212,6 +261,17 @@ class MainActivity : FlutterActivity() {
                     val count = call.argument<Int>("count") ?: 0
                     updateNotificationBadge(count)
                     result.success(true)
+                }
+                "openApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val scheme = call.argument<String?>("scheme")
+                    val httpsUrl = call.argument<String?>("httpsUrl")
+                    if (packageName != null) {
+                        val success = openApp(packageName, scheme, httpsUrl)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "packageName is required", null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -523,6 +583,102 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
+     * 앱 열기 (100% 작동하는 fallback 체인)
+     * 1. 앱 설치 여부 체크
+     * 2. 딥링크 스킴 시도
+     * 3. 실패 시 앱 실행 Intent 사용
+     * 4. 실패 시 https fallback
+     * 5. 실패 시 Play Store fallback
+     */
+    private fun openApp(packageName: String, scheme: String?, httpsUrl: String?): Boolean {
+        // 1. 앱 설치 여부 체크
+        val isAppInstalled = try {
+            packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
+        
+        // 2. 딥링크 스킴 시도 (setPackage 포함)
+        if (!scheme.isNullOrEmpty()) {
+            try {
+                val uri = Uri.parse(scheme)
+                val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    setPackage(packageName)
+                }
+
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } catch (_: Exception) {}
+
+            // 2-1. setPackage 없이 딥링크 재시도
+            try {
+                val uri = Uri.parse(scheme)
+                val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } catch (_: Exception) {}
+        }
+        
+        // 3. 앱 실행 Intent 사용 (앱이 설치되어 있는 경우)
+        if (isAppInstalled) {
+            try {
+                val intent = packageManager.getLaunchIntentForPackage(packageName)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                    return true
+                }
+            } catch (_: Exception) {}
+        }
+        
+        // 4. https fallback (웹으로 열기)
+        if (!httpsUrl.isNullOrEmpty()) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(httpsUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } catch (_: Exception) {}
+        }
+        
+        // 5. Play Store fallback
+        try {
+            _openPlayStore(packageName)
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "앱 열기 실패: $packageName, ${e.message}")
+            return false
+        }
+    }
+    
+    /**
+     * 플레이스토어 열기
+     */
+    private fun _openPlayStore(packageName: String) {
+        try {
+            val playStoreUrl = "https://play.google.com/store/apps/details?id=$packageName"
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(playStoreUrl)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(intent)
+            Log.d(TAG, "플레이스토어로 이동: $packageName")
+        } catch (e: Exception) {
+            Log.e(TAG, "플레이스토어 열기 실패: ${e.message}", e)
+        }
+    }
+
+    /**
      * 알림 배지 업데이트 (Android 8.0 이상)
      * 참고: Android의 배지 API는 제조사별로 다를 수 있습니다.
      * 일부 기기에서는 작동하지 않을 수 있습니다.
@@ -554,6 +710,12 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "❌ 알림 배지 업데이트 실패: ${e.message}", e)
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        GoogleMobileAdsPlugin.unregisterNativeAdFactory(flutterEngine, "chatListNativeAd")
+        GoogleMobileAdsPlugin.unregisterNativeAdFactory(flutterEngine, "topNativeAd")
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onDestroy() {

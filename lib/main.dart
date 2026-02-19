@@ -13,25 +13,27 @@ import 'services/auth_service.dart';
 import 'services/app_version_service.dart';
 import 'services/plan_service.dart';
 import 'services/in_app_purchase_service.dart';
+import 'services/messenger_settings_service.dart';
+import 'services/ad_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
+import 'screens/subscription_screen.dart';
 import 'widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 한국어 날짜 포맷 초기화
-  await initializeDateFormatting('ko_KR', null);
-
-  // 로컬 DB 초기화
-  await LocalDbService().initialize();
-
-  // 프로필 이미지 서비스 초기화 (앱 시작 시 한 번)
-  await ProfileImageService().initialize();
-
+  // 즉시 UI 표시 (권한 화면 바로 노출) - 모든 초기화는 백그라운드에서
   runApp(const MyApp());
+
+  // 모두 백그라운드에서 초기화 (UI를 블록하지 않음)
+  unawaited(initializeDateFormatting('ko_KR', null));
+  unawaited(LocalDbService().initialize());
+  unawaited(MessengerSettingsService().initialize());
+  unawaited(ProfileImageService().initialize());
+  unawaited(AdService().initialize());
 }
 
 class MyApp extends StatelessWidget {
@@ -85,8 +87,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   StreamSubscription? _subscription;
   StreamSubscription? _mainMethodSubscription;
-  bool _isPermissionGranted = false;
-  bool _isCheckingPermissions = true; // ⚠️ 수정: 권한 확인 중인지 여부
+  bool _isPermissionGranted = true; // 초기값을 true로 설정 (권한 체크 후 결정)
+  bool _isCheckingPermissions = false; // ⚠️ 수정: 권한 확인 중이면 로딩 표시하지 않음 (권한 화면이 잠깐 보이는 것 방지)
   bool _isForceUpdateRequired = false; // 강제 업데이트 필요 여부
   bool _showGuide = false; // 사용 가이드 표시 여부
   VersionCheckResult? _versionCheckResult; // 버전 체크 결과
@@ -105,61 +107,147 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // _startListening();
   }
 
-  /// 빠른 초기화: JWT 토큰이 있으면 즉시 화면 표시
+  /// 빠른 초기화: 권한 체크를 항상 먼저 실행해 화면을 즉시 표시
   Future<void> _fastInitialize() async {
-    debugPrint('🚀 빠른 초기화 시작');
-    
     try {
-      // 1. JWT 토큰 확인 (빠르게)
-      final authService = AuthService();
-      final token = await authService.getJwtToken();
-      
-      if (token != null) {
-        debugPrint('✅ JWT 토큰 있음 - 즉시 화면 표시');
-        // JWT 토큰이 있으면 즉시 화면 표시 (권한 체크는 백그라운드에서)
-        if (mounted) {
-          setState(() {
-            _isCheckingPermissions = false; // 화면 표시 허용
-            _isPermissionGranted = true; // 일단 권한 있음으로 설정 (백그라운드에서 재확인)
-          });
-        }
-        
-        // 백그라운드에서 나머지 작업 처리
-        _backgroundInitialize();
+      // ✅ 1. OnboardingActivity에서 넘어왔는지 확인
+      final prefs = await SharedPreferences.getInstance();
+      final fromOnboarding = prefs.getBool('flutter.from_onboarding') ?? false;
+      if (fromOnboarding) {
+        // OnboardingActivity에서 넘어온 경우 플래그 제거
+        await prefs.remove('flutter.from_onboarding');
+        // 권한 확인을 await로 기다림 (권한이 없을 가능성이 높음)
+        await _checkPermissionsOnly();
       } else {
-        debugPrint('⚠️ JWT 토큰 없음 - 전체 초기화 진행');
-        // JWT 토큰이 없으면 전체 초기화 진행
-        await _fullInitialize();
+        // 일반 앱 시작 시에는 백그라운드에서 실행 (화면 깜빡임 방지)
+        // 권한이 이미 있으면 메인 화면 바로 표시
+        unawaited(_checkPermissionsOnly());
       }
+
+      // ✅ 2. JWT 토큰 확인 및 나머지 초기화는 백그라운드에서 실행
+      Future.microtask(() async {
+        try {
+          final authService = AuthService();
+          final token = await authService.getJwtToken();
+
+          if (token != null) {
+            _backgroundInitialize();
+          } else {
+            // JWT 없으면 버전체크 + JWT 발급 동시 실행 후 구독 체크
+            await Future.wait([_checkVersion(), _getJwtToken()]);
+            await _checkSubscription();
+            if (mounted) {
+              final notificationService =
+                  Provider.of<NotificationSettingsService>(context, listen: false);
+              final autoSummarySettingsService =
+                  Provider.of<AutoSummarySettingsService>(context, listen: false);
+              await notificationService.initialize();
+              await autoSummarySettingsService.initialize();
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ 백그라운드 초기화 실패: $e');
+        }
+      });
     } catch (e) {
       debugPrint('❌ 빠른 초기화 실패: $e');
-      // 실패 시 전체 초기화 진행
-      await _fullInitialize();
     }
   }
 
   /// 전체 초기화 (JWT 토큰이 없을 때)
   Future<void> _fullInitialize() async {
-    debugPrint('🚀 전체 초기화 시작');
+    // 권한 체크를 먼저 진행 (화면 표시를 위해)
+    await _checkPermissionsOnly();
     
-    // 버전 체크와 JWT 토큰 발급을 비동기로 동시에 실행
-    final versionCheckFuture = _checkVersion();
-    final jwtTokenFuture = _getJwtToken();
-    
-    // 두 작업 모두 완료될 때까지 대기
-    await Future.wait([versionCheckFuture, jwtTokenFuture]);
-    
-    // JWT 토큰이 발급된 후 구독 정보 조회
-    await _checkSubscription();
-    
-    // 권한 체크 및 초기화 진행
-    _initializeAndCheckPermissions();
+    // 백그라운드에서 나머지 초기화 작업 진행
+    Future.microtask(() async {
+      try {
+        // 버전 체크와 JWT 토큰 발급을 비동기로 동시에 실행
+        final versionCheckFuture = _checkVersion();
+        final jwtTokenFuture = _getJwtToken();
+        
+        // 두 작업 모두 완료될 때까지 대기
+        await Future.wait([versionCheckFuture, jwtTokenFuture]);
+        
+        // JWT 토큰이 발급된 후 구독 정보 조회
+        await _checkSubscription();
+        
+        // 서비스 초기화 (알림 설정, 자동 요약 설정)
+        final notificationService =
+            Provider.of<NotificationSettingsService>(context, listen: false);
+        final autoSummarySettingsService =
+            Provider.of<AutoSummarySettingsService>(context, listen: false);
+        await notificationService.initialize();
+        await autoSummarySettingsService.initialize();
+      } catch (e) {
+        debugPrint('❌ 전체 초기화 오류: $e');
+      }
+    });
+  }
+
+  /// 권한만 빠르게 체크 (화면 표시용)
+  Future<void> _checkPermissionsOnly() async {
+    // ✅ 두 권한 확인을 병렬로 실행 (순차 → 동시)
+    bool notificationPermissionGranted = false;
+    bool batteryOptimizationDisabled = false;
+
+    try {
+      final results = await Future.wait([
+        methodChannel.invokeMethod<bool>('isNotificationListenerEnabled'),
+        methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled'),
+      ]);
+      notificationPermissionGranted = results[0] ?? false;
+      batteryOptimizationDisabled = results[1] ?? false;
+    } catch (e) {
+      debugPrint('❌ 권한 확인 실패 - 개별 재시도: $e');
+      try {
+        notificationPermissionGranted =
+            await methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
+      } catch (e2) {
+        debugPrint('❌ 알림 권한 확인 실패: $e2');
+      }
+      try {
+        batteryOptimizationDisabled =
+            await methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
+      } catch (e2) {
+        debugPrint('❌ 배터리 최적화 권한 확인 실패: $e2');
+      }
+    }
+
+    if (mounted) {
+      // 필수 권한이 모두 없으면 권한 화면으로 이동
+      if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
+        // 권한이 없으면 권한 화면으로 이동
+        setState(() {
+          _isPermissionGranted = false; // 권한 화면 표시
+          _isCheckingPermissions = false; // 권한 확인 완료
+        });
+      } else {
+        // 모든 필수 권한이 있으면 메인 화면 유지
+        // 가이드 표시 여부 확인
+        final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
+
+        setState(() {
+          _isPermissionGranted = true;
+          _isCheckingPermissions = false; // 권한 확인 완료
+          _showGuide = !hasSeenGuide;
+        });
+
+        // 가이드를 보여줄 때는 리스너/배지 시작 불필요 (가이드 끝나면 MainScreen 재생성)
+        if (hasSeenGuide) {
+          // 권한이 있으면 리스너 시작
+          _startListening();
+
+          // 배지 업데이트
+          _updateNotificationBadge();
+        }
+      }
+    }
   }
 
   /// 백그라운드 초기화 (JWT 토큰이 있을 때)
+  /// 권한 체크와 독립적으로 실행 (버전 체크, 구독 동기화 등)
   void _backgroundInitialize() {
-    debugPrint('🔄 백그라운드 초기화 시작');
-    
     // 모든 작업을 백그라운드에서 비동기로 처리
     Future.microtask(() async {
       try {
@@ -169,8 +257,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 2. 구독 정보 조회 (기기 변경 시 구독 부활 포함)
         await _checkSubscription();
         
-        // 3. 권한 체크 (백그라운드에서 처리)
-        await _initializeAndCheckPermissions();
+        // 3. 서비스 초기화 (알림 설정, 자동 요약 설정)
+        // 권한 체크는 이미 완료되었으므로 여기서는 서비스만 초기화
+        final notificationService =
+            Provider.of<NotificationSettingsService>(context, listen: false);
+        final autoSummarySettingsService =
+            Provider.of<AutoSummarySettingsService>(context, listen: false);
+        await notificationService.initialize();
+        await autoSummarySettingsService.initialize();
       } catch (e) {
         debugPrint('❌ 백그라운드 초기화 오류: $e');
       }
@@ -181,14 +275,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _checkVersion() async {
     try {
       final versionService = AppVersionService();
-      debugPrint('🚀 버전 체크 호출 전');
       final result = await versionService.checkVersion();
-      debugPrint('🚀 버전 체크 완료: updateRequired=${result.updateRequired}, updateType=${result.updateType}');
 
       if (result.updateRequired && result.updateType == UpdateType.force) {
         // 강제 업데이트만 앱 시작 시 처리
         _versionCheckResult = result;
-        debugPrint('🚨 강제 업데이트 필요: ${result.latestVersion}');
         if (mounted) {
           setState(() {
             _isForceUpdateRequired = true;
@@ -206,7 +297,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       }
       // 일반 업데이트는 대화 목록 화면에서 처리
     } catch (e) {
-      debugPrint('버전 체크 실패: $e');
+      debugPrint('❌ 버전 체크 실패: $e');
       // 버전 체크 실패 시 앱 사용 허용
     }
   }
@@ -215,14 +306,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _getJwtToken() async {
     try {
       final authService = AuthService();
-      final token = await authService.getJwtToken();
-      if (token != null) {
-        debugPrint('✅ JWT 토큰 발급 성공 (자동 요약 준비 완료)');
-      } else {
-        debugPrint('⚠️ JWT 토큰 발급 실패 - 자동 요약 불가');
-      }
+      await authService.getJwtToken();
     } catch (e) {
-      debugPrint('JWT 토큰 발급 오류: $e');
+      debugPrint('❌ JWT 토큰 발급 오류: $e');
     }
   }
   
@@ -240,99 +326,100 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         final hoursSinceLastSync = DateTime.now().difference(lastSyncTime).inHours;
         
         if (hoursSinceLastSync < syncIntervalHours) {
-          debugPrint('⏭️ 구독 동기화 스킵: ${hoursSinceLastSync}시간 전에 동기화됨 (${syncIntervalHours}시간 간격)');
           return;
         }
       }
-      
-      debugPrint('🔄 구독 동기화 시작 (마지막 동기화: ${lastSyncTimeMillis != null ? DateTime.fromMillisecondsSinceEpoch(lastSyncTimeMillis) : "없음"})');
-      
+
       final planService = PlanService();
       final purchaseService = InAppPurchaseService();
       
       // 1. 인앱 결제 서비스 초기화 (백그라운드에서)
       final initialized = await purchaseService.initialize();
       if (!initialized) {
-        debugPrint('⚠️ 인앱 결제 초기화 실패, 구독 정보만 조회');
         // 인앱 결제 초기화 실패해도 구독 정보는 조회 시도
         final currentPlan = await planService.getCurrentPlan();
         if (currentPlan != null) {
-          debugPrint('✅ 구독 정보 조회 성공: planType=${currentPlan['planType']}');
-          // 동기화 시간 저장
           await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
         }
         return;
       }
 
-      // 2. 과거 구매 내역 조회 (기기 변경 시 구독 부활용)
-      // restorePurchases()를 호출하면 purchaseStream을 통해 과거 구매 내역이 전달됨
-      purchaseService.queryPastPurchases(); // await 제거 (백그라운드에서 처리)
+      // 2. 과거 구매 내역 조회 및 purchaseToken 대기 (기기 변경 시 구독 부활용)
+      // Completer 기반으로 purchaseToken이 수신될 때까지 최대 5초 대기
+      final purchaseToken = await purchaseService.queryPastPurchasesAndWaitForToken(
+        timeout: const Duration(seconds: 5),
+      );
       
-      // 3. 잠시 대기 (purchaseStream에서 purchaseToken 캐시될 시간 확보)
-      // 주의: restorePurchases()는 비동기로 purchaseStream을 통해 결과를 전달하므로
-      // 실제 purchaseToken은 _handlePurchaseUpdate()에서 캐시됩니다.
-      // 따라서 짧은 딜레이 후 캐시된 purchaseToken을 조회합니다.
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // 4. 캐시된 purchaseToken 조회
-      final purchaseToken = purchaseService.getCachedPurchaseToken();
-      
-      // 5. 구독 정보 동기화 (purchaseToken이 있으면 함께 전송)
+      // 3. 구독 정보 동기화 (purchaseToken이 있으면 함께 전송)
       final currentPlan = await planService.getCurrentPlan(
         purchaseToken: purchaseToken,
       );
       
       if (currentPlan != null) {
-        debugPrint('✅ 구독 정보 동기화 성공: planType=${currentPlan['planType']}');
-        if (purchaseToken != null) {
-          debugPrint('✅ purchaseToken으로 구독 부활 시도 완료');
-        }
-        
         // 동기화 시간 저장
         await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
-      } else {
-        debugPrint('⚠️ 구독 정보 동기화 실패');
       }
     } catch (e) {
-      debugPrint('구독 정보 동기화 오류: $e');
+      debugPrint('❌ 구독 정보 동기화 오류: $e');
     }
   }
 
-  /// Main MethodChannel 설정 (summaryId 수신용)
+  /// Main MethodChannel 설정 (summaryId / openSubscription 수신용)
   void _setupMainMethodChannel() {
     mainMethodChannel.setMethodCallHandler((call) async {
       if (call.method == 'openSummary') {
         final summaryId = call.arguments as int?;
         if (summaryId != null && summaryId > 0) {
-          debugPrint('📱 MainMethodChannel에서 summaryId 수신: $summaryId');
           _openSummaryFromNotification(summaryId);
         }
+      } else if (call.method == 'openSubscription') {
+        _openSubscriptionFromNotification();
       }
     });
   }
 
-  /// 대기 중인 summaryId 확인 및 처리
+  /// 페이월 알림 클릭 시 구독 화면 열기
+  void _openSubscriptionFromNotification() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = MyApp.navigatorKey.currentState;
+      if (navigator != null) {
+        navigator.push(
+          MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+        );
+      }
+    });
+  }
+
+  /// 대기 중인 summaryId 또는 openSubscription 확인 및 처리
   Future<void> _checkPendingSummaryId() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 구독 화면 열기 대기 확인
+      final pendingSubscription = prefs.getBool('flutter.pending_open_subscription') ?? false;
+      if (pendingSubscription) {
+        await prefs.remove('flutter.pending_open_subscription');
+        _openSubscriptionFromNotification();
+        return;
+      }
+
       // 먼저 MethodChannel에서 확인
       final summaryIdFromChannel = await mainMethodChannel.invokeMethod<int?>('getPendingSummaryId');
       int? summaryId = summaryIdFromChannel;
-      
+
       // MethodChannel에 없으면 SharedPreferences에서 확인
       if (summaryId == null || summaryId <= 0) {
-        final prefs = await SharedPreferences.getInstance();
         summaryId = prefs.getInt('flutter.pending_summary_id');
         if (summaryId != null && summaryId > 0) {
           await prefs.remove('flutter.pending_summary_id');
         }
       }
-      
+
       if (summaryId != null && summaryId > 0) {
-        debugPrint('📱 대기 중인 summaryId 발견: $summaryId');
         _openSummaryFromNotification(summaryId);
       }
     } catch (e) {
-      debugPrint('대기 중인 summaryId 처리 실패: $e');
+      debugPrint('❌ 대기 중인 summaryId 처리 실패: $e');
     }
   }
 
@@ -340,7 +427,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _openSummaryFromNotification(int summaryId) async {
     // 이미 처리한 summaryId는 무시 (중복 방지)
     if (_processedSummaryIds.contains(summaryId)) {
-      debugPrint('📱 이미 처리한 summaryId 무시: $summaryId');
       return;
     }
     _processedSummaryIds.add(summaryId);
@@ -358,7 +444,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final navigator = MyApp.navigatorKey.currentState;
             if (navigator != null) {
-              debugPrint('📱 요약 히스토리 화면으로 이동: roomId=$roomId, summaryId=$summaryId');
               navigator.push(
                 MaterialPageRoute(
                   builder: (context) => SummaryHistoryScreen(
@@ -368,18 +453,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
               );
-            } else {
-              debugPrint('⚠️ Navigator를 찾을 수 없음');
             }
           });
-        } else {
-          debugPrint('⚠️ 채팅방을 찾을 수 없음: roomId=$roomId');
         }
-      } else {
-        debugPrint('⚠️ summaryId로 roomId를 찾을 수 없음: summaryId=$summaryId');
       }
     } catch (e) {
-      debugPrint('요약 히스토리 열기 실패: $e');
+      debugPrint('❌ 요약 히스토리 열기 실패: $e');
     }
   }
   
@@ -402,33 +481,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       notificationPermissionGranted =
           await methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
     } catch (e) {
-      debugPrint('알림 권한 확인 실패: $e');
+      debugPrint('❌ 알림 권한 확인 실패: $e');
     }
 
     try {
       batteryOptimizationDisabled =
           await methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled') ?? false;
     } catch (e) {
-      debugPrint('배터리 최적화 권한 확인 실패: $e');
+      debugPrint('❌ 배터리 최적화 권한 확인 실패: $e');
     }
 
     if (mounted) {
-      // 필수 권한이 모두 없으면 권한 화면으로 이동하지 않고 대화목록 유지
-      // (권한은 사용자가 설정에서 직접 설정하도록 유도)
+      // 필수 권한이 모두 없으면 권한 화면으로 이동
       if (!notificationPermissionGranted || !batteryOptimizationDisabled) {
-        debugPrint('⚠️ 권한 미허용 - 대화목록 유지 (권한은 설정에서 설정 가능)');
-        debugPrint('  알림 권한: $notificationPermissionGranted');
-        debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
-        // 권한이 없어도 대화목록은 유지 (권한 화면으로 강제 이동하지 않음)
+        // 권한이 없으면 권한 화면으로 이동
         setState(() {
-          _isPermissionGranted = true; // 대화목록 유지
+          _isPermissionGranted = false; // 권한 화면 표시
           _isCheckingPermissions = false; // 권한 확인 완료
         });
       } else {
         // 모든 필수 권한이 있으면 메인 화면 유지
-        debugPrint('✅ 모든 필수 권한 허용됨 - 메인 화면 유지');
-        debugPrint('  알림 권한: $notificationPermissionGranted');
-        debugPrint('  배터리 최적화 제외: $batteryOptimizationDisabled');
         // 가이드 표시 여부 확인
         final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
 
@@ -476,7 +548,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      debugPrint('자동요약 알림 팝업 확인 실패: $e');
+      debugPrint('❌ 자동요약 알림 팝업 확인 실패: $e');
     }
   }
 
@@ -522,7 +594,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           try {
                             await methodChannel.invokeMethod('openAppSettings');
                           } catch (e) {
-                            debugPrint('설정 화면 열기 실패: $e');
+                            debugPrint('❌ 설정 화면 열기 실패: $e');
                           }
                         },
                       ),
@@ -546,7 +618,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // 앱이 포그라운드로 돌아올 때 배지 업데이트
       _updateNotificationBadge();
       if (!mounted) return;
-      debugPrint('🔄 앱 포그라운드 복귀 - 리스너 재구독 및 대화목록 새로고침');
       // 이벤트 리스너 재구독 (백그라운드에서 끊어졌을 수 있음)
       _subscription?.cancel();
       _startListening();
@@ -562,8 +633,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           autoSummarySettingsService.refreshSystemNotificationPermission();
         }
       });
-    } else if (state == AppLifecycleState.paused) {
-      debugPrint('⏸️ 앱 백그라운드로 이동');
     }
   }
 
@@ -590,45 +659,28 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 에러 발생 시 재구독 시도
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
-            debugPrint('🔄 스트림 에러 후 재구독 시도...');
             _startListening();
           }
         });
       },
       cancelOnError: false, // 에러 발생해도 구독 유지
     );
-    debugPrint('✅ 이벤트 리스너 구독 시작');
   }
 
   /// 채팅방 업데이트 처리
   Future<void> _handleRoomUpdate(Map<String, dynamic> data) async {
-    debugPrint('=== ✅ 채팅방 업데이트 수신 ===');
-    debugPrint('  roomName: ${data['roomName']}');
-    debugPrint('  roomId: ${data['roomId']}');
-    debugPrint('  unreadCount: ${data['unreadCount']}');
-    debugPrint('  lastMessage: ${data['lastMessage']}');
-    debugPrint('  lastMessageTime: ${data['lastMessageTime']}');
-
-    // ⚠️ 보수적 수정: ChatRoomListScreen에 업데이트 전달
-    // 즉시 실행하여 빠른 동기화 보장
+    // ChatRoomListScreen에 업데이트 전달 - 즉시 실행하여 빠른 동기화 보장
     if (mounted) {
       if (_chatRoomListKey.currentState != null) {
-        debugPrint('🔄 대화방 목록 새로고침 요청 (ChatRoomListScreen 상태: 활성)');
         _chatRoomListKey.currentState!.refreshRooms();
       } else {
-        debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 - 나중에 다시 시도');
         // 위젯이 아직 초기화되지 않았을 수 있으므로 잠시 후 다시 시도
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted && _chatRoomListKey.currentState != null) {
-            debugPrint('🔄 대화방 목록 새로고침 재시도');
             _chatRoomListKey.currentState!.refreshRooms();
-          } else {
-            debugPrint('⚠️ 재시도 실패: 위젯이 dispose되었거나 ChatRoomListScreen이 없음');
           }
         });
       }
-    } else {
-      debugPrint('⚠️ 위젯이 dispose됨 - 새로고침 스킵');
     }
   }
 
@@ -637,7 +689,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       final unreadCount = await _localDb.getUnreadNotificationCount();
       await methodChannel.invokeMethod('updateNotificationBadge', {'count': unreadCount});
-      debugPrint('📊 배지 업데이트: $unreadCount개');
     } catch (e) {
       debugPrint('❌ 배지 업데이트 실패: $e');
     }
@@ -645,8 +696,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   /// 알림 수신 → UI 갱신 (Android 네이티브에서 이미 DB에 저장됨)
   Future<void> _handleNotification(Map<String, dynamic> data) async {
-    debugPrint('📩 알림 수신: $data');
-
     final packageName = data['packageName'] ?? '';
     final type = data['type'] ?? 'notification';
     final isAutoSummary = data['isAutoSummary'] == true || type == 'auto_summary';
@@ -654,7 +703,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     // 자동요약 알림인 경우 별도 처리
     if (isAutoSummary) {
-      debugPrint('🤖 자동요약 알림 수신: summaryId=$summaryId');
       
       int postTime;
       if (data['postTime'] != null) {
@@ -689,29 +737,174 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
 
     // 시스템 UI 알림 필터링 (com.android.systemui 등)
-    if (packageName == 'com.android.systemui' || 
+    if (packageName == 'com.android.systemui' ||
         packageName.startsWith('com.android.') ||
         packageName == 'android') {
-      debugPrint('🔇 시스템 알림 무시: $packageName');
       return;
     }
 
     // 지원하는 메신저인지 확인
     if (!_localDb.isSupportedMessenger(packageName)) {
-      debugPrint('❌ 지원하지 않는 메신저: $packageName');
       return;
     }
 
-    // 매핑: title -> sender, text -> message, subText -> roomName
-    final sender = data['title'] ?? '';
-    final message = data['text'] ?? '';
+    // Android 파싱 로직과 동일하게 파싱
+    final title = data['title'] ?? '';
+    final text = data['text'] ?? '';
     final subText = data['subText'] ?? '';
+    final isGroupConversation = data['isGroupConversation'] == true;
+    final channelId = data['channelId'] ?? '';
+    
+    String roomName;
+    String sender;
+    String message;
+    
+    // 텔레그램 파싱 로직 (Android와 동일)
+    // 텔레그램은 3가지 알림 채널 사용:
+    // - notification_channels_private_chats: 개인 채팅
+    // - notification_channels_groups: 그룹 채팅
+    // - notification_channels_channels: 채널
+    if (packageName == 'org.telegram.messenger') {
+      // channelId로 채널 타입 확인 (더 정확함)
+      final isPrivateChannel = channelId.contains('private');
+      final isGroupChannel = channelId.contains('groups');
+      final isChannelType = channelId.contains('channels');
+      final conversationTitle = data['conversationTitle'] ?? '';
+      
+      // 그룹 채팅 또는 채널 (isGroupConversation 또는 channelId로 판단)
+      // 주의: subText.isNotEmpty 조건 제거 - 텔레그램 개인톡에서 subText가 메시지 복사본으로 채워짐
+      if (isGroupConversation || isGroupChannel || isChannelType) {
+        // 그룹 채팅/채널 형식:
+        // - title: "그룹이름: 보낸사람" 또는 "그룹이름"
+        // - conversationTitle: 그룹 이름 (있으면 사용)
+        // - text: "메시지" 또는 "보낸사람: 메시지"
+        // - subText: "보낸사람 @ 메시지" 또는 "메시지"
+        roomName = conversationTitle.isNotEmpty ? conversationTitle : title;
+        
+        // subText에서 보낸사람 추출 시도 (예: "구 여 @ 넵 알겠습니다팀장님")
+        final atIdx = subText.indexOf(' @ ');
+        if (atIdx > 0) {
+          sender = subText.substring(0, atIdx);
+          message = text;
+        } else {
+          // text에서 colon으로 분리 시도
+          final colonIdx = text.indexOf(': ');
+          if (colonIdx > 0) {
+            sender = text.substring(0, colonIdx);
+            message = text.substring(colonIdx + 2);
+          } else {
+            // title에서 colon으로 분리 시도 (예: "SKT PBX 개발검증: 구 여")
+            final titleColonIdx = title.indexOf(': ');
+            if (titleColonIdx > 0) {
+              sender = title.substring(titleColonIdx + 2);
+              message = text;
+            } else {
+              // fallback: title을 sender로 사용
+              sender = title;
+              message = text;
+            }
+          }
+        }
+      } else {
+        // 개인 채팅 형식 (isPrivateChannel 또는 isGroupConversation == false):
+        // - title: 상대방 이름
+        // - text: 메시지 내용
+        // - subText: 빈 문자열
+        roomName = title;
+        sender = title;
+        message = text;
+      }
+    } else if (packageName == 'jp.naver.line.android') {
+      // 라인 파싱 로직 (Android와 동일)
+      final conversationTitle = data['conversationTitle'] ?? '';
+      
+      if (isGroupConversation || conversationTitle.isNotEmpty) {
+        // 그룹 채팅 형식
+        // - conversationTitle: 그룹 이름 (있으면 우선 사용)
+        // - subText: 그룹 이름 (conversationTitle 없으면 사용)
+        // - title: "그룹이름: 보낸사람" 또는 "그룹이름"
+        roomName = conversationTitle.isNotEmpty 
+            ? conversationTitle 
+            : (subText.isNotEmpty ? subText : title);
+        
+        // title에서 보낸사람 추출 시도 (예: "내사랑원이❤️, 임기혁: judy Kim")
+        if (conversationTitle.isNotEmpty && title.startsWith('$conversationTitle: ')) {
+          // conversationTitle prefix로 정확하게 발신자 추출
+          sender = title.substring(conversationTitle.length + 2);
+          message = text;
+        } else {
+          final colonIdx = title.indexOf(': ');
+          if (colonIdx > 0) {
+            sender = title.substring(colonIdx + 2);
+            message = text;
+          } else {
+            // text에서 colon으로 분리 시도
+            final textColonIdx = text.indexOf(': ');
+            if (textColonIdx > 0) {
+              sender = text.substring(0, textColonIdx);
+              message = text.substring(textColonIdx + 2);
+            } else {
+              sender = title;
+              message = text;
+            }
+          }
+        }
+      } else {
+        // 개인 채팅 형식
+        roomName = title;
+        sender = title;
+        message = text;
+      }
+    } else if (packageName == 'com.microsoft.teams') {
+      // Teams 파싱 로직
+      final conversationTitle = data['conversationTitle'] ?? '';
 
-    // 개인톡: subText가 비어있으면 sender를 roomName으로 사용
-    // 그룹톡: subText가 채팅방 이름
-    final roomName = subText.isNotEmpty ? subText : sender;
+      if (conversationTitle.isNotEmpty) {
+        // 1:1 채팅 또는 그룹 채팅
+        roomName = conversationTitle;
+        if (title.startsWith('$conversationTitle: ')) {
+          sender = title.substring(conversationTitle.length + 2);
+          if (sender.isEmpty) sender = conversationTitle;
+        } else {
+          sender = conversationTitle;
+        }
+        message = text;
+      } else {
+        // 채널 메시지: "XXX 님이 YYY 팀의 채널 ZZZ에서 회신했습니다."
+        final channelPattern = RegExp(r'(.+?) 님이 (.+?) 팀의 채널 (.+?)에서');
+        final match = channelPattern.firstMatch(title);
+        if (match != null) {
+          sender = match.group(1)!;
+          final teamName = match.group(2)!;
+          final channelName = match.group(3)!;
+          roomName = '$teamName / $channelName';
+          message = text;
+        } else {
+          // 기타 Teams 알림
+          roomName = title;
+          sender = title;
+          message = text;
+        }
+      }
+    } else if (packageName == 'com.facebook.orca') {
+      // Facebook Messenger 파싱 로직
+      final conversationTitle = data['conversationTitle'] ?? '';
 
-    debugPrint('📝 파싱 결과: sender=$sender, message=$message, roomName=$roomName');
+      if (isGroupConversation || conversationTitle.isNotEmpty) {
+        roomName = conversationTitle.isNotEmpty ? conversationTitle : title;
+        sender = title;
+        message = text;
+      } else {
+        roomName = title;
+        sender = title;
+        message = text;
+      }
+    } else {
+      // 기존 로직 (카카오톡 등)
+      sender = title;
+      message = text;
+      roomName = subText.isNotEmpty ? subText : sender;
+    }
 
     // 유효성 검사: sender, message 필수
     if (sender.isEmpty || message.isEmpty) {
@@ -722,7 +915,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // 차단된 채팅방인지 확인
     final existingRoom = await _localDb.findRoom(roomName, packageName);
     if (existingRoom != null && existingRoom.blocked) {
-      debugPrint('🚫 차단된 채팅방 알림 무시: $roomName');
       return;
     }
 
@@ -731,8 +923,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         Provider.of<NotificationSettingsService>(context, listen: false);
 
     // 음소거된 채팅방이면 알림만 삭제
-    if (notificationService.isMuted(roomName)) {
-      debugPrint('🔇 알림 음소거됨: $roomName');
+    // 라인인 경우 chatId를 우선 사용 (roomName이 랜덤으로 변할 수 있음)
+    final chatId = existingRoom?.chatId;
+    if (notificationService.isMuted(roomName, packageName, chatId)) {
       try {
         await methodChannel.invokeMethod(
           'cancelAllNotificationsForRoom',
@@ -742,11 +935,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         debugPrint('❌ 알림 삭제 실패: $e');
       }
     }
-
-    debugPrint('✅ === 알림 수신 → 푸시 알림 저장 ===');
-    debugPrint('  패키지: $packageName');
-    debugPrint('  발신자: $sender, 대화방: $roomName');
-    debugPrint('  메시지: $message');
 
     // 푸시 알림 저장
     // postTime은 Android에서 Long 타입으로 전달되므로 안전하게 변환
@@ -758,14 +946,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         postTime = (data['postTime'] as num).toInt();
       } else {
         postTime = DateTime.now().millisecondsSinceEpoch;
-        debugPrint('⚠️ postTime 타입 변환 실패, 현재 시간 사용');
       }
     } else {
       postTime = DateTime.now().millisecondsSinceEpoch;
-      debugPrint('⚠️ postTime이 없음, 현재 시간 사용');
     }
 
-    debugPrint('📝 알림 저장 시도: postTime=$postTime');
     final savedId = await _localDb.saveNotification(
       packageName: packageName,
       sender: sender,
@@ -774,20 +959,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       postTime: postTime,
     );
 
-    if (savedId != null) {
-      debugPrint('✅ 알림 저장 성공: id=$savedId');
-    } else {
-      debugPrint('❌ 알림 저장 실패: 저장된 ID가 null');
+    if (savedId == null) {
+      debugPrint('❌ 알림 저장 실패: roomName=$roomName, sender=$sender');
     }
 
     // Android 네이티브에서 이미 DB에 저장했으므로 UI만 갱신
-    // 즉시 실행하여 빠른 동기화 보장
     if (mounted && _chatRoomListKey.currentState != null) {
-      debugPrint('🔄 대화방 목록 새로고침 요청');
       _chatRoomListKey.currentState!.refreshRooms();
-      debugPrint('✅ UI 갱신 요청 완료');
-    } else {
-      debugPrint('⚠️ ChatRoomListScreen이 아직 초기화되지 않음 또는 위젯이 dispose됨');
     }
   }
 
@@ -857,22 +1035,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       );
     }
 
-    // ⚠️ 수정: 권한 확인 중이면 로딩 표시
-    if (_isCheckingPermissions) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // ⚠️ 수정: 권한이 없으면 PermissionScreen 표시
+    // ⚠️ 수정: 권한이 없으면 PermissionScreen 표시 (로딩 화면 제거로 깜빡임 방지)
     if (!_isPermissionGranted) {
       return PermissionScreen(
         onComplete: () {
-          debugPrint('✅ 권한 화면 완료 콜백 호출됨');
-          // 권한 확인 후 상태 업데이트
-          _initializeAndCheckPermissions();
+          // 권한 확인 후 상태 업데이트 (빠른 체크만)
+          _checkPermissionsOnly();
         },
       );
     }
@@ -883,7 +1051,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
 
     // 권한이 있으면 대화목록 화면 표시
-    return ChatRoomListScreen(key: _chatRoomListKey);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        // 전면 광고 표시 후 앱 종료
+        final adService = AdService();
+        final adShown = await adService.showExitAd(
+          onAdDismissed: () {
+            SystemNavigator.pop();
+          },
+        );
+        if (!adShown) {
+          SystemNavigator.pop();
+        }
+      },
+      child: ChatRoomListScreen(key: _chatRoomListKey),
+    );
   }
 }
 

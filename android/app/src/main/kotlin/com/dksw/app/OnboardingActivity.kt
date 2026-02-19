@@ -1,10 +1,16 @@
 package com.dksw.app
 
+import android.Manifest
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.view.animation.Animation
@@ -12,6 +18,7 @@ import android.view.animation.Transformation
 import android.net.Uri
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -23,6 +30,9 @@ class OnboardingActivity : Activity() {
         private const val TAG = "OnboardingActivity"
         private const val PREFS_NAME = "onboarding_prefs"
         private const val KEY_AGREEMENT = "agreement_accepted"
+        private const val REQUEST_POST_NOTIFICATIONS = 1001
+        private const val REQUEST_NOTIFICATION_LISTENER = 1002
+        private const val REQUEST_BATTERY_OPT = 1003
     }
 
     private lateinit var cbServiceAgreement: CheckBox
@@ -41,7 +51,8 @@ class OnboardingActivity : Activity() {
     private lateinit var tvPrivacyExpand: TextView
     private lateinit var btnServiceFullText: Button
     private lateinit var btnPrivacyFullText: Button
-    
+    private lateinit var loadingOverlay: FrameLayout
+
     private var isServiceExpanded = false
     private var isPrivacyExpanded = false
     
@@ -54,13 +65,15 @@ class OnboardingActivity : Activity() {
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        // 뷰 초기화 먼저 수행 (loadingOverlay 등)
+        initViews()
+
         // 이미 동의한 경우 MainActivity로 이동
         if (prefs.getBoolean(KEY_AGREEMENT, false)) {
             proceedToMainActivity()
             return
         }
 
-        initViews()
         setupListeners()
         applySystemBarInsets()
     }
@@ -81,6 +94,7 @@ class OnboardingActivity : Activity() {
         tvPrivacyExpand = findViewById(R.id.tvPrivacyExpand)
         btnServiceFullText = findViewById(R.id.btnServiceFullText)
         btnPrivacyFullText = findViewById(R.id.btnPrivacyFullText)
+        loadingOverlay = findViewById(R.id.loadingOverlay)
     }
 
     private fun setupListeners() {
@@ -246,30 +260,40 @@ class OnboardingActivity : Activity() {
     }
 
     /**
-     * 동의 여부를 SharedPreferences에 저장하고 MainActivity로 이동
-     * 권한 설정은 Flutter의 PermissionScreen에서 처리
+     * 동의 저장 후 MainActivity로 이동
+     * 권한 설정은 MainActivity의 Flutter PermissionScreen에서 처리
      */
     private fun startPermissionFlow() {
-        // 동의 여부 저장
+        btnStart.isEnabled = false
         prefs.edit().putBoolean(KEY_AGREEMENT, true).apply()
-        Log.d(TAG, "✅ 동의 여부 저장 완료 - MainActivity로 이동 (권한 설정은 Flutter에서 처리)")
-
-        // 바로 MainActivity로 이동 (권한 팝업 없이)
-        // MainActivity(Flutter)에서 권한을 확인하고 없으면 PermissionScreen으로 이동
+        Log.d(TAG, "✅ 동의 여부 저장 완료 - MainActivity로 이동")
         proceedToMainActivity()
     }
 
     /**
      * MainActivity로 이동
+     * 로딩 스피너를 표시하고 예열된 Flutter 엔진을 사용하여 즉시 화면 전환
      */
     private fun proceedToMainActivity() {
-        Log.d(TAG, "✅ 모든 설정 완료 - MainActivity로 이동")
-        val intent = Intent(this, MainActivity::class.java)
-        // FLAG_ACTIVITY_CLEAR_TOP만 사용하여 같은 태스크에서 MainActivity를 시작
-        // FLAG_ACTIVITY_NEW_TASK를 제거하여 새로운 태스크가 생성되지 않도록 함
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        startActivity(intent)
-        finish()
+        Log.d(TAG, "✅ 모든 권한 처리 완료 - MainActivity로 이동")
+        
+        // 로딩 오버레이 표시
+        loadingOverlay.visibility = View.VISIBLE
+        
+        // Flutter 엔진이 준비될 때까지 약간 대기 (엔진 예열 보장)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            try {
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                intent.putExtra("fromOnboarding", true) // OnboardingActivity에서 넘어왔음을 표시
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ MainActivity 시작 실패: ${e.message}", e)
+                // 실패해도 앱이 크래시하지 않도록 처리
+                loadingOverlay.visibility = View.GONE
+            }
+        }, 200) // 엔진 준비를 위한 최소 지연
     }
 
     /**

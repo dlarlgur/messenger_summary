@@ -42,14 +42,56 @@ class ProfileImageService {
     try {
       if (Platform.isAndroid) {
         // Android: filesDir 사용 (캐시 삭제해도 유지)
-        final filesDir = await _methodChannel.invokeMethod<String>('getFilesDir');
-        if (filesDir != null && filesDir.isNotEmpty) {
-          _profileDir = '$filesDir/profile';
-        } else {
-          // fallback: getApplicationDocumentsDirectory
-          final dir = await getApplicationDocumentsDirectory();
-          _profileDir = '${dir.path}/profile';
+        String? filesDirPath;
+        try {
+          final filesDir = await _methodChannel.invokeMethod<String>('getFilesDir');
+          debugPrint('📁 getFilesDir 반환값: $filesDir');
+          if (filesDir != null && filesDir.isNotEmpty) {
+            filesDirPath = filesDir;
+          }
+        } catch (e) {
+          debugPrint('❌ getFilesDir 호출 실패: $e');
         }
+        
+        // getFilesDir가 실패했거나 null인 경우, supportDir에서 경로 추출
+        if (filesDirPath == null || filesDirPath.isEmpty) {
+          debugPrint('⚠️ getFilesDir 실패 - supportDir에서 경로 추출 시도');
+          try {
+            final supportDir = await getApplicationSupportDirectory();
+            debugPrint('📁 supportDir 경로: ${supportDir.path}');
+            
+            // supportDir 경로에서 패키지명과 base 경로 추출
+            // 예: /data/user/0/com.dksw.app/app_flutter -> /data/user/0/com.dksw.app/files
+            final supportPath = supportDir.path;
+            if (supportPath.contains('/app_flutter')) {
+              filesDirPath = supportPath.replaceAll('/app_flutter', '/files');
+              debugPrint('✅ 경로 교체 성공: $filesDirPath');
+            } else if (supportPath.contains(RegExp(r'/app_[^/]+'))) {
+              filesDirPath = supportPath.replaceAll(RegExp(r'/app_[^/]+'), '/files');
+              debugPrint('✅ 경로 교체 성공 (패턴): $filesDirPath');
+            } else {
+              // 패키지명 추출 시도
+              final match = RegExp(r'/data/user/0/([^/]+)').firstMatch(supportPath);
+              if (match != null) {
+                final packageName = match.group(1);
+                filesDirPath = '/data/user/0/$packageName/files';
+                debugPrint('✅ 패키지명으로 경로 구성: $filesDirPath');
+              } else {
+                // 최종 fallback: 하드코딩
+                filesDirPath = '/data/user/0/com.dksw.app/files';
+                debugPrint('⚠️ 최종 fallback 경로 사용: $filesDirPath');
+              }
+            }
+          } catch (e) {
+            debugPrint('❌ supportDir 경로 추출 실패: $e');
+            // 최종 fallback: 하드코딩
+            filesDirPath = '/data/user/0/com.dksw.app/files';
+            debugPrint('⚠️ 최종 fallback 경로 사용: $filesDirPath');
+          }
+        }
+        
+        _profileDir = '$filesDirPath/profile';
+        debugPrint('✅ 최종 프로필 디렉토리: $_profileDir');
       } else {
         // iOS: Documents 디렉토리 사용
         final dir = await getApplicationDocumentsDirectory();
@@ -95,24 +137,36 @@ class ProfileImageService {
   /// 
   /// [roomName] 대화방 이름
   /// 반환: File 또는 null
-  File? getRoomProfile(String roomName) {
+  File? getRoomProfile(String roomName, [String? packageName]) {
     if (!_initialized || _profileDir == null || roomName.isEmpty) {
       return null;
     }
 
+    final cacheKey = packageName != null ? '$packageName|$roomName' : roomName;
+
     // 캐시 확인
-    if (_roomProfileCache.containsKey(roomName)) {
-      return _roomProfileCache[roomName];
+    if (_roomProfileCache.containsKey(cacheKey)) {
+      return _roomProfileCache[cacheKey];
     }
 
     final safeRoomName = _safeFileName(roomName);
-    final file = File('$_profileDir/room/$safeRoomName.jpg');
+    // 새 경로 (메신저별) 먼저 확인, 없으면 기존 경로 fallback
+    File file;
+    if (packageName != null) {
+      final safePkg = _safeFileName(packageName);
+      file = File('$_profileDir/room/$safePkg/$safeRoomName.jpg');
+      if (!file.existsSync()) {
+        file = File('$_profileDir/room/$safeRoomName.jpg'); // fallback
+      }
+    } else {
+      file = File('$_profileDir/room/$safeRoomName.jpg');
+    }
 
     if (file.existsSync()) {
       try {
         final size = file.lengthSync();
         if (size > 0) {
-          _roomProfileCache[roomName] = file;
+          _roomProfileCache[cacheKey] = file;
           return file;
         }
       } catch (e) {
@@ -120,7 +174,7 @@ class ProfileImageService {
       }
     }
 
-    _roomProfileCache[roomName] = null;
+    _roomProfileCache[cacheKey] = null;
     return null;
   }
 
