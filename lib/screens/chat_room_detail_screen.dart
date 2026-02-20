@@ -17,7 +17,10 @@ import '../services/profile_image_service.dart';
 import '../services/privacy_masking_service.dart';
 import '../services/plan_service.dart';
 import '../config/constants.dart';
+import '../services/messenger_registry.dart';
+import '../services/ad_service.dart';
 import 'summary_history_screen.dart';
+import '../widgets/paywall_bottom_sheet.dart';
 
 /// 텍스트 세그먼트 정보
 class _TextSegment {
@@ -947,25 +950,65 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   Future<void> _openKakaoTalk() async {
-    const kakaoScheme = 'kakaotalk://main';
-    final uri = Uri.parse(kakaoScheme);
-
+    final packageName = widget.room.packageName;
+    String? scheme;
+    String? httpsUrl;
+    
+    // 메신저별 딥링크 스킴 및 https fallback URL 설정
+    switch (packageName) {
+      case 'com.kakao.talk':
+        scheme = 'kakaotalk://main'; // main을 붙이는 게 정석
+        httpsUrl = null; // Play Store만 사용
+        break;
+      case 'jp.naver.line.android':
+        scheme = 'line://'; // 기본 스킴으로 앱 열기
+        httpsUrl = 'https://line.me';
+        break;
+      case 'org.telegram.messenger':
+        scheme = 'tg://resolve?domain=telegram'; // 100% 작동하는 방식
+        httpsUrl = 'https://t.me/telegram';
+        break;
+      case 'com.instagram.android':
+        scheme = 'instagram://'; // 기본 스킴만으로 앱이 활성화됨
+        httpsUrl = 'https://www.instagram.com';
+        break;
+      case 'com.Slack':
+        scheme = 'slack://open'; // open을 붙여주는 것이 더 확실하게 반응
+        httpsUrl = 'https://slack.com';
+        break;
+      case 'com.microsoft.teams':
+        scheme = 'msteams://'; // Teams 딥링크 스킴
+        httpsUrl = 'https://teams.microsoft.com';
+        break;
+      case 'com.facebook.orca':
+        scheme = 'fb-messenger://'; // Messenger 딥링크 스킴
+        httpsUrl = 'https://www.messenger.com';
+        break;
+      default:
+        scheme = null;
+        httpsUrl = null;
+    }
+    
+    // Android에서는 MethodChannel을 사용 (강력한 fallback 체인)
     try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
+      final success = await _methodChannel.invokeMethod<bool>(
+        'openApp',
+        {
+          'packageName': packageName,
+          'scheme': scheme,
+          'httpsUrl': httpsUrl,
+        },
       );
-      if (!launched) {
-        _openPlayStore();
+      if (success != true) {
+        debugPrint('앱 열기 실패: $packageName');
       }
     } catch (e) {
-      _openPlayStore();
+      debugPrint('앱 열기 실패: $e');
     }
   }
 
-  Future<void> _openPlayStore() async {
-    const playStoreUrl =
-        'https://play.google.com/store/apps/details?id=com.kakao.talk';
+  Future<void> _openPlayStore(String packageId) async {
+    final playStoreUrl = 'https://play.google.com/store/apps/details?id=$packageId';
     final storeUri = Uri.parse(playStoreUrl);
     await launchUrl(storeUri, mode: LaunchMode.externalApplication);
   }
@@ -1732,9 +1775,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   /// 알림 토글
   Future<void> _toggleNotification(
       NotificationSettingsService notificationService) async {
-    await notificationService.toggleNotification(widget.room.roomName);
+    // 라인인 경우 chatId를 우선 사용 (roomName이 랜덤으로 변할 수 있음)
+    await notificationService.toggleNotification(
+      widget.room.roomName, 
+      widget.room.packageName,
+      widget.room.chatId,
+    );
     if (mounted) {
-      final isMuted = notificationService.isMuted(widget.room.roomName);
+      final isMuted = notificationService.isMuted(
+        widget.room.roomName, 
+        widget.room.packageName,
+        widget.room.chatId,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1975,31 +2027,41 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     ),
                   PopupMenuItem(
                     value: 'open_kakao',
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFE812).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.chat_bubble_rounded,
-                            color: Color(0xFF3C1E1E),
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          '카카오톡 열기',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF333333),
-                          ),
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (context) {
+                        final messengerInfo = MessengerRegistry.getByPackageName(widget.room.packageName);
+                        final messengerName = messengerInfo?.alias ?? '메신저';
+                        final messengerIcon = messengerInfo?.icon ?? Icons.chat_bubble_rounded;
+                        final brandColor = messengerInfo?.brandColor ?? const Color(0xFF2196F3);
+                        final isKakaoTalk = widget.room.packageName == 'com.kakao.talk';
+                        
+                        return Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: brandColor.withOpacity(isKakaoTalk ? 0.2 : 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                messengerIcon,
+                                color: isKakaoTalk ? const Color(0xFF3C1E1E) : brandColor,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              '$messengerName 열기',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF333333),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const PopupMenuDivider(height: 8),
@@ -2703,12 +2765,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           icon: Icon(
                             Icons.add_circle,
                             color: _selectedMessageCount <
-                                    _messages.length.clamp(1, 300)
+                                    _messages.length.clamp(1, 200)
                                 ? Color(AppColors.summaryPrimary)
                                 : Colors.grey[400],
                           ),
                           onPressed: _selectedMessageCount <
-                                  _messages.length.clamp(1, 300)
+                                  _messages.length.clamp(1, 200)
                               ? () async {
                                   await _updateSummaryCount(
                                       _selectedMessageCount + 1);
@@ -3332,12 +3394,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 icon: Icon(
                   Icons.add,
                   size: 18,
-                  color: _selectedMessageCount < _messages.length.clamp(1, 300)
+                  color: _selectedMessageCount < _messages.length.clamp(1, 200)
                       ? Colors.grey[700]
                       : Colors.grey[300],
                 ),
                 isActive: false,
-                onTap: _selectedMessageCount < _messages.length.clamp(1, 300)
+                onTap: _selectedMessageCount < _messages.length.clamp(1, 200)
                     ? () async {
                         await _updateSummaryCount(_selectedMessageCount + 1);
                         HapticFeedback.selectionClick();
@@ -3617,12 +3679,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           icon: Icon(
                             Icons.add_circle,
                             color: _selectedMessageCount <
-                                    _messages.length.clamp(1, 300)
+                                    _messages.length.clamp(1, 200)
                                 ? Color(AppColors.summaryPrimary)
                                 : Colors.grey[400],
                           ),
                           onPressed: _selectedMessageCount <
-                                  _messages.length.clamp(1, 300)
+                                  _messages.length.clamp(1, 200)
                               ? () async {
                                   await _updateSummaryCount(
                                       _selectedMessageCount + 1);
@@ -3855,14 +3917,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Widget _buildAISummaryButton() {
     final unreadCount = widget.room.unreadCount;
     final hasUnreadMessages = unreadCount >= 5;
+    final planType = _planService.getCachedPlanTypeSync();
+    final isFree = planType != 'basic';
+    final maxCount = isFree ? 50 : 200;
 
     if (hasUnreadMessages) {
       // 읽지 않은 메시지 5개 이상: 눈에 띄는 AI 요약하기 버튼 (그라데이션 + 애니메이션)
-      // 동기적으로 플랜 타입 가져오기
-      final planType = _planService.getCachedPlanTypeSync();
-      final maxCount = planType == 'basic' ? 200 : 50;
       final summaryCount = unreadCount.clamp(1, maxCount);
-      return Container(
+      final summaryButton = Container(
         height: MediaQuery.of(context).size.width * 0.1,
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -3917,10 +3979,56 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           ),
         ),
       );
+
+      // FREE 유저이고 안읽은 메시지가 제한(50개)을 초과한 경우: 업셀 칩 표시
+      if (isFree && unreadCount > maxCount) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            summaryButton,
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () => PaywallBottomSheet.show(
+                context,
+                triggerFeature: '${unreadCount}개 메시지 요약',
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9800).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFFF9800).withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline,
+                        size: 10, color: Color(0xFFFF9800)),
+                    const SizedBox(width: 3),
+                    Text(
+                      '총 ${unreadCount}개 · BASIC 200개',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFFFF9800),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+
+      return summaryButton;
     } else {
-      // 읽지 않은 메시지 없음: 작은 AI 버튼 (현대적인 디자인)
+      // 읽지 않은 메시지 없음: 작은 AI 버튼 + FREE일 경우 자동요약 잠금 칩
       final buttonSize = MediaQuery.of(context).size.width * 0.11;
-      return Container(
+      final iconButton = Container(
         width: buttonSize,
         height: buttonSize,
         decoration: BoxDecoration(
@@ -3944,6 +4052,52 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           tooltip: 'AI 요약',
         ),
       );
+
+      // FREE 유저: 자동요약 잠금 칩 추가
+      if (isFree) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            iconButton,
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => PaywallBottomSheet.show(
+                context,
+                triggerFeature: '자동요약',
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF50).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_outline,
+                        size: 11, color: Color(0xFF4CAF50)),
+                    SizedBox(width: 3),
+                    Text(
+                      '자동요약 BASIC',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF4CAF50),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+
+      return iconButton;
     }
   }
 
@@ -4102,87 +4256,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         Navigator.of(context).pop();
       }
 
+      // 서버에서 최신 한도 정보를 반영하도록 캐시 무효화
+      _planService.invalidateCache();
+
       if (mounted) {
-        // 사용량 초과 안내 바텀시트
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (context) => Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.timer_outlined,
-                    color: Color(0xFFFF9800),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  e.message,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '내일 자정에 초기화됩니다',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(AppColors.summaryPrimary),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      '확인',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        _showRateLimitWithRewardOption(e.message);
       }
     } on AuthException catch (e) {
       // 로딩 다이얼로그 닫기
@@ -4226,6 +4304,297 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           ),
         );
       }
+    }
+  }
+
+  /// 사용량 초과 시 리워드 광고 옵션 포함 바텀시트
+  void _showRateLimitWithRewardOption(String message) {
+    final adService = AdService();
+    final llmService = LlmService();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => FutureBuilder<int>(
+        future: llmService.getServerRemainingCount().then((v) => v ?? 0),
+        builder: (context, snapshot) {
+          final remaining = snapshot.data ?? 0;
+          return ValueListenableBuilder<bool>(
+            valueListenable: adService.rewardedAdReadyNotifier,
+            builder: (context, adReady, _) {
+          // 잔여 횟수가 있으면 광고 섹션 표시 (광고 로딩 중이어도 표시)
+          final hasRemaining = remaining > 0;
+          final canWatchAd = hasRemaining && adReady;
+
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF3E0),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.timer_outlined,
+                    color: Color(0xFFFF9800),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '내일 자정에 초기화됩니다',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                // 리워드 광고 옵션 (잔여 횟수가 있을 때만 표시)
+                if (hasRemaining) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F8FF),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF2196F3).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.play_circle_outline,
+                                color: Color(0xFF2196F3), size: 22),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '광고를 시청하고 무료 요약 1회 획득',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1A1A1A),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '오늘 남은 횟수: $remaining/3',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      // 광고가 아직 로딩 중이면 비활성화
+                      onPressed: canWatchAd
+                          ? () {
+                              Navigator.pop(sheetContext);
+                              _watchRewardAdAndRetry();
+                            }
+                          : null,
+                      icon: canWatchAd
+                          ? const Icon(Icons.play_arrow_rounded, size: 20)
+                          : const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                      label: Text(
+                        canWatchAd ? '광고 보고 요약하기' : '광고 로딩 중...',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2196F3),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFF2196F3).withOpacity(0.5),
+                        disabledForegroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (!hasRemaining) const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: hasRemaining
+                      ? OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey[600],
+                            side: BorderSide(color: Colors.grey[300]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            '닫기',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(AppColors.summaryPrimary),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            '확인',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  /// 리워드 서버 등록 완료 후 요약 실행
+  Future<void> _requestSummaryAfterReward(Future<bool> rewardFuture) async {
+    if (!mounted) return;
+    // 서버 리워드 등록 대기 중 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+    final registered = await rewardFuture;
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+    if (!registered) {
+      debugPrint('⚠️ 리워드 서버 등록 실패 - 요약은 계속 시도');
+    }
+    if (mounted) {
+      _requestSummary();
+    }
+  }
+
+  /// 리워드 광고 시청 후 요약 재시도
+  Future<void> _watchRewardAdAndRetry() async {
+    final adService = AdService();
+    final llmService = LlmService();
+    bool rewardEarned = false;
+    bool adClosed = false;
+    // onUserEarnedReward 시점에 서버 등록 시작 (광고 닫힘 전 미리 시작)
+    Future<bool>? rewardRegistrationFuture;
+
+    final success = await adService.showRewardedAd(
+      onRewarded: () {
+        debugPrint('🎁 리워드 획득 - 서버 등록 시작');
+        rewardEarned = true;
+        // 광고가 표시 중인 동안 미리 서버에 리워드 등록 요청
+        rewardRegistrationFuture = llmService.registerAdReward();
+
+        if (adClosed && mounted) {
+          debugPrint('✅ 리워드 획득 후 광고 닫힘 확인 - 요약 신청 실행');
+          Future.microtask(() {
+            if (mounted) {
+              _requestSummaryAfterReward(rewardRegistrationFuture!);
+            }
+          });
+        }
+      },
+      onAdClosed: () {
+        debugPrint('📺 광고 닫힘');
+        adClosed = true;
+        if (rewardEarned && mounted) {
+          debugPrint('✅ 리워드 광고 닫힘 후 요약 신청 실행');
+          Future.microtask(() {
+            if (mounted) {
+              // onRewarded에서 이미 등록 시작됐으면 그 Future 재사용
+              final future = rewardRegistrationFuture ?? llmService.registerAdReward();
+              _requestSummaryAfterReward(future);
+            }
+          });
+        } else if (!rewardEarned) {
+          debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');
+        }
+      },
+      onFailed: () {
+        debugPrint('❌ 광고 표시 실패');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      },
+    );
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
@@ -5661,11 +6030,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                         ),
                       // 텍스트가 있으면 말풍선으로 표시
-                      // 이모티콘: 이미지 없을 때만 "이모티콘을 보냈습니다" 표시, 이미지 있으면 숨김
-                      // 사진: "사진을 보냈습니다" 텍스트는 항상 숨김
+                      // 이미지가 있으면 "사진을 보냈습니다"/"이모티콘을 보냈습니다" 숨김
+                      // 이미지가 없으면 텍스트 그대로 표시
                       if (message.message.isNotEmpty &&
-                          (message.message == '이모티콘을 보냈습니다' && message.imagePath == null ||
-                           (message.message != '사진을 보냈습니다' && message.message != '이모티콘을 보냈습니다' && message.message.trim().isNotEmpty)))
+                          !((message.message == '사진을 보냈습니다' || message.message == '이모티콘을 보냈습니다') && message.imagePath != null) &&
+                          message.message.trim().isNotEmpty)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisAlignment: isSentByMe

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'blocked_rooms_screen.dart';
+import 'messenger_settings_screen.dart';
 import 'usage_management_screen.dart';
 import 'subscription_screen.dart';
 import 'how_to_use_screen.dart';
@@ -134,10 +135,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           // 채팅방 설정 섹션
           _buildSectionHeaderStyled('채팅방 설정', Icons.chat_bubble_outline),
           _buildStyledMenuItem(
+            icon: Icons.forum,
+            title: '메신저 관리',
+            subtitle: '사용할 메신저 선택 및 순서 변경',
+            isFirst: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MessengerSettingsScreen(),
+                ),
+              );
+            },
+          ),
+          _buildStyledMenuItem(
             icon: Icons.block,
             title: '차단된 채팅방 관리',
             subtitle: '요약에서 제외할 채팅방',
-            isFirst: true,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -282,7 +295,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         ),
         child: Stack(
         children: [
-          // 배경 장식
+          // 배경 장식 (더 진하게)
           Positioned(
             right: -20,
             top: -20,
@@ -291,7 +304,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1),
+                color: Colors.white.withValues(alpha: 0.25),
               ),
             ),
           ),
@@ -303,17 +316,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Colors.white.withValues(alpha: 0.2),
               ),
             ),
           ),
-          // 반짝이 효과
+          // 반짝이 효과 (더 진하게)
           Positioned(
             right: 30,
             top: 20,
             child: Icon(
               Icons.auto_awesome,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: Colors.white.withValues(alpha: 0.9),
               size: 16,
             ),
           ),
@@ -322,7 +335,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             bottom: 30,
             child: Icon(
               Icons.auto_awesome,
-              color: Colors.white.withValues(alpha: 0.4),
+              color: Colors.white.withValues(alpha: 0.7),
               size: 12,
             ),
           ),
@@ -365,7 +378,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                       const SizedBox(height: 12),
                       _buildFeatureItem('메시지 자동 요약'),
                       const SizedBox(height: 8),
-                      _buildFeatureItem('메시지 최대 300개 요약'),
+                      _buildFeatureItem('메시지 최대 200개 요약'),
                     ],
                   ),
                 ),

@@ -4,6 +4,8 @@ import 'package:path/path.dart';
 import '../models/chat_room.dart';
 import '../models/chat_message.dart';
 import 'faq_service.dart';
+import 'messenger_registry.dart';
+import 'messenger_settings_service.dart';
 
 class LocalDbService {
   static final LocalDbService _instance = LocalDbService._internal();
@@ -12,7 +14,7 @@ class LocalDbService {
 
   // Android ChatDatabase.kt와 동일한 DB 이름 사용
   static const String _databaseName = 'chat_llm.db';
-  static const int _databaseVersion = 6; // push_notifications 테이블에 is_read 필드 추가
+  static const int _databaseVersion = 7; // chat_rooms 테이블에 chat_id 컬럼 추가
 
   // 테이블 이름 (Android와 동일)
   static const String _tableRooms = 'chat_rooms';
@@ -23,10 +25,13 @@ class LocalDbService {
   Database? _database;
   bool _isInitialized = false;
 
-  /// 지원 메신저 목록 (카카오톡만)
-  static const List<Map<String, String>> supportedMessengers = [
-    {'packageName': 'com.kakao.talk', 'alias': '카카오톡'},
-  ];
+  /// 전체 메신저 목록 (등록된 모든 메신저)
+  static List<Map<String, String>> get allMessengers =>
+      MessengerRegistry.allMessengers.map((m) => m.toMap()).toList();
+
+  /// 활성화된 메신저 목록 (설정 + 플랜에 따라 동적)
+  static List<Map<String, String>> get supportedMessengers =>
+      MessengerSettingsService().getEnabledMessengersAsMap();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -180,6 +185,10 @@ class LocalDbService {
       if (version == 6) {
         // 읽음 상태 필드 추가
         await _ensureColumnExists(db, _tableNotifications, 'is_read', 'INTEGER DEFAULT 0');
+      }
+      if (version == 7) {
+        // chat_id 컬럼 추가 (라인 등 메신저별 대화방 고유 식별자)
+        await _ensureColumnExists(db, _tableRooms, 'chat_id', 'TEXT');
       }
     }
   }
@@ -356,8 +365,8 @@ class LocalDbService {
     if (muted != null) updateData['muted'] = muted ? 1 : 0;
     if (autoSummaryEnabled != null) updateData['auto_summary_enabled'] = autoSummaryEnabled ? 1 : 0;
     if (autoSummaryMessageCount != null) {
-      // 5~300 사이로 제한
-      final clampedCount = autoSummaryMessageCount.clamp(5, 300);
+      // 5~200 사이로 제한
+      final clampedCount = autoSummaryMessageCount.clamp(5, 200);
       updateData['auto_summary_message_count'] = clampedCount;
     }
 
@@ -865,25 +874,11 @@ class LocalDbService {
     return count > 0;
   }
 
-  /// 빈 요약 메시지 삭제 (내용이 없는 요약 정리)
-  Future<int> deleteEmptySummaries() async {
-    final db = await database;
-    final count = await db.delete(
-      _tableSummaries,
-      where: "summary_message IS NULL OR summary_message = ''",
-    );
-    debugPrint('🗑️ 빈 요약 $count개 삭제됨');
-    return count;
-  }
 
   // ============ 헬퍼 메서드 ============
 
   String _getPackageAlias(String packageName) {
-    final messenger = supportedMessengers.firstWhere(
-      (m) => m['packageName'] == packageName,
-      orElse: () => {'alias': '알 수 없음'},
-    );
-    return messenger['alias'] ?? '알 수 없음';
+    return MessengerRegistry.getAlias(packageName);
   }
 
   ChatRoom _mapToRoom(Map<String, dynamic> row) {
@@ -903,14 +898,15 @@ class LocalDbService {
       category: RoomCategory.fromString(row['category'] as String?),
       packageName: row['package_name'] as String? ?? 'com.kakao.talk',
       packageAlias: row['package_alias'] as String? ?? '알 수 없음',
+      chatId: row['chat_id'] as String?,
       autoSummaryEnabled: (row['auto_summary_enabled'] as int? ?? 0) == 1,
       autoSummaryMessageCount: row['auto_summary_message_count'] as int? ?? 50,
     );
   }
 
-  /// 지원 메신저인지 확인
+  /// 지원 메신저인지 확인 (등록된 모든 메신저 대상)
   bool isSupportedMessenger(String packageName) {
-    return supportedMessengers.any((m) => m['packageName'] == packageName);
+    return MessengerRegistry.getByPackageName(packageName) != null;
   }
 
   /// roomName과 packageName으로 채팅방 찾기

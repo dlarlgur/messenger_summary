@@ -183,9 +183,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     try {
       // 스트림에서 결과를 타임아웃과 함께 대기
+      // 복원 시 Play Store → 클라이언트 → 서버 → Google API 전체 체인이 필요하므로 30초 대기
       final resultFuture = _purchaseService.verificationResultStream
           .first
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       await _purchaseService.restorePurchases();
 

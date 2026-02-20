@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../interceptors/auth_interceptor.dart';
 
 /// 플랜 설정 서비스
@@ -33,6 +34,9 @@ class PlanService {
   DateTime? _lastFetchTime;
   static const Duration _cacheExpiry = Duration(minutes: 5);
 
+  // SharedPreferences 키 (Android NotificationListener에서도 읽음)
+  static const String _sharedPrefsPlanTypeKey = 'flutter.plan_type';
+
   PlanService._internal() {
     _initDio();
   }
@@ -58,6 +62,13 @@ class PlanService {
     if (usage != null) {
       _cachedPlanType = usage['planType'] as String? ?? 'free';
       _lastFetchTime = DateTime.now();
+      // Android NotificationListener에서도 읽을 수 있도록 SharedPreferences에 캐시
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_sharedPrefsPlanTypeKey, _cachedPlanType!);
+      } catch (e) {
+        debugPrint('플랜 타입 SharedPreferences 저장 실패: $e');
+      }
       return _cachedPlanType!;
     }
 
@@ -259,6 +270,13 @@ class PlanService {
         // 캐시 업데이트
         _cachedPlanType = result['planType'] as String? ?? 'free';
         _lastFetchTime = DateTime.now();
+        // Android NotificationListener에서도 읽을 수 있도록 SharedPreferences에 캐시
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_sharedPrefsPlanTypeKey, _cachedPlanType!);
+        } catch (e) {
+          debugPrint('플랜 타입 SharedPreferences 저장 실패: $e');
+        }
         debugPrint('✅ 현재 구독 정보 조회 성공: planType=$_cachedPlanType');
         return result;
       } else {

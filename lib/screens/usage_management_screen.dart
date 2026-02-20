@@ -7,8 +7,11 @@ import '../services/plan_service.dart';
 import '../services/local_db_service.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/profile_image_service.dart';
+import '../services/messenger_registry.dart';
+import '../services/messenger_settings_service.dart';
 import '../models/chat_room.dart';
 import 'summary_history_screen.dart';
+import '../widgets/paywall_bottom_sheet.dart';
 
 /// 요약 관리 화면
 class UsageManagementScreen extends StatefulWidget {
@@ -37,6 +40,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   final Map<int, int> _tempAutoSummaryCounts = {};
   // TextEditingController 관리 (커서 유지를 위해)
   final Map<int, TextEditingController> _textControllers = {};
+  // 메신저별 탭 선택
+  String? _selectedPackageName;
 
   @override
   void initState() {
@@ -660,6 +665,55 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   }
 
   Widget _buildSummaryEnabledRoomsSection() {
+    // 메신저별로 채팅방 그룹화
+    final Map<String, List<ChatRoom>> roomsByPackage = {};
+    for (var room in _summaryEnabledRooms) {
+      final packageName = room.packageName;
+      if (!roomsByPackage.containsKey(packageName)) {
+        roomsByPackage[packageName] = [];
+      }
+      roomsByPackage[packageName]!.add(room);
+    }
+    
+    // 메신저 관리 설정 순서대로 정렬
+    final messengerSettings = MessengerSettingsService();
+    final enabledMessengers = messengerSettings.getEnabledMessengers();
+    final orderedPackages = <String>[];
+    
+    // 1. 메신저 관리 순서대로 추가 (채팅방이 있는 것만)
+    for (var messenger in enabledMessengers) {
+      if (roomsByPackage.containsKey(messenger.packageName)) {
+        orderedPackages.add(messenger.packageName);
+      }
+    }
+    
+    // 2. 메신저 관리에 없지만 채팅방이 있는 메신저 추가 (Slack 등)
+    for (var packageName in roomsByPackage.keys) {
+      if (!orderedPackages.contains(packageName)) {
+        orderedPackages.add(packageName);
+      }
+    }
+    
+    final availablePackages = orderedPackages;
+    
+    // 선택된 패키지가 없거나 목록에 없으면 첫 번째 자동 선택
+    if (_selectedPackageName == null || !availablePackages.contains(_selectedPackageName)) {
+      if (availablePackages.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedPackageName = availablePackages.first;
+            });
+          }
+        });
+      }
+    }
+    
+    // 필터링된 채팅방 목록
+    final filteredRooms = _selectedPackageName != null && roomsByPackage.containsKey(_selectedPackageName)
+        ? roomsByPackage[_selectedPackageName]!
+        : [];
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -686,6 +740,12 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               ),
           ],
         ),
+        const SizedBox(height: 16),
+        
+        // 메신저별 탭 (채팅방이 있을 때만 표시)
+        if (availablePackages.length > 1)
+          _buildMessengerTabs(availablePackages, roomsByPackage),
+        
         const SizedBox(height: 16),
         
         // 채팅방 목록
@@ -720,6 +780,39 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               ),
             ),
           )
+        else if (filteredRooms.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.grey[200]!,
+                width: 1,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _selectedPackageName != null
+                        ? '${MessengerRegistry.getAlias(_selectedPackageName!)} 채팅방이 없습니다'
+                        : '채팅방이 없습니다',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
         else
           Container(
             decoration: BoxDecoration(
@@ -736,7 +829,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _summaryEnabledRooms.length,
+              itemCount: filteredRooms.length,
               separatorBuilder: (context, index) => Divider(
                 height: 1,
                 thickness: 1,
@@ -745,7 +838,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 endIndent: 20,
               ),
               itemBuilder: (context, index) {
-                final room = _summaryEnabledRooms[index];
+                final room = filteredRooms[index];
                 final isInitialRoom = widget.initialRoomId != null && room.id == widget.initialRoomId;
                 
                 // GlobalKey 생성 (초기 방인 경우)
@@ -758,6 +851,120 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             ),
           ),
       ],
+    );
+  }
+  
+  /// 메신저별 탭 위젯
+  Widget _buildMessengerTabs(List<String> packages, Map<String, List<ChatRoom>> roomsByPackage) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: packages.map((packageName) {
+            final messengerInfo = MessengerRegistry.getByPackageName(packageName);
+            final isSelected = _selectedPackageName == packageName;
+            final roomCount = roomsByPackage[packageName]?.length ?? 0;
+            
+            return _buildMessengerTabItem(
+              messengerInfo?.alias ?? '알 수 없음',
+              isSelected,
+              () {
+                setState(() {
+                  _selectedPackageName = packageName;
+                });
+              },
+              packageName: packageName,
+              roomCount: roomCount,
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+  
+  /// 메신저 탭 아이템 위젯
+  Widget _buildMessengerTabItem(
+    String label,
+    bool isSelected,
+    VoidCallback onTap, {
+    String? packageName,
+    int roomCount = 0,
+  }) {
+    final messengerInfo = packageName != null
+        ? MessengerRegistry.getByPackageName(packageName)
+        : null;
+    final selectedColor = messengerInfo?.brandColor ?? const Color(0xFF2196F3);
+    final messengerIcon = messengerInfo?.icon ?? Icons.chat;
+    final isKakaoTalk = packageName == 'com.kakao.talk';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? selectedColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  messengerIcon,
+                  size: 16,
+                  color: isKakaoTalk ? Colors.black87 : Colors.white,
+                ),
+              ),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? (isKakaoTalk ? Colors.black87 : Colors.white)
+                    : Colors.black87,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            if (roomCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? (isKakaoTalk ? Colors.black87 : Colors.white).withOpacity(0.2)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$roomCount',
+                  style: TextStyle(
+                    color: isSelected
+                        ? (isKakaoTalk ? Colors.black87 : Colors.white)
+                        : Colors.black87,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -872,30 +1079,97 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             );
           },
         ),
-        // 자동 요약 설정 (베이직 플랜 전용 - 베이직일 때만 표시)
-        if (_isBasicPlan)
-          Consumer<AutoSummarySettingsService>(
-            builder: (context, autoSummarySettings, _) {
-              // 베이직 플랜인 경우 자동 요약 설정 표시
-              return Column(
-              children: [
-                ListTile(
-                  title: const Text('자동 요약'),
-                  subtitle: Text(
-                    room.autoSummaryEnabled
-                        ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
-                        : '자동 요약이 꺼져 있습니다',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+        // 자동 요약 설정 (베이직: 활성화 / FREE: 잠금 표시로 구독 유도)
+        Consumer<AutoSummarySettingsService>(
+          builder: (context, autoSummarySettings, _) {
+            if (!_isBasicPlan) {
+              // FREE 유저: 자동 요약 잠금 표시로 구독 유도
+              return GestureDetector(
+                onTap: () => PaywallBottomSheet.show(
+                  context,
+                  triggerFeature: '자동요약',
+                ),
+                child: ListTile(
+                  title: Row(
+                    children: [
+                      const Text('자동 요약'),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF4CAF50).withOpacity(0.4),
+                          ),
+                        ),
+                        child: const Text(
+                          'BASIC',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF4CAF50),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: const Text(
+                    'N개 메시지 쌓이면 자동으로 백그라운드 요약',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4CAF50).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF4CAF50).withOpacity(0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_outline,
+                            size: 14, color: Color(0xFF4CAF50)),
+                        SizedBox(width: 4),
+                        Text(
+                          'BASIC',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF4CAF50),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  trailing: Switch(
-                    value: room.autoSummaryEnabled,
-                    onChanged: (value) => _toggleAutoSummary(room, value),
-                    activeColor: const Color(0xFF2196F3),
+                ),
+              );
+            }
+
+            // 베이직 플랜인 경우 자동 요약 설정 표시
+            return Column(
+            children: [
+              ListTile(
+                title: const Text('자동 요약'),
+                subtitle: Text(
+                  room.autoSummaryEnabled
+                      ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
+                      : '자동 요약이 꺼져 있습니다',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
                   ),
                 ),
+                trailing: Switch(
+                  value: room.autoSummaryEnabled,
+                  onChanged: (value) => _toggleAutoSummary(room, value),
+                  activeColor: const Color(0xFF2196F3),
+                ),
+              ),
                 if (room.autoSummaryEnabled)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -969,7 +1243,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                     FilteringTextInputFormatter.digitsOnly,
                                   ],
                                   decoration: InputDecoration(
-                                    hintText: '5 ~ 300',
+                                    hintText: '5 ~ 200',
                                     suffixText: '개',
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -987,7 +1261,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                   ),
                                   onChanged: (value) {
                                     final count = int.tryParse(value);
-                                    if (count != null && count >= 5 && count <= 300) {
+                                    if (count != null && count >= 5 && count <= 200) {
                                       // setState 없이 직접 업데이트 (커서 유지)
                                       _tempAutoSummaryCounts[room.id] = count;
                                       // 위의 개수 표시만 업데이트
@@ -1001,10 +1275,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                           const SizedBox(height: 16),
                           // 슬라이더
                           Slider(
-                            value: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toDouble().clamp(5.0, 300.0),
+                            value: (_tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount).toDouble().clamp(5.0, 200.0),
                             min: 5,
-                            max: 300,
-                            divisions: 59,
+                            max: 200,
+                            divisions: 39,
                             activeColor: const Color(0xFF2196F3),
                             inactiveColor: Colors.grey[300],
                             onChanged: (value) {
@@ -1030,7 +1304,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                 ),
                               ),
                               Text(
-                                '300개',
+                                '200개',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -1123,7 +1397,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
 
     // 임시 값이 없으면 현재 값을 사용
     final tempCount = _tempAutoSummaryCounts[room.id] ?? room.autoSummaryMessageCount;
-    final clampedCount = tempCount.clamp(5, 300);
+    final clampedCount = tempCount.clamp(5, 200);
     
     final result = await _localDb.updateRoomSettings(
       room.id,

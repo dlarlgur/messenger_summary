@@ -25,6 +25,7 @@ import 'notification_list_screen.dart';
 import 'usage_management_screen.dart';
 import 'app_settings_screen.dart';
 import 'subscription_screen.dart';
+import '../widgets/paywall_bottom_sheet.dart';
 
 /// 사선을 그리는 CustomPainter
 class SlashPainter extends CustomPainter {
@@ -65,6 +66,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   // 패키지별 필터링
   String? _selectedPackageName;
+  final PageController _pageController = PageController();
+  final ScrollController _tabScrollController = ScrollController();
+  final Map<String, GlobalKey> _tabKeys = {};
 
   // 설정 버튼 클릭 카운터 (5번 누르면 플랜 선택)
   int _settingsClickCount = 0;
@@ -233,6 +237,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _dbObserverTimer?.cancel(); // ✅ 핵심 수정: DB Observer 중지
     _topNativeAd?.dispose();
     _listNativeAd?.dispose();
+    _pageController.dispose();
+    _tabScrollController.dispose();
     super.dispose();
   }
 
@@ -805,24 +811,29 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   await _toggleSummaryEnabled(room);
                 },
               ),
-              // 자동요약기능설정 (AI 요약 기능이 켜져 있고 베이직 플랜일 때만 표시)
-              if (isBasicPlan && room.summaryEnabled)
+              // 자동요약기능설정 (AI 요약 기능이 켜져 있을 때 표시, Free는 잠금)
+              if (room.summaryEnabled)
                 _buildMenuItem(
-                  icon: Icons.schedule,
+                  icon: isBasicPlan ? Icons.schedule : Icons.lock_outline,
                   title: '자동요약기능설정',
-                  subtitle: room.autoSummaryEnabled 
-                      ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
-                      : '자동 요약이 꺼져 있습니다',
-                  isEnabled: room.autoSummaryEnabled,
-                  iconColor: room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
+                  subtitle: isBasicPlan
+                      ? (room.autoSummaryEnabled
+                          ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
+                          : '자동 요약이 꺼져 있습니다')
+                      : 'BASIC 플랜에서 사용 가능',
+                  isEnabled: isBasicPlan && room.autoSummaryEnabled,
+                  iconColor: isBasicPlan && room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
                   onTap: () {
                     Navigator.pop(context);
-                    // 요약 관리 페이지로 이동 (해당 채팅방으로 스크롤)
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => UsageManagementScreen(initialRoomId: room.id),
-                      ),
-                    );
+                    if (!isBasicPlan) {
+                      PaywallBottomSheet.show(context, triggerFeature: '자동요약');
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => UsageManagementScreen(initialRoomId: room.id),
+                        ),
+                      );
+                    }
                   },
                 ),
               // 채팅방 상단 고정
@@ -1467,25 +1478,41 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   ? AdWidget(ad: _topNativeAd!)
                   : const SizedBox(),
             ),
-          // 채팅방 목록
+          // 채팅방 목록 (PageView로 탭 전환 - 손가락 따라 화면 이동)
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
-                    ),
-                  )
-                : _error != null
-                    ? Center(
+            child: Builder(
+              builder: (context) {
+                final messengers = MessengerSettingsService().getEnabledMessengers();
+                if (messengers.isEmpty) {
+                  return const Center(child: Text('활성화된 메신저가 없습니다'));
+                }
+                return PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    if (index < messengers.length) {
+                      final packageName = messengers[index].packageName;
+                      setState(() => _selectedPackageName = packageName);
+                      _scrollToSelectedTab(packageName);
+                    }
+                  },
+                  itemCount: messengers.length,
+                  itemBuilder: (context, pageIndex) {
+                    final pagePackageName = messengers[pageIndex].packageName;
+                    if (_isLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+                        ),
+                      );
+                    }
+                    if (_error != null) {
+                      return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
                             const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
+                            Text(_error!, style: TextStyle(color: Colors.grey[600])),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadChatRooms,
@@ -1493,40 +1520,36 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                             ),
                           ],
                         ),
-                      )
-                    : _getFilteredRooms().isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.chat_bubble_outline,
-                                    size: 80, color: Colors.grey[300]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  '대화방이 없습니다',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _selectedPackageName != null
-                                      ? '${_getPackageDisplayName(_selectedPackageName!)} 대화방이 없습니다'
-                                      : '알림을 수신하면 대화방이 생성됩니다',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[400],
-                                  ),
-                                ),
-                              ],
+                      );
+                    }
+                    final filteredRooms = _getFilteredRoomsForPackage(pagePackageName);
+                    if (filteredRooms.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[300]),
+                            const SizedBox(height: 16),
+                            Text('대화방이 없습니다',
+                                style: TextStyle(fontSize: 18, color: Colors.grey[500])),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${_getPackageDisplayName(pagePackageName)} 대화방이 없습니다',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
                             ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadChatRooms,
-                            color: const Color(0xFF2196F3),
-                            child: _buildChatListWithAd(notificationService),
-                          ),
+                          ],
+                        ),
+                      );
+                    }
+                    return RefreshIndicator(
+                      onRefresh: _loadChatRooms,
+                      color: const Color(0xFF2196F3),
+                      child: _buildChatListWithAd(notificationService, packageName: pagePackageName),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -1536,9 +1559,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 채팅방 목록 + 리스트 네이티브 광고 빌드
   /// AdWidget은 ListView.builder 안에서 재사용 시 에러 발생
   /// → CustomScrollView + Sliver로 고정 위치에 삽입
-  Widget _buildChatListWithAd(NotificationSettingsService notificationService) {
-    final rooms = _getFilteredRooms();
-    final hasListAd = _isListNativeLoaded && _listNativeAd != null;
+  Widget _buildChatListWithAd(NotificationSettingsService notificationService, {String? packageName}) {
+    final rooms = packageName != null ? _getFilteredRoomsForPackage(packageName) : _getFilteredRooms();
+    // AdWidget(PlatformView)은 위젯 트리에서 이동 불가 → 항상 첫 번째 탭에만 고정
+    // PageView가 인접 페이지를 동시 렌더링할 때 AdWidget이 두 곳에 삽입되면 에러 발생
+    final firstPackageName = MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
+    final isFirstPage = packageName == null || packageName == firstPackageName;
+    final hasListAd = isFirstPage && _isListNativeLoaded && _listNativeAd != null;
     // 광고 삽입 위치: 3번째(index 2) 또는 방이 3개 미만이면 맨 끝
     final adPosition = hasListAd ? (rooms.length >= 3 ? 2 : rooms.length) : rooms.length;
 
@@ -1841,6 +1868,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       child: Align(
         alignment: Alignment.centerLeft,
         child: SingleChildScrollView(
+          controller: _tabScrollController,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
@@ -1848,6 +1876,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               final index = entry.key;
               final messenger = entry.value;
               final isSelected = _selectedPackageName == messenger.packageName;
+              final tabKey = _getTabKey(messenger.packageName);
 
               return LongPressDraggable<int>(
                 data: index,
@@ -1880,9 +1909,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     return _buildTabItem(
                       messenger.alias,
                       isSelected,
-                      () => setState(() => _selectedPackageName = messenger.packageName),
+                      () {
+                        setState(() => _selectedPackageName = messenger.packageName);
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                        _scrollToSelectedTab(messenger.packageName);
+                      },
                       packageName: messenger.packageName,
                       isDropTarget: candidateData.isNotEmpty,
+                      itemKey: tabKey,
                     );
                   },
                 ),
@@ -1894,16 +1932,42 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     );
   }
 
+  /// 탭 키 가져오기 (없으면 생성)
+  GlobalKey _getTabKey(String packageName) =>
+      _tabKeys.putIfAbsent(packageName, () => GlobalKey());
+
+  /// 선택된 탭이 탭 바에서 보이도록 자동 스크롤
+  void _scrollToSelectedTab(String packageName) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _tabKeys[packageName];
+      if (key?.currentContext == null) return;
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.5, // 탭을 가운데로
+      );
+    });
+  }
+
   /// 탭 순서 변경
   void _reorderTab(int oldIndex, int newIndex) {
     if (oldIndex == newIndex) return;
     MessengerSettingsService().reorder(oldIndex, newIndex);
     setState(() {});
+    // 재정렬 후 선택된 탭의 새 인덱스로 PageController 동기화
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messengers = MessengerSettingsService().getEnabledMessengers();
+      final newIdx = messengers.indexWhere((m) => m.packageName == _selectedPackageName);
+      if (newIdx >= 0) _pageController.jumpToPage(newIdx);
+    });
   }
 
   /// 탭 아이템 위젯
   Widget _buildTabItem(String label, bool isSelected, VoidCallback onTap,
-      {String? packageName, bool isDropTarget = false}) {
+      {String? packageName, bool isDropTarget = false, GlobalKey? itemKey}) {
     final messengerInfo = packageName != null
         ? MessengerRegistry.getByPackageName(packageName)
         : null;
@@ -1919,6 +1983,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         : 0;
 
     return GestureDetector(
+      key: itemKey,
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -1991,6 +2056,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   }
 
   /// 필터링된 채팅방 목록 반환
+  List<ChatRoom> _getFilteredRoomsForPackage(String packageName) {
+    const String faqPackageName = 'com.dksw.app.faq';
+    final faqRooms = _chatRooms.where((room) => room.packageName == faqPackageName).toList();
+    final otherRooms = _chatRooms.where((room) => room.packageName != faqPackageName).toList();
+    final filtered = otherRooms.where((room) => room.packageName == packageName).toList();
+    return [...filtered, ...faqRooms];
+  }
+
   List<ChatRoom> _getFilteredRooms() {
     const String faqPackageName = 'com.dksw.app.faq';
     

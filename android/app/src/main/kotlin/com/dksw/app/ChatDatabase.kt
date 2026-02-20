@@ -2,6 +2,7 @@ package com.dksw.app
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
@@ -19,7 +20,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     companion object {
         const val TAG = "ChatDatabase"
         const val DATABASE_NAME = "chat_llm.db"
-        const val DATABASE_VERSION = 5  // Flutter와 버전 일치 (push_notifications 테이블에 is_auto_summary, summary_id 필드 추가)
+        const val DATABASE_VERSION = 6  // Flutter와 버전 일치
 
         // 채팅방 테이블
         const val TABLE_ROOMS = "chat_rooms"
@@ -40,6 +41,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         const val ROOM_CREATED_AT = "created_at"
         const val ROOM_UPDATED_AT = "updated_at"
         const val ROOM_REPLY_INTENT = "reply_intent"  // PendingIntent를 위한 Intent 직렬화 데이터
+        const val ROOM_CHAT_ID = "chat_id"  // 메신저별 대화방 고유 식별자 (LINE shortcutId 등)
         const val ROOM_AUTO_SUMMARY_ENABLED = "auto_summary_enabled"  // 자동 요약 활성화 여부
         const val ROOM_AUTO_SUMMARY_MESSAGE_COUNT = "auto_summary_message_count"  // 자동 요약 메시지 개수
 
@@ -96,6 +98,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
                 $ROOM_REPLY_INTENT TEXT,
                 $ROOM_AUTO_SUMMARY_ENABLED INTEGER DEFAULT 0,
                 $ROOM_AUTO_SUMMARY_MESSAGE_COUNT INTEGER DEFAULT 50,
+                $ROOM_CHAT_ID TEXT,
                 UNIQUE($ROOM_NAME, $ROOM_PACKAGE_NAME)
             )
         """.trimIndent())
@@ -218,6 +221,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         ensureReplyIntentColumn(db)
         ensureAutoSummaryColumns(db)
         ensureSummaryDetailMessageColumn(db)
+        ensureChatIdColumn(db)
     }
 
     /**
@@ -298,6 +302,26 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    private fun ensureChatIdColumn(db: SQLiteDatabase) {
+        try {
+            val cursor = db.rawQuery("PRAGMA table_info($TABLE_ROOMS)", null)
+            var columnExists = false
+            while (cursor.moveToNext()) {
+                if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == ROOM_CHAT_ID) {
+                    columnExists = true
+                    break
+                }
+            }
+            cursor.close()
+            if (!columnExists) {
+                db.execSQL("ALTER TABLE $TABLE_ROOMS ADD COLUMN $ROOM_CHAT_ID TEXT")
+                Log.i(TAG, "✅ chat_id 컬럼 추가 완료 (onOpen)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "chat_id 컬럼 확인/추가 실패: ${e.message}", e)
+        }
+    }
+
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.setForeignKeyConstraintsEnabled(true)
@@ -316,38 +340,59 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         lastSender: String?,
         lastMessageTime: Long,
         replyIntent: String? = null,
-        isPrivateChat: Boolean = false
+        isPrivateChat: Boolean = false,
+        chatId: String? = null
     ): Long {
-        Log.i(TAG, "🏠 ========== 채팅방 저장/업데이트 시작 ==========")
-        Log.i(TAG, "🏠 roomName='$roomName', packageName='$packageName'")
-        Log.i(TAG, "🏠 lastSender='$lastSender', lastMessage='${lastMessage?.take(50) ?: "null"}...'")
+
 
         val db = writableDatabase
         val now = System.currentTimeMillis()
 
-        // 기존 채팅방 찾기
-        val cursor = db.query(
-            TABLE_ROOMS,
-            arrayOf(ROOM_ID, ROOM_UNREAD_COUNT, ROOM_BLOCKED),
-            "$ROOM_NAME = ? AND $ROOM_PACKAGE_NAME = ?",
-            arrayOf(roomName, packageName),
-            null, null, null
-        )
+        // 기존 채팅방 찾기: chatId가 있으면 chatId+packageName으로 우선 조회
+        var foundByChatId = false
+        var cursor: Cursor = if (!chatId.isNullOrEmpty()) {
+            val chatIdCursor = db.query(
+                TABLE_ROOMS,
+                arrayOf(ROOM_ID, ROOM_UNREAD_COUNT, ROOM_BLOCKED, ROOM_NAME),
+                "$ROOM_CHAT_ID = ? AND $ROOM_PACKAGE_NAME = ?",
+                arrayOf(chatId, packageName),
+                null, null, null
+            )
+            if (chatIdCursor.moveToFirst()) {
+                foundByChatId = true
+                chatIdCursor
+            } else {
+                chatIdCursor.close()
+                // chatId로 못 찾으면 roomName으로 폴백
+                db.query(
+                    TABLE_ROOMS,
+                    arrayOf(ROOM_ID, ROOM_UNREAD_COUNT, ROOM_BLOCKED, ROOM_NAME),
+                    "$ROOM_NAME = ? AND $ROOM_PACKAGE_NAME = ?",
+                    arrayOf(roomName, packageName),
+                    null, null, null
+                )
+            }
+        } else {
+            db.query(
+                TABLE_ROOMS,
+                arrayOf(ROOM_ID, ROOM_UNREAD_COUNT, ROOM_BLOCKED, ROOM_NAME),
+                "$ROOM_NAME = ? AND $ROOM_PACKAGE_NAME = ?",
+                arrayOf(roomName, packageName),
+                null, null, null
+            )
+        }
 
-        return if (cursor.moveToFirst()) {
+        return if (foundByChatId || cursor.moveToFirst()) {
             // 기존 채팅방 업데이트
             val roomId = cursor.getLong(cursor.getColumnIndexOrThrow(ROOM_ID))
             val currentUnread = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_UNREAD_COUNT))
             val isBlocked = cursor.getInt(cursor.getColumnIndexOrThrow(ROOM_BLOCKED)) == 1
+            val existingRoomName = cursor.getString(cursor.getColumnIndexOrThrow(ROOM_NAME))
             cursor.close()
 
-            Log.i(TAG, "🏠 기존 채팅방 발견: roomId=$roomId, currentUnread=$currentUnread, isBlocked=$isBlocked")
 
             // 차단된 방이면 저장 안 함
-            if (isBlocked) {
-                Log.w(TAG, "🏠 ⚠️ 차단된 채팅방 무시: $roomName (roomId=$roomId)")
-                return -1
-            }
+            if (isBlocked) return -1
 
             val values = ContentValues().apply {
                 put(ROOM_LAST_MESSAGE, lastMessage)
@@ -358,11 +403,13 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
                 if (replyIntent != null) {
                     put(ROOM_REPLY_INTENT, replyIntent)
                 }
+                // chatId가 있으면 저장/업데이트
+                if (!chatId.isNullOrEmpty()) {
+                    put(ROOM_CHAT_ID, chatId)
+                }
             }
 
-            val updateCount = db.update(TABLE_ROOMS, values, "$ROOM_ID = ?", arrayOf(roomId.toString()))
-            Log.i(TAG, "🏠 ✅ 채팅방 업데이트 완료: roomName='$roomName', roomId=$roomId, updateCount=$updateCount, newUnread=${currentUnread + 1}")
-            Log.i(TAG, "🏠 ========== 채팅방 저장/업데이트 완료 ==========")
+            db.update(TABLE_ROOMS, values, "$ROOM_ID = ?", arrayOf(roomId.toString()))
             roomId
         } else {
             cursor.close()
@@ -370,7 +417,6 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
             // 새 채팅방 생성
             // 개인채팅은 요약 끄기 (0), 그룹/오픈채팅은 요약 켜기 (1)
             val defaultSummaryEnabled = if (isPrivateChat) 0 else 1
-            Log.i(TAG, "🏠 새 채팅방 생성 시작: roomName='$roomName', isPrivateChat=$isPrivateChat, summaryEnabled=$defaultSummaryEnabled")
             val packageAlias = getPackageAlias(packageName)
             val values = ContentValues().apply {
                 put(ROOM_NAME, roomName)
@@ -393,15 +439,15 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
                 if (replyIntent != null) {
                     put(ROOM_REPLY_INTENT, replyIntent)
                 }
+                if (!chatId.isNullOrEmpty()) {
+                    put(ROOM_CHAT_ID, chatId)
+                }
             }
 
             val roomId = db.insert(TABLE_ROOMS, null, values)
-            if (roomId > 0) {
-                Log.i(TAG, "🏠 ✅ 새 채팅방 생성 완료: roomName='$roomName', roomId=$roomId")
-            } else {
-                Log.e(TAG, "🏠 ❌ 새 채팅방 생성 실패: roomName='$roomName', roomId=$roomId")
+            if (roomId <= 0) {
+                Log.e(TAG, "채팅방 생성 실패: roomName='$roomName'")
             }
-            Log.i(TAG, "🏠 ========== 채팅방 저장/업데이트 완료 ==========")
             roomId
         }
     }
@@ -429,6 +475,18 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     }
 
     /**
+     * 중복 메시지 감지 시 unread 카운트 1 감소
+     */
+    private fun decrementUnreadCount(roomId: Long) {
+        val db = writableDatabase
+        db.execSQL(
+            "UPDATE $TABLE_ROOMS SET $ROOM_UNREAD_COUNT = MAX($ROOM_UNREAD_COUNT - 1, 0) WHERE $ROOM_ID = ?",
+            arrayOf(roomId.toString())
+        )
+        val newCount = getUnreadCount(roomId)
+    }
+
+    /**
      * 메시지 저장 (중복 체크 포함)
      */
     fun saveMessage(
@@ -438,15 +496,7 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         createTime: Long,
         roomName: String?
     ): Long {
-        Log.i(TAG, "💬 ========== 메시지 저장 시작 ==========")
-        Log.i(TAG, "💬 roomId=$roomId, sender='$sender', roomName='$roomName'")
-        Log.i(TAG, "💬 message='${message.take(100)}...' (길이: ${message.length})")
-        Log.i(TAG, "💬 createTime=$createTime")
-
-        if (roomId < 0) {
-            Log.e(TAG, "💬 ❌ roomId가 음수 ($roomId) - 저장 실패")
-            return -1
-        }
+        if (roomId < 0) return -1
 
         val db = writableDatabase
 
@@ -464,8 +514,9 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         if (cursor.moveToFirst()) {
             val existingMsgId = cursor.getLong(cursor.getColumnIndexOrThrow(MSG_ID))
             cursor.close()
-            Log.w(TAG, "💬 ⚠️ 중복 메시지 감지 - 저장 건너뜀: roomId=$roomId, sender='$sender', msgId=$existingMsgId")
-            return existingMsgId
+            // 중복 메시지: unread 카운트 롤백
+            decrementUnreadCount(roomId)
+            return -2 // 중복 메시지 표시
         }
         cursor.close()
 
@@ -479,28 +530,9 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
 
         val msgId = db.insert(TABLE_MESSAGES, null, values)
 
-        if (msgId > 0) {
-            Log.i(TAG, "💬 ✅ 메시지 저장 성공: roomId=$roomId, msgId=$msgId, sender='$sender'")
-
-            // 저장 후 확인 (디버깅용)
-            val checkCursor = db.query(
-                TABLE_MESSAGES,
-                arrayOf(MSG_ID, MSG_ROOM_ID, MSG_SENDER, MSG_MESSAGE),
-                "$MSG_ID = ?",
-                arrayOf(msgId.toString()),
-                null, null, null
-            )
-            if (checkCursor.moveToFirst()) {
-                val savedRoomId = checkCursor.getLong(checkCursor.getColumnIndexOrThrow(MSG_ROOM_ID))
-                val savedSender = checkCursor.getString(checkCursor.getColumnIndexOrThrow(MSG_SENDER))
-                Log.i(TAG, "💬 저장 확인: msgId=$msgId, savedRoomId=$savedRoomId, savedSender='$savedSender'")
-            }
-            checkCursor.close()
-        } else {
-            Log.e(TAG, "💬 ❌ 메시지 저장 실패: roomId=$roomId, sender='$sender', msgId=$msgId")
+        if (msgId <= 0) {
+            Log.e(TAG, "메시지 저장 실패: roomId=$roomId, sender='$sender'")
         }
-
-        Log.i(TAG, "💬 ========== 메시지 저장 완료 ==========")
         return msgId
     }
 
@@ -532,6 +564,10 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
     private fun getPackageAlias(packageName: String): String {
         return when (packageName) {
             "com.kakao.talk" -> "카카오톡"
+            "jp.naver.line.android" -> "LINE"
+            "org.telegram.messenger" -> "Telegram"
+            "com.instagram.android" -> "Instagram"
+            "com.Slack" -> "Slack"
             else -> "알 수 없음"
         }
     }
@@ -618,7 +654,6 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
      * 채팅방의 안 읽은 메시지 개수 초기화 (읽음 처리)
      */
     fun resetUnreadCount(roomId: Long): Boolean {
-        Log.i(TAG, "📖 읽음 처리: roomId=$roomId")
         val db = writableDatabase
         val values = ContentValues().apply {
             put(ROOM_UNREAD_COUNT, 0)
@@ -626,11 +661,6 @@ class ChatDatabase(context: Context) : SQLiteOpenHelper(
         }
         val updateCount = db.update(TABLE_ROOMS, values, "$ROOM_ID = ?", arrayOf(roomId.toString()))
         val success = updateCount > 0
-        if (success) {
-            Log.i(TAG, "📖 ✅ 읽음 처리 완료: roomId=$roomId")
-        } else {
-            Log.w(TAG, "📖 ⚠️ 읽음 처리 실패: roomId=$roomId, updateCount=$updateCount")
-        }
         return success
     }
 }

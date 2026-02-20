@@ -223,9 +223,6 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
     });
 
     try {
-      // 빈 요약 먼저 정리
-      await _localDb.deleteEmptySummaries();
-
       // 요약 히스토리 로드
       final detailResponse = await _localDb.getRoomSummaries(widget.roomId);
 
@@ -776,7 +773,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
-                        reverse: false, // 최신이 왼쪽에 오도록 (인덱스 0이 최신)
+                        reverse: true, // 왼쪽 스와이프 = 최신, 오른쪽 스와이프 = 과거
                         physics: const BouncingScrollPhysics(), // iOS 스타일 스크롤
                         onPageChanged: (index) {
                           if (index < _availableDates.length && index >= 0) {

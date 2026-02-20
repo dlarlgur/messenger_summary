@@ -37,8 +37,9 @@ class ChatRoom {
   final bool blocked;  // 차단 여부
   final String packageName;  // 패키지 이름 (com.kakao.talk, org.telegram.messenger 등)
   final String packageAlias;  // 패키지 표시 이름 (카카오톡, 텔레그램, 인스타그램 등)
+  final String? chatId;  // 메신저별 대화방 고유 식별자 (LINE shortcutId 등)
   final bool autoSummaryEnabled;  // 자동 요약 활성화 여부
-  final int autoSummaryMessageCount;  // 자동 요약 메시지 개수 (5~300)
+  final int autoSummaryMessageCount;  // 자동 요약 메시지 개수 (5~200)
 
   ChatRoom({
     required this.id,
@@ -55,6 +56,7 @@ class ChatRoom {
     this.blocked = false,  // 기본값: 정상
     this.packageName = 'com.kakao.talk',  // 기본값: 카카오톡
     this.packageAlias = '카카오톡',  // 기본값: 카카오톡
+    this.chatId,  // 메신저별 대화방 고유 식별자 (LINE shortcutId 등)
     this.autoSummaryEnabled = false,  // 기본값: 비활성화
     this.autoSummaryMessageCount = 50,  // 기본값: 50개
   });
@@ -75,6 +77,7 @@ class ChatRoom {
       blocked: json['blocked'] ?? false,  // 기본값: 정상
       packageName: json['packageName'] ?? 'com.kakao.talk',  // 기본값: 카카오톡
       packageAlias: json['packageAlias'] ?? '알 수 없음',  // 서버에서 반드시 제공해야 함
+      chatId: json['chatId'] ?? json['chat_id'],  // 메신저별 대화방 고유 식별자
       autoSummaryEnabled: json['autoSummaryEnabled'] == 1 || json['autoSummaryEnabled'] == true,  // DB에서는 INTEGER, JSON에서는 bool
       autoSummaryMessageCount: json['autoSummaryMessageCount'] ?? 50,  // 기본값: 50개
     );
@@ -127,12 +130,13 @@ class ChatRoom {
       'blocked': blocked,
       'packageName': packageName,
       'packageAlias': packageAlias,
+      'chatId': chatId,
       'autoSummaryEnabled': autoSummaryEnabled,
       'autoSummaryMessageCount': autoSummaryMessageCount,
     };
   }
 
-  /// pinned, category, summaryEnabled, blocked, packageName, packageAlias, unreadCount, autoSummaryEnabled, autoSummaryMessageCount 업데이트된 새 인스턴스 반환
+  /// pinned, category, summaryEnabled, blocked, packageName, packageAlias, chatId, unreadCount, autoSummaryEnabled, autoSummaryMessageCount 업데이트된 새 인스턴스 반환
   ChatRoom copyWith({
     bool? pinned,
     RoomCategory? category,
@@ -140,6 +144,7 @@ class ChatRoom {
     bool? blocked,
     String? packageName,
     String? packageAlias,
+    String? chatId,
     int? unreadCount,
     bool? autoSummaryEnabled,
     int? autoSummaryMessageCount,
@@ -159,6 +164,7 @@ class ChatRoom {
       blocked: blocked ?? this.blocked,
       packageName: packageName ?? this.packageName,
       packageAlias: packageAlias ?? this.packageAlias,
+      chatId: chatId ?? this.chatId,
       autoSummaryEnabled: autoSummaryEnabled ?? this.autoSummaryEnabled,
       autoSummaryMessageCount: autoSummaryMessageCount ?? this.autoSummaryMessageCount,
     );

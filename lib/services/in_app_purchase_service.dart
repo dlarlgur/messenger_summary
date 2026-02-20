@@ -43,6 +43,9 @@ class InAppPurchaseService {
   // 활성 구독의 purchaseToken 캐시 (앱 실행 시 구독 부활용)
   String? _cachedPurchaseToken;
 
+  // purchaseToken 캐시 완료를 알리는 Completer (queryPastPurchases 대기용)
+  Completer<String?>? _purchaseTokenCompleter;
+
   /// 검증 결과 스트림 (UI에서 구독)
   Stream<PurchaseVerificationResult> get verificationResultStream =>
       _verificationResultController.stream;
@@ -177,17 +180,13 @@ class InAppPurchaseService {
         debugPrint('✅ 구매 성공: ${purchase.productID}');
         
         // purchaseToken 캐시 저장 (기기 변경 시 구독 부활용)
-        if (Platform.isAndroid) {
-          final verificationData = purchase.verificationData;
-          if (verificationData.serverVerificationData.isNotEmpty) {
-            _cachedPurchaseToken = verificationData.serverVerificationData;
-            debugPrint('💾 purchaseToken 캐시 저장: ${_cachedPurchaseToken!.substring(0, math.min(8, _cachedPurchaseToken!.length))}...');
-          }
-        } else if (Platform.isIOS) {
-          final verificationData = purchase.verificationData;
-          if (verificationData.serverVerificationData.isNotEmpty) {
-            _cachedPurchaseToken = verificationData.serverVerificationData;
-            debugPrint('💾 purchaseToken 캐시 저장: ${_cachedPurchaseToken!.substring(0, math.min(8, _cachedPurchaseToken!.length))}...');
+        final verificationData = purchase.verificationData;
+        if (verificationData.serverVerificationData.isNotEmpty) {
+          _cachedPurchaseToken = verificationData.serverVerificationData;
+          debugPrint('💾 purchaseToken 캐시 저장: ${_cachedPurchaseToken!.substring(0, math.min(8, _cachedPurchaseToken!.length))}...');
+          // Completer가 대기 중이면 완료 알림
+          if (_purchaseTokenCompleter != null && !_purchaseTokenCompleter!.isCompleted) {
+            _purchaseTokenCompleter!.complete(_cachedPurchaseToken);
           }
         }
         
@@ -350,31 +349,57 @@ class InAppPurchaseService {
     return _cachedPurchaseToken;
   }
 
-  /// 과거 구매 내역 조회 및 purchaseToken 캐시 업데이트
-  /// Android의 queryPurchasesAsync()에 해당
-  /// 
-  /// restorePurchases()를 호출하면 purchaseStream을 통해 과거 구매 내역이 전달되고,
-  /// _handlePurchaseUpdate()에서 purchaseToken이 캐시됩니다.
-  Future<void> queryPastPurchases() async {
+  /// 과거 구매 내역 조회 및 purchaseToken을 대기하여 반환
+  ///
+  /// restorePurchases()를 호출하고, purchaseStream을 통해 purchaseToken이
+  /// 캐시될 때까지 최대 [timeout] 동안 대기합니다.
+  /// 기존의 500ms 고정 딜레이 대신, Completer 기반으로 정확히 대기합니다.
+  Future<String?> queryPastPurchasesAndWaitForToken({
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
     if (!_isInitialized) {
       final initialized = await initialize();
       if (!initialized) {
         debugPrint('❌ 인앱 결제 초기화 실패, 구매 내역 조회 불가');
-        return;
+        return null;
       }
     }
 
     try {
+      // 이미 캐시된 purchaseToken이 있으면 바로 반환
+      if (_cachedPurchaseToken != null) {
+        debugPrint('✅ 이미 캐시된 purchaseToken 존재');
+        return _cachedPurchaseToken;
+      }
+
+      // Completer 생성 (purchaseStream에서 토큰 수신 시 완료됨)
+      _purchaseTokenCompleter = Completer<String?>();
+
       debugPrint('📱 과거 구매 내역 조회 시도 (restorePurchases 호출)');
       await _inAppPurchase.restorePurchases();
-      debugPrint('✅ 구매 복원 요청 완료 (purchaseStream을 통해 결과 수신 예정)');
-      
-      // 주의: restorePurchases()는 비동기로 purchaseStream을 통해 결과를 전달하므로
-      // 실제 purchaseToken은 _handlePurchaseUpdate()에서 캐시됩니다.
-      // 따라서 이 메서드는 호출만 하고, 실제 purchaseToken은 getCachedPurchaseToken()으로 조회해야 합니다.
+      debugPrint('✅ 구매 복원 요청 완료 (purchaseStream 결과 대기 중...)');
+
+      // purchaseToken이 캐시될 때까지 대기 (타임아웃 적용)
+      final token = await _purchaseTokenCompleter!.future.timeout(
+        timeout,
+        onTimeout: () {
+          debugPrint('⏰ purchaseToken 대기 타임아웃 (${timeout.inSeconds}초)');
+          return _cachedPurchaseToken; // 타임아웃 시 현재 캐시 값 반환 (null일 수 있음)
+        },
+      );
+
+      _purchaseTokenCompleter = null;
+      return token;
     } catch (e) {
       debugPrint('❌ 과거 구매 내역 조회 실패: $e');
+      _purchaseTokenCompleter = null;
+      return null;
     }
+  }
+
+  /// 과거 구매 내역 조회 (하위 호환용)
+  Future<void> queryPastPurchases() async {
+    await queryPastPurchasesAndWaitForToken();
   }
 
   /// 리소스 정리

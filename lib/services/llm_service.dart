@@ -36,9 +36,55 @@ class LlmService {
   }
 
 
+  /// 서버에서 현재 사용량 조회
+  ///
+  /// GET /api/v1/llm/usage 호출
+  /// Returns: 남은 횟수 (limit - currentUsage), 오류 시 null
+  Future<int?> getServerRemainingCount() async {
+    try {
+      final response = await _dio.get('/api/v1/llm/usage');
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = response.data as Map;
+        final limit = data['limit'] as int? ?? 0;
+        final currentUsage = data['currentUsage'] as int? ?? 0;
+        final remaining = (limit - currentUsage).clamp(0, 99);
+        debugPrint('📊 서버 사용량 조회: currentUsage=$currentUsage, limit=$limit, remaining=$remaining');
+        return remaining;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ 서버 사용량 조회 실패: $e');
+      return null;
+    }
+  }
+
+  /// 광고 시청 리워드 서버 등록
+  ///
+  /// Flutter SDK는 onUserEarnedReward에서 transactionId를 노출하지 않으므로
+  /// SSV 대신 JWT 인증으로 서버에 직접 리워드를 등록합니다.
+  ///
+  /// Returns: true = 등록 성공, false = 실패 (한도 초과 포함)
+  Future<bool> registerAdReward() async {
+    try {
+      final response = await _dio.post('/api/v1/reward/direct');
+      debugPrint('✅ 리워드 서버 등록 성공: ${response.data}');
+      return true;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        debugPrint('⚠️ 리워드 한도 초과: ${e.response?.data}');
+      } else {
+        debugPrint('❌ 리워드 서버 등록 실패: ${e.response?.statusCode} ${e.message}');
+      }
+      return false;
+    } catch (e) {
+      debugPrint('❌ 리워드 서버 등록 오류: $e');
+      return false;
+    }
+  }
+
   /// 메시지 요약 요청
   ///
-  /// [messages] - 요약할 메시지 목록 (시간순 정렬 권장, 최대 300개)
+  /// [messages] - 요약할 메시지 목록 (시간순 정렬 권장, 최대 200개)
   /// [roomName] - 채팅방 이름
   ///
   /// Returns: 요약 결과 Map 또는 에러 시 null
@@ -185,11 +231,12 @@ class LlmService {
         }
         
         // 플랜별 에러 메시지 생성
-        // 사용량이 제한을 초과하면 제한값으로 표시 (예: 4/3 → 3/3)
+        // Free: 분모를 항상 4(기본1 + 광고3)로 고정 → 사용자에게 처음부터 "4회 가능" 인식
         final displayUsage = currentUsage > limit ? limit : currentUsage;
+        const int freeMaxTotal = 4; // FREE_DAILY_LIMIT(1) + MAX_DAILY_REWARDS(3)
         String message;
         if (planType == 'free') {
-          message = '오늘 무료 요약 $displayUsage/$limit회 사용 완료';
+          message = '오늘 무료 요약 $displayUsage/${freeMaxTotal}회 사용 완료';
         } else {
           message = '이번 달 요약 $displayUsage/$limit회 사용 완료';
         }

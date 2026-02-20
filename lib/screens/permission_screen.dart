@@ -68,6 +68,19 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
           _batteryOptimizationDisabled = batteryOptimizationDisabled;
           _isChecking = false;
         });
+
+        // 권한이 모두 허용된 경우 자동으로 메인 화면으로 이동
+        if (notificationEnabled && batteryOptimizationDisabled) {
+          debugPrint('✅ 모든 권한 이미 허용됨 - 자동으로 메인 화면 이동');
+          Future.microtask(() {
+            if (!mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const MainScreen()),
+              (route) => false,
+            );
+            widget.onComplete();
+          });
+        }
       }
     } catch (e) {
       debugPrint('권한 확인 실패: $e');
@@ -182,45 +195,14 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 height: 52,
                 child: ElevatedButton(
                   onPressed: _allRequiredPermissionsGranted
-                      ? () async {
+                      ? () {
                           debugPrint('✅ 시작하기 버튼 클릭 - 메인 화면으로 이동');
                           if (!mounted) return;
-
-                          // 권한 상태 재확인 (설정에서 돌아왔을 수 있으므로)
-                          await _checkPermissions();
-
-                          if (!mounted) return;
-
-                          // 권한이 모두 허용되었는지 최종 확인
-                          // 약간의 지연을 주어 상태 업데이트가 완료되도록 함
-                          await Future.delayed(const Duration(milliseconds: 300));
-
-                          if (!mounted) return;
-
-                          if (_allRequiredPermissionsGranted) {
-                            debugPrint('✅ 모든 권한 허용 확인됨 - 메인 화면으로 이동');
-                            // PermissionScreen 내부에서 직접 메인 화면으로 이동
-                            if (mounted) {
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (_) => const MainScreen()),
-                                (route) => false, // 모든 이전 라우트 제거
-                              );
-                              debugPrint('✅ 메인 화면으로 네비게이션 완료');
-                            }
-                            // onComplete 콜백도 호출 (호환성을 위해)
-                            widget.onComplete();
-                          } else {
-                            debugPrint('⚠️ 권한이 아직 허용되지 않음');
-                            debugPrint('  알림 권한: $_notificationPermissionGranted');
-                            debugPrint('  배터리 최적화 제외: $_batteryOptimizationDisabled');
-                            // 권한이 없으면 다시 확인하도록 안내
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('필수 권한을 모두 허용해주세요.'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          }
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const MainScreen()),
+                            (route) => false,
+                          );
+                          widget.onComplete();
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
