@@ -129,16 +129,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     
     // 5. 줄바꿈 정리 (연속된 줄바꿈을 2개로 제한)
     processed = processed.replaceAll(RegExp(r'\n{4,}'), '\n\n\n');
-    
+
     // 6. 리스트 항목 사이의 불필요한 빈 줄 제거
     processed = processed.replaceAllMapped(
       RegExp(r'\n\n(\d+\.|\*)'),
       (match) => '\n${match.group(1)}',
     );
-    
-    // 7. 문단 끝의 불필요한 줄바꿈 제거
+
+    // 7. 내용 없는 빈 불렛/대시 항목 제거 (점 하나만 렌더링되는 현상 방지)
+    processed = processed.replaceAll(RegExp(r'^\s*[\*\-]\s*$', multiLine: true), '');
+
+    // 8. 문단 끝의 불필요한 줄바꿈 제거
     processed = processed.trim();
-    
+
     return processed;
   }
 
@@ -264,6 +267,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   int? _selectionStartIndex; // 선택 시작 메시지 인덱스
   bool _isDraggingSelection = false; // 드래그 중인지 여부
   bool _isDragHandleVisible = false; // 드래그 핸들 표시 여부
+  bool _limitPaywallShownDuringDrag = false; // 드래그 중 한도 페이월 중복 표시 방지
 
   // 메시지 삭제 모드 상태
   bool _isDeleteMode = false; // 삭제 모드 활성화 여부
@@ -372,6 +376,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     if (state == AppLifecycleState.resumed) {
       if (!mounted) return;
       debugPrint('🔄 ChatRoomDetailScreen: 앱 포그라운드 복귀 - 새 메시지 확인');
+      // 전면/리워드 광고 닫힌 후 Flutter surface 복원 강제 리빌드
+      // (ChatRoomDetailScreen은 Navigator route로 분리돼 있어 root setState로 리빌드되지 않음)
+      setState(() {});
+      // 2차 setState: 1차 프레임이 Surface 미준비로 black이었을 경우 재렌더링 보장
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
       _loadNewMessages();
     }
   }
@@ -1426,6 +1437,17 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     // 플랜에 따른 최대 개수 확인
     final planMaxCount = await _getMaxMessageCount();
+
+    // FREE 플랜에서 제한 초과 탭 시 페이월 표시
+    if ((index + 1) > planMaxCount) {
+      _limitPaywallShownDuringDrag = false;
+      if (mounted) {
+        await PaywallBottomSheet.show(context, triggerFeature: '200개 메시지 요약');
+      }
+      return;
+    }
+
+    _limitPaywallShownDuringDrag = false;
     // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
     final maxCount = _messages.length.clamp(1, planMaxCount);
     final newCount = (index + 1).clamp(1, maxCount);
@@ -1444,6 +1466,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     // 플랜에 따른 최대 개수 확인
     final planMaxCount = await _getMaxMessageCount();
+
+    // FREE 플랜에서 제한 초과 드래그 시 페이월 표시 (드래그 중 한 번만)
+    if ((index + 1) > planMaxCount && !_limitPaywallShownDuringDrag) {
+      _limitPaywallShownDuringDrag = true;
+      if (mounted) {
+        await PaywallBottomSheet.show(context, triggerFeature: '200개 메시지 요약');
+      }
+      return;
+    }
+
     // 최소 1개, 최대는 실제 메시지 개수 또는 플랜 제한 중 작은 값
     final maxCount = _messages.length.clamp(1, planMaxCount);
     final newCount = (index + 1).clamp(1, maxCount);
@@ -1477,6 +1509,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Future<void> _updateSummaryCount(int newCount) async {
     // 플랜에 따른 최대 개수 확인
     final maxCount = await _getMaxMessageCount();
+
+    // FREE 플랜에서 제한 초과 시 페이월 표시
+    if (newCount > maxCount) {
+      if (mounted) {
+        await PaywallBottomSheet.show(context, triggerFeature: '200개 메시지 요약');
+      }
+      return;
+    }
+
     final requestedCount = newCount.clamp(1, maxCount);
 
     // 요청된 개수가 현재 로드된 메시지보다 많으면 추가로 로드
@@ -1556,6 +1597,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     // 플랜에 따른 최대 개수 확인
     final maxCount = await _getMaxMessageCount();
+    final isBasic = await _planService.isBasicPlan();
     
     // 다이얼로그 호출 전 필요한 데이터 미리 계산
     final int currentMessageCount = _messages.length;
@@ -1586,6 +1628,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
             void validateAndPop() {
               final count = int.tryParse(controller.text);
+
+              // FREE 유저가 50 초과 입력 시 → 페이월 유도 (sentinel -1 반환)
+              if (!isBasic && count != null && count > 50) {
+                safeClose(-1);
+                return;
+              }
 
               // 유효성 검사
               if (count == null || count < 5 || count > maxCount) {
@@ -1678,6 +1726,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     // mounted 체크 후 안전하게 setState
     if (!mounted) return;
+
+    // sentinel -1: FREE 유저가 50 초과 입력 → 페이월 표시
+    if (result == -1) {
+      await PaywallBottomSheet.show(context, triggerFeature: '200개 메시지 요약');
+      return;
+    }
 
     if (result != null) {
       // postFrameCallback로 현재 프레임 완료 후 setState 실행
@@ -1847,30 +1901,72 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     }
   }
 
+  bool _isNavigatingBack = false;
+
+  /// 채팅방에서 뒤로 나갈 때: 읽음 처리 → 광고 표시(4번에 1번) → pop
+  Future<void> _navigateBack() async {
+    // 중복 호출 방지
+    if (_isNavigatingBack) return;
+    _isNavigatingBack = true;
+
+    // 읽음 처리
+    debugPrint('🔄 화면 나갈 때 읽음 처리 시도 (roomId: ${widget.room.id})');
+    await _localDb.markRoomAsRead(widget.room.id).then((_) {
+      debugPrint('✅ 화면 나갈 때 읽음 처리 완료');
+    }).catchError((e) {
+      debugPrint('❌ 화면 나갈 때 읽음 처리 실패: $e');
+    });
+
+    // 광고 표시 시도 (4번에 1번, 유료 플랜은 건너뜀)
+    bool adShown = false;
+    try {
+      adShown = await AdService().showChatDetailAd(
+        onAdDismissed: () {
+          _isNavigatingBack = false;
+          if (mounted) Navigator.pop(context);
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ 채팅방 전면 광고 예외: $e');
+    }
+
+    // 광고가 표시되지 않으면 바로 뒤로 (플래그 리셋 후 pop)
+    if (!adShown) {
+      _isNavigatingBack = false;
+      if (mounted) Navigator.pop(context);
+    }
+    // 광고가 표시됐지만 콜백이 오지 않는 경우 대비: 5초 후 강제 pop
+    else {
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _isNavigatingBack) {
+          debugPrint('⚠️ 광고 콜백 미수신 - 강제 뒤로가기');
+          _isNavigatingBack = false;
+          Navigator.pop(context);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_isSearchMode && !_isSummaryMode,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        // 화면이 실제로 나갈 때 읽음 처리 (새 메시지가 왔든 안 왔든 무조건)
-        if (didPop) {
-          debugPrint('🔄 화면 나갈 때 읽음 처리 시도 (roomId: ${widget.room.id})');
-          _localDb.markRoomAsRead(widget.room.id).then((_) {
-            debugPrint('✅ 화면 나갈 때 읽음 처리 완료');
-          }).catchError((e) {
-            debugPrint('❌ 화면 나갈 때 읽음 처리 실패: $e');
-          });
-          return;
-        }
-        // 검색 모드나 요약 모드가 활성화되어 있으면 모드 종료
+        if (didPop) return; // 이미 pop 완료된 경우 중복 처리 방지
         if (_isSearchMode) {
           _exitSearchMode();
         } else if (_isSummaryMode) {
           _exitSummaryMode();
+        } else if (!_isDeleteMode) {
+          _navigateBack();
+        } else {
+          _exitDeleteMode();
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFE8F4FC), // 밝은 하늘색 배경 (앱 테마와 조화)
+        backgroundColor: widget.room.packageName == 'com.dksw.app.faq'
+            ? const Color(0xFFF8FAFF) // FAQ: 더 깨끗한 아주 연한 파란 흰색
+            : const Color(0xFFE8F4FC), // 일반: 밝은 하늘색 배경
         appBar: AppBar(
           backgroundColor: const Color(AppColors.primaryValue), // 앱 테마 파란색
           elevation: 0,
@@ -1889,7 +1985,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               } else if (_isSummaryMode) {
                 _exitSummaryMode();
               } else {
-                Navigator.pop(context);
+                _navigateBack();
               }
             },
           ),
@@ -4308,18 +4404,43 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   /// 사용량 초과 시 리워드 광고 옵션 포함 바텀시트
-  void _showRateLimitWithRewardOption(String message) {
+  Future<void> _showRateLimitWithRewardOption(String message) async {
     final adService = AdService();
     final llmService = LlmService();
+
+    // 잔여 횟수 먼저 확인 (서버 기준)
+    final remaining = await llmService.getServerRemainingCount().then((v) => v ?? 0);
+
+    if (!mounted) return;
+
+    // 잔여 횟수 없으면 → 로컬 리워드 광고 남은 횟수 확인
+    if (remaining <= 0) {
+      final adRemaining = await adService.getRemainingRewardCount();
+      if (!mounted) return;
+
+      // 리워드 광고도 다 봤으면 → 페이월만 표시
+      // 리워드 광고가 남아있으면 → 페이월에 광고 시청 버튼 포함해서 표시
+      // ValueListenableBuilder로 광고 로딩 완료 시 버튼 자동 활성화
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => ValueListenableBuilder<bool>(
+          valueListenable: adService.rewardedAdReadyNotifier,
+          builder: (_, adReady, __) => PaywallBottomSheet(
+            isLimitReached: true,
+            onWatchAd: (adRemaining > 0 && adReady) ? () => _watchRewardAdAndRetry() : null,
+            adRemainingCount: adRemaining,
+          ),
+        ),
+      );
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => FutureBuilder<int>(
-        future: llmService.getServerRemainingCount().then((v) => v ?? 0),
-        builder: (context, snapshot) {
-          final remaining = snapshot.data ?? 0;
-          return ValueListenableBuilder<bool>(
+      builder: (sheetContext) => ValueListenableBuilder<bool>(
             valueListenable: adService.rewardedAdReadyNotifier,
             builder: (context, adReady, _) {
           // 잔여 횟수가 있으면 광고 섹션 표시 (광고 로딩 중이어도 표시)
@@ -4460,54 +4581,32 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   ),
                   const SizedBox(height: 8),
                 ],
-                if (!hasRemaining) const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: hasRemaining
-                      ? OutlinedButton(
-                          onPressed: () => Navigator.pop(sheetContext),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.grey[600],
-                            side: BorderSide(color: Colors.grey[300]!),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            '닫기',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        )
-                      : ElevatedButton(
-                          onPressed: () => Navigator.pop(sheetContext),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(AppColors.summaryPrimary),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            '확인',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '닫기',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           );
             },
-          );
-        },
-      ),
+          ),
     );
   }
 
@@ -5900,10 +5999,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         ? message.sender == '사용자'  // FAQ: 사용자는 오른쪽
         : message.sender == '나';    // 일반: "나"는 오른쪽
 
-    // 배경색 결정 - 내가 보낸 메시지는 연한 노란색, 다른 사람은 흰색
+    // 배경색 결정 - 내가 보낸 메시지는 연한 노란색, 다른 사람은 흰색 (FAQ는 연한 파란색)
     final Color bubbleColor = isSentByMe
-        ? const Color(0xFFFFF176) // 연한 노란색 (조금 더 진하게)
-        : Colors.white;
+        ? const Color(0xFFFFF176) // 연한 노란색
+        : isFAQ
+            ? const Color(0xFFE8F1FF) // FAQ AI 응답: 연한 파란색
+            : Colors.white;
 
     // 삭제 모드에서 선택 여부 확인
     final isSelected =
@@ -6004,10 +6105,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
                       message.sender,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF555555),
+                        fontWeight: FontWeight.w600,
+                        color: isFAQ
+                            ? const Color(0xFF3D7EFF) // FAQ: 파란색 이름
+                            : const Color(0xFF555555),
                       ),
                     ),
                   ),
@@ -6642,16 +6745,19 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
     
     // 5. 줄바꿈 정리 (연속된 줄바꿈을 2개로 제한)
     processed = processed.replaceAll(RegExp(r'\n{4,}'), '\n\n\n');
-    
+
     // 6. 리스트 항목 사이의 불필요한 빈 줄 제거
     processed = processed.replaceAllMapped(
       RegExp(r'\n\n(\d+\.|\*)'),
       (match) => '\n${match.group(1)}',
     );
-    
-    // 7. 문단 끝의 불필요한 줄바꿈 제거
+
+    // 7. 내용 없는 빈 불렛/대시 항목 제거 (점 하나만 렌더링되는 현상 방지)
+    processed = processed.replaceAll(RegExp(r'^\s*[\*\-]\s*$', multiLine: true), '');
+
+    // 8. 문단 끝의 불필요한 줄바꿈 제거
     processed = processed.trim();
-    
+
     return processed;
   }
 

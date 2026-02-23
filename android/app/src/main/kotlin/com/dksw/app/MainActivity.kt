@@ -18,6 +18,7 @@ import com.google.android.play.core.integrity.IntegrityManagerFactory
 import com.google.android.play.core.integrity.IntegrityTokenRequest
 import com.google.android.play.core.integrity.IntegrityTokenResponse
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.EventChannel
@@ -31,8 +32,16 @@ class MainActivity : FlutterActivity() {
         const val METHOD_CHANNEL = "com.dksw.app/notification"
         const val MAIN_METHOD_CHANNEL = "com.dksw.app/main"
         const val EVENT_CHANNEL = "com.dksw.app/notification_stream"
-        const val PLAY_INTEGRITY_CHANNEL = "com.dksw.chat_llm/play_integrity"
+        const val PLAY_INTEGRITY_CHANNEL = "com.dksw.app/play_integrity"
     }
+
+    /**
+     * TextureView 렌더링 모드 사용
+     * SurfaceView(기본값)는 AdMob 전면광고 표시 중 앱 킬 후 재시작 시
+     * Surface 재생성 타이밍 문제로 블랙화면이 발생할 수 있음.
+     * TextureView는 뷰 계층에 통합되어 이 문제를 방지함.
+     */
+    override fun getRenderMode(): RenderMode = RenderMode.texture
 
     /**
      * 예열된 Flutter 엔진을 사용하도록 설정
@@ -54,8 +63,13 @@ class MainActivity : FlutterActivity() {
     private var notificationReceiver: BroadcastReceiver? = null
     private var mainMethodChannel: MethodChannel? = null
     private var pendingSummaryId: Int = -1
+    // MainActivity가 새로 생성된 경우(종료/스와이프 후 재실행) 인메모리 플래그로 표시
+    // HOME 버튼 복귀는 onCreate가 호출되지 않으므로 플래그 미설정
+    // SharedPreferences 대신 인메모리 플래그를 사용해 Dart 캐시 문제 회피
+    private var isFreshLaunch: Boolean = false
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        isFreshLaunch = true // super.onCreate() 전에 설정해야 Flutter 질의 시점에 준비됨
         super.onCreate(savedInstanceState)
         handleIntent(intent)
     }
@@ -156,6 +170,12 @@ class MainActivity : FlutterActivity() {
                         prefs.edit().remove("flutter.pending_summary_id").apply()
                     }
                     result.success(if (summaryId > 0) summaryId else null)
+                }
+                "checkFreshLaunch" -> {
+                    // 종료/스와이프 후 재실행 여부 반환 (읽은 후 즉시 초기화)
+                    val wasFreshLaunch = isFreshLaunch
+                    isFreshLaunch = false
+                    result.success(wasFreshLaunch)
                 }
                 else -> result.notImplemented()
             }
@@ -382,6 +402,10 @@ class MainActivity : FlutterActivity() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(notificationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12-12L (API 31-32): targetSdk >= 31이면 반드시 exported 플래그 지정 필요
+            // Context.RECEIVER_NOT_EXPORTED = 0x4 (API 33에서 정의되나 값은 동일)
+            registerReceiver(notificationReceiver, filter, 0x4)
         } else {
             registerReceiver(notificationReceiver, filter)
         }
@@ -709,6 +733,22 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 알림 배지 업데이트 실패: ${e.message}", e)
+        }
+    }
+
+    /**
+     * 포커스 복귀 시 Flutter View 강제 재드로우
+     * AdActivity가 전면광고를 부분 로딩 상태로 표시하다 종료될 경우,
+     * AdActivity가 설정한 Window 플래그(FLAG_FULLSCREEN 등)가 복원되지 않아
+     * Flutter TextureView가 검은 화면으로 남을 수 있음.
+     * onWindowFocusChanged(true) 시점에 decorView.invalidate()를 호출해 강제 재드로우.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            window.decorView.post {
+                window.decorView.invalidate()
+            }
         }
     }
 

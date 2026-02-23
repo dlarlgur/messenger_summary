@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 알림 접근 권한 -->
     <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
@@ -62,6 +63,18 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-8640148276009977~5068430477"/>
+
+        <!--
+            AdActivity 오버라이드: 전면광고 부분 로딩 후 앱 종료 시 블랙화면 방지
+            - finishOnTaskLaunch="true": 사용자가 홈 버튼 후 앱을 다시 열 때
+              태스크 스택에 남아있는 AdActivity를 자동으로 종료시킴
+            - 이로 인해 최근 앱 목록에서 돌아올 때 AdActivity(검은 화면) 대신
+              MainActivity(Flutter 앱)가 바로 보임
+        -->
+        <activity
+            android:name="com.google.android.gms.ads.AdActivity"
+            android:finishOnTaskLaunch="true"
+            tools:replace="android:finishOnTaskLaunch" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

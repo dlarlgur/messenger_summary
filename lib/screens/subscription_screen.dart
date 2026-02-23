@@ -66,19 +66,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  /// 현재 플랜 로드
-  Future<void> _loadCurrentPlan() async {
-    final planType = await _planService.getCurrentPlanType();
-    if (mounted) {
-      setState(() {
-        _currentPlanType = planType;
-      });
-    }
+  /// 현재 플랜 로드 (캐시 사용, 서버 재조회 없음)
+  void _loadCurrentPlan() {
+    setState(() {
+      _currentPlanType = _planService.getCachedPlanTypeSync();
+    });
   }
 
   Future<void> _initialize() async {
-    // 현재 플랜 조회
-    await _loadCurrentPlan();
+    // 현재 플랜 조회 (캐시)
+    _loadCurrentPlan();
 
     // 인앱 결제 초기화 및 상품 조회
     await _loadProducts();
@@ -107,6 +104,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       });
     } catch (e) {
       setState(() {
+        debugPrint("❌ getProducts 에러: $e");
+        debugPrint("❌ stack: ${e.toString()}");
         _error = '상품 정보를 불러오는 중 오류가 발생했습니다: $e';
         _isLoading = false;
       });
@@ -230,7 +229,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   void dispose() {
     _verificationSubscription?.cancel();
-    _purchaseService.dispose();
+    // InAppPurchaseService는 싱글톤이므로 dispose 호출 금지
+    // dispose 시 BillingClient 연결이 끊겨 재진입 시 "BillingClient is unset" 에러 발생
     super.dispose();
   }
 

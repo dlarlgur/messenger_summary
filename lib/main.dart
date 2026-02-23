@@ -146,7 +146,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             }
           }
         } catch (e) {
-          debugPrint('❌ 백그라운드 초기화 실패: $e');
+          if (mounted) debugPrint('❌ 백그라운드 초기화 실패: $e');
         }
       });
     } catch (e) {
@@ -168,10 +168,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         
         // 두 작업 모두 완료될 때까지 대기
         await Future.wait([versionCheckFuture, jwtTokenFuture]);
-        
+        if (!mounted) return;
+
         // JWT 토큰이 발급된 후 구독 정보 조회
         await _checkSubscription();
-        
+        if (!mounted) return;
+
         // 서비스 초기화 (알림 설정, 자동 요약 설정)
         final notificationService =
             Provider.of<NotificationSettingsService>(context, listen: false);
@@ -180,6 +182,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         await notificationService.initialize();
         await autoSummarySettingsService.initialize();
       } catch (e) {
+        if (!mounted) return;
         debugPrint('❌ 전체 초기화 오류: $e');
       }
     });
@@ -256,9 +259,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         
         // 2. 구독 정보 조회 (기기 변경 시 구독 부활 포함)
         await _checkSubscription();
-        
+        if (!mounted) return;
+
         // 3. 서비스 초기화 (알림 설정, 자동 요약 설정)
-        // 권한 체크는 이미 완료되었으므로 여기서는 서비스만 초기화
         final notificationService =
             Provider.of<NotificationSettingsService>(context, listen: false);
         final autoSummarySettingsService =
@@ -266,7 +269,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         await notificationService.initialize();
         await autoSummarySettingsService.initialize();
       } catch (e) {
-        debugPrint('❌ 백그라운드 초기화 오류: $e');
+        if (mounted) debugPrint('❌ 백그라운드 초기화 오류: $e');
       }
     });
   }

@@ -2051,6 +2051,10 @@ class NotificationListener : NotificationListenerService() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(cancelReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12-12L (API 31-32): targetSdk >= 31이면 반드시 exported 플래그 지정 필요
+            // Context.RECEIVER_NOT_EXPORTED = 0x4 (API 33에서 정의되나 값은 동일)
+            registerReceiver(cancelReceiver, filter, 0x4)
         } else {
             registerReceiver(cancelReceiver, filter)
         }
@@ -2142,6 +2146,10 @@ class NotificationListener : NotificationListenerService() {
         val filter = IntentFilter(ACTION_SEND_MESSAGE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(sendMessageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12-12L (API 31-32): targetSdk >= 31이면 반드시 exported 플래그 지정 필요
+            // Context.RECEIVER_NOT_EXPORTED = 0x4 (API 33에서 정의되나 값은 동일)
+            registerReceiver(sendMessageReceiver, filter, 0x4)
         } else {
             registerReceiver(sendMessageReceiver, filter)
         }

@@ -249,16 +249,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
     switch (_currentPlanType) {
       case 'basic':
-        planDisplayName = 'Basic 플랜';
-        planDescription = '더 많은 혜택을 원하시면 탭하세요';
-        break;
-      case 'premium':
-        planDisplayName = 'Premium 플랜';
-        planDescription = '모든 기능을 사용 중입니다';
+        planDisplayName = 'Basic 플랜 이용 중';
+        planDescription = '구독 관리 및 혜택 확인';
         break;
       default:
         planDisplayName = '무료 플랜';
-        planDescription = '프리미엄으로 업그레이드하세요';
+        planDescription = 'Basic으로 업그레이드해 더 많이 요약하세요';
     }
 
     return GestureDetector(
@@ -280,14 +276,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF9C27B0),  // 보라색
-              Color(0xFF7B1FA2),  // 진한 보라
-              Color(0xFFE91E63),  // 핑크
+              Color(0xFF2196F3),  // 파란색
+              Color(0xFF1976D2),  // 진한 파랑
+              Color(0xFF0D47A1),  // 더 진한 파랑
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF9C27B0).withValues(alpha: 0.4),
+              color: const Color(0xFF2196F3).withValues(alpha: 0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -376,9 +372,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildFeatureItem('메시지 자동 요약'),
-                      const SizedBox(height: 8),
-                      _buildFeatureItem('메시지 최대 200개 요약'),
+                      ..._buildPlanFeatureItems(),
                     ],
                   ),
                 ),
@@ -403,6 +397,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       ),
       ),
     );
+  }
+
+  /// 현재 플랜에 맞는 혜택 항목 목록
+  List<Widget> _buildPlanFeatureItems() {
+    switch (_currentPlanType) {
+      case 'basic':
+        return [
+          _buildFeatureItem('월 150회 대화 요약 (자동+수동)'),
+          const SizedBox(height: 8),
+          _buildFeatureItem('메시지 최대 200개까지 요약'),
+          const SizedBox(height: 8),
+          _buildFeatureItem('자동요약 + 푸시 알림'),
+          const SizedBox(height: 8),
+          _buildFeatureItem('광고 완전 제거'),
+        ];
+      default: // free
+        return [
+          _buildFeatureItem('하루 1회 무료 요약'),
+          const SizedBox(height: 8),
+          _buildFeatureItem('메시지 최대 50개 요약'),
+          const SizedBox(height: 8),
+          _buildFeatureItem('광고 시청 시 하루 최대 3회 추가'),
+        ];
+    }
   }
 
   Widget _buildFeatureItem(String text) {
@@ -513,6 +531,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   width: 42,
@@ -531,6 +550,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         title,

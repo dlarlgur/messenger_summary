@@ -4,7 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// Google Play Integrity 토큰 요청 서비스
 /// 플랫폼 채널을 통해 Android 네이티브 코드 호출
 class PlayIntegrityService {
-  static const MethodChannel _channel = MethodChannel('com.dksw.chat_llm/play_integrity');
+  static const MethodChannel _channel = MethodChannel('com.dksw.app/play_integrity');
   static const String _cloudProjectNumber = '138022204590';
 
   /// Play Integrity 토큰 요청

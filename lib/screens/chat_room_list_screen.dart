@@ -66,6 +66,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   // 패키지별 필터링
   String? _selectedPackageName;
+  static const String _keyLastSelectedTab = 'chat_list_last_tab';
+  bool _isProgrammaticPageChange = false; // 탭 클릭으로 animateToPage 중일 때 true
   final PageController _pageController = PageController();
   final ScrollController _tabScrollController = ScrollController();
   final Map<String, GlobalKey> _tabKeys = {};
@@ -99,9 +101,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   bool _isTopNativeLoaded = false;
   bool _showTopAdSlot = false; // Free 티어 확인 즉시 자리 예약 (레이아웃 쏠림 방지)
 
-  // 채팅방 목록 네이티브 광고
-  NativeAd? _listNativeAd;
-  bool _isListNativeLoaded = false;
+  // 채팅방 목록 네이티브 광고 (탭별 별도 인스턴스)
+  final Map<String, NativeAd> _listNativeAds = {};
+  final Map<String, bool> _listNativeAdLoaded = {};
 
   @override
   void initState() {
@@ -116,7 +118,32 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
     _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
     _loadNativeAds(); // 네이티브 광고 로드 (채팅방과 동시)
+    _restoreLastSelectedTab(); // 마지막 선택된 탭 복원
     // 알림 다이얼로그 제거
+  }
+
+  /// 마지막으로 선택된 메신저 탭을 SharedPreferences에서 복원
+  Future<void> _restoreLastSelectedTab() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_keyLastSelectedTab);
+    if (!mounted || saved == null) return;
+    final messengers = MessengerSettingsService().getEnabledMessengers();
+    if (!messengers.any((m) => m.packageName == saved)) return;
+    setState(() => _selectedPackageName = saved);
+    final idx = messengers.indexWhere((m) => m.packageName == saved);
+    if (idx > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(idx);
+        }
+      });
+    }
+  }
+
+  /// 선택된 탭을 SharedPreferences에 저장
+  Future<void> _saveSelectedTab(String packageName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastSelectedTab, packageName);
   }
 
   /// FAQ 채팅방 확인 및 생성 후 대화목록 로드
@@ -236,83 +263,132 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     WidgetsBinding.instance.removeObserver(this);
     _dbObserverTimer?.cancel(); // ✅ 핵심 수정: DB Observer 중지
     _topNativeAd?.dispose();
-    _listNativeAd?.dispose();
+    for (final ad in _listNativeAds.values) {
+      ad.dispose();
+    }
+    _listNativeAds.clear();
     _pageController.dispose();
     _tabScrollController.dispose();
     super.dispose();
   }
 
-  /// 광고 슬롯 표시 여부 재확인 (포그라운드 복귀 시 유료 전환 반영)
+  /// 광고 슬롯 표시 여부 재확인 (포그라운드 복귀 시 플랜 전환 반영)
   Future<void> _refreshAdSlotVisibility() async {
     final planType = await _planService.getCurrentPlanType();
     if (planType != 'free' && _showTopAdSlot) {
+      // 무료→유료: 광고 제거
       _topNativeAd?.dispose();
       _topNativeAd = null;
-      _listNativeAd?.dispose();
-      _listNativeAd = null;
+      for (final ad in _listNativeAds.values) {
+        ad.dispose();
+      }
+      _listNativeAds.clear();
+      _listNativeAdLoaded.clear();
       if (mounted) {
         setState(() {
           _showTopAdSlot = false;
           _isTopNativeLoaded = false;
-          _isListNativeLoaded = false;
         });
       }
       debugPrint('✅ 유료 플랜 감지 - 광고 슬롯 숨김');
+    } else if (planType == 'free' && !_showTopAdSlot) {
+      // 유료→무료: 광고 재로드
+      debugPrint('🔄 무료 플랜 전환 감지 - 네이티브 광고 재로드');
+      _loadNativeAds();
     }
   }
 
   /// 네이티브 광고 로드 (Free 티어만)
+  /// 캐시된 플랜으로 즉시 광고 로드 시작 → 서버 확인은 병렬로 처리 (지연 최소화)
   Future<void> _loadNativeAds() async {
+    // 캐시 즉시 확인 → free면 서버 응답 기다리지 않고 바로 광고 로드 시작
+    final cachedPlan = _planService.getCachedPlanTypeSync();
+    final bool startFromCache = cachedPlan == 'free';
+
+    if (startFromCache) {
+      if (mounted && !_showTopAdSlot) setState(() => _showTopAdSlot = true);
+      _startNativeAdLoad(); // 서버 확인 전에 즉시 광고 요청
+    }
+
+    // 서버에서 실제 플랜 확인 (병렬)
     final planType = await _planService.getCurrentPlanType();
     if (planType != 'free') {
-      // 유료 플랜 확정 → initState에서 선점한 슬롯 취소
-      if (mounted) setState(() => _showTopAdSlot = false);
-      debugPrint('✅ 유료 플랜 - 네이티브 광고 로드 건너뜀');
+      // 유료 플랜 확정 → 이미 로드 시작했으면 취소 및 슬롯 숨김
+      _topNativeAd?.dispose();
+      _topNativeAd = null;
+      for (final ad in _listNativeAds.values) ad.dispose();
+      _listNativeAds.clear();
+      _listNativeAdLoaded.clear();
+      if (mounted) setState(() { _showTopAdSlot = false; _isTopNativeLoaded = false; });
+      debugPrint('✅ 유료 플랜 확정 - 네이티브 광고 취소');
       return;
     }
 
-    // Free 티어 확정 → 슬롯 활성화 (initState 캐시에 없었던 경우 대비)
-    if (mounted) setState(() => _showTopAdSlot = true);
-
-    // 상단 고정 네이티브 광고
-    _topNativeAd = NativeAd(
-      adUnitId: AdService.nativeTopFixedId,
-      factoryId: AdService.nativeTopAdFactoryId,
-      listener: NativeAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) setState(() => _isTopNativeLoaded = true);
-          debugPrint('✅ 상단 네이티브 광고 로드 완료');
-        },
-        onAdFailedToLoad: (ad, error) {
-          debugPrint('❌ 상단 네이티브 광고 로드 실패: ${error.message}');
-          ad.dispose();
-          if (mounted) setState(() => _isTopNativeLoaded = false);
-        },
-      ),
-      request: const AdRequest(),
-    );
-    await _topNativeAd!.load();
-
-    // 채팅방 목록 네이티브 광고
-    _listNativeAd = NativeAd(
-      adUnitId: AdService.nativeChatListId,
-      factoryId: AdService.nativeAdFactoryId,
-      listener: NativeAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) setState(() => _isListNativeLoaded = true);
-          debugPrint('✅ 목록 네이티브 광고 로드 완료');
-        },
-        onAdFailedToLoad: (ad, error) {
-          debugPrint('❌ 목록 네이티브 광고 로드 실패: ${error.message}');
-          ad.dispose();
-          if (mounted) setState(() => _isListNativeLoaded = false);
-        },
-      ),
-      request: const AdRequest(),
-    );
-    await _listNativeAd!.load();
+    // Free 티어 서버 확정
+    if (mounted && !_showTopAdSlot) setState(() => _showTopAdSlot = true);
+    if (!startFromCache) _startNativeAdLoad(); // 캐시에 없었던 경우 여기서 시작
   }
-  
+
+  /// 실제 NativeAd 객체 생성 및 로드 (중복 호출 방지 포함)
+  void _startNativeAdLoad() {
+    // 상단 광고 - 이미 존재하면 재생성 금지
+    if (_topNativeAd == null) {
+      _topNativeAd = NativeAd(
+        adUnitId: AdService.nativeTopFixedId,
+        factoryId: AdService.nativeTopAdFactoryId,
+        listener: NativeAdListener(
+          onAdLoaded: (ad) {
+            // stale 콜백 방지: 현재 맵의 광고와 동일한 인스턴스인지 확인
+            if (mounted && _topNativeAd == ad) setState(() => _isTopNativeLoaded = true);
+            debugPrint('✅ 상단 네이티브 광고 로드 완료');
+          },
+          onAdFailedToLoad: (ad, error) {
+            debugPrint('❌ 상단 네이티브 광고 로드 실패: ${error.message}');
+            if (_topNativeAd == ad) {
+              ad.dispose();
+              _topNativeAd = null;
+              if (mounted) setState(() => _isTopNativeLoaded = false);
+            }
+          },
+        ),
+        request: const AdRequest(),
+      );
+      unawaited(_topNativeAd!.load());
+    }
+
+    // 채팅방 목록 광고 (탭별)
+    final messengers = MessengerSettingsService().getEnabledMessengers();
+    for (final messenger in messengers) {
+      final pkg = messenger.packageName;
+      if (_listNativeAds.containsKey(pkg)) continue;
+
+      final ad = NativeAd(
+        adUnitId: AdService.nativeChatListId,
+        factoryId: AdService.nativeAdFactoryId,
+        listener: NativeAdListener(
+          onAdLoaded: (ad) {
+            // stale 콜백 방지: 현재 맵의 광고와 동일한 인스턴스인지 확인
+            if (mounted && _listNativeAds[pkg] == ad) {
+              setState(() => _listNativeAdLoaded[pkg] = true);
+            }
+            debugPrint('✅ 목록 네이티브 광고 로드 완료 ($pkg)');
+          },
+          onAdFailedToLoad: (ad, error) {
+            debugPrint('❌ 목록 네이티브 광고 로드 실패 ($pkg): ${error.message}');
+            if (_listNativeAds[pkg] == ad) {
+              ad.dispose();
+              _listNativeAds.remove(pkg);
+              if (mounted) setState(() => _listNativeAdLoaded[pkg] = false);
+            }
+          },
+        ),
+        request: const AdRequest(),
+      );
+      _listNativeAds[pkg] = ad;
+      unawaited(ad.load());
+    }
+  }
+
   /// ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
   /// Native에서 DB에 저장 → Flutter가 주기적으로 DB 확인
   void _startDbObserver() {
@@ -522,7 +598,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       debugPrint('📋 DB에서 ${rooms.length}개 대화방 조회 완료');
       
       // 플랜 확인: Free 플랜이면 자동요약 설정 자동으로 끄기
-      final planType = await _planService.getCurrentPlanType();
+      // ✅ 수정: 첫 설치 시 JWT 없으면 API 호출이 무한 대기해 스피너가 영원히 도는 버그 방지
+      // 캐시된 값 우선 사용, 없으면 3초 타임아웃 후 'free' 기본값으로 처리
+      final cachedPlan = _planService.getCachedPlanTypeSync();
+      final planType = cachedPlan ?? await _planService.getCurrentPlanType().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => 'free',
+      );
       final isBasicPlan = planType == 'basic';
       
       // Free 플랜이면 자동요약 설정이 켜져 있는 모든 대화방의 자동요약 끄기
@@ -1448,32 +1530,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         children: [
           // 패키지별 탭 필터
           _buildPackageTabs(),
-          // 상단 고정 네이티브 광고 (카드 스타일 - 연한 회색 배경)
-          // _showTopAdSlot으로 자리 먼저 예약해서 광고 로드 후 레이아웃 쏠림 방지
+          // 상단 고정 네이티브 광고 (PageView 밖에 배치 - AdWidget 중복 에러 방지)
           if (_showTopAdSlot)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              // foregroundDecoration: 네이티브 뷰(AdWidget) 위에 border를 그려서 PlatformView가 가리지 않도록
-              foregroundDecoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFE0E0E0),
-                  width: 1,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
+            SizedBox(
+              height: 116,
               child: _isTopNativeLoaded && _topNativeAd != null
                   ? AdWidget(ad: _topNativeAd!)
                   : const SizedBox(),
@@ -1489,10 +1549,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 return PageView.builder(
                   controller: _pageController,
                   onPageChanged: (index) {
+                    // 탭 클릭으로 animateToPage 중일 때는 중간 페이지 변경 무시
+                    // (중간 탭들이 순간적으로 활성화되는 시각적 버그 방지)
+                    if (_isProgrammaticPageChange) return;
                     if (index < messengers.length) {
                       final packageName = messengers[index].packageName;
                       setState(() => _selectedPackageName = packageName);
                       _scrollToSelectedTab(packageName);
+                      _saveSelectedTab(packageName);
                     }
                   },
                   itemCount: messengers.length,
@@ -1561,13 +1625,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// → CustomScrollView + Sliver로 고정 위치에 삽입
   Widget _buildChatListWithAd(NotificationSettingsService notificationService, {String? packageName}) {
     final rooms = packageName != null ? _getFilteredRoomsForPackage(packageName) : _getFilteredRooms();
-    // AdWidget(PlatformView)은 위젯 트리에서 이동 불가 → 항상 첫 번째 탭에만 고정
-    // PageView가 인접 페이지를 동시 렌더링할 때 AdWidget이 두 곳에 삽입되면 에러 발생
-    final firstPackageName = MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
-    final isFirstPage = packageName == null || packageName == firstPackageName;
-    final hasListAd = isFirstPage && _isListNativeLoaded && _listNativeAd != null;
-    // 광고 삽입 위치: 3번째(index 2) 또는 방이 3개 미만이면 맨 끝
-    final adPosition = hasListAd ? (rooms.length >= 3 ? 2 : rooms.length) : rooms.length;
+    // 탭별 별도 NativeAd 인스턴스 사용 (AdWidget은 한 위젯 트리에 하나만 가능)
+    final ad = packageName != null ? _listNativeAds[packageName] : null;
+    final isLoaded = packageName != null ? (_listNativeAdLoaded[packageName] == true) : false;
+    final hasListAd = isLoaded && ad != null && rooms.length >= 3;
+    // 광고 삽입 위치: 3번째 아이템(index 2) 뒤
+    final adPosition = hasListAd ? 2 : rooms.length;
 
     final roomsBefore = rooms.sublist(0, adPosition);
     final roomsAfter = adPosition < rooms.length ? rooms.sublist(adPosition) : <ChatRoom>[];
@@ -1589,19 +1652,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     return CustomScrollView(
       slivers: [
         buildRoomSliver(roomsBefore),
-        // 광고 고정 위치 (AdWidget 재사용 에러 방지)
+        // 채팅방 사이 광고 (AdWidget 재사용 에러 방지)
         if (hasListAd)
           SliverToBoxAdapter(
-            child: Container(
+            child: SizedBox(
               width: double.infinity,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-                ),
-              ),
-              child: AdWidget(ad: _listNativeAd!),
+              height: 68,
+              child: AdWidget(ad: ad!),
             ),
           ),
         buildRoomSliver(roomsAfter),
@@ -1613,6 +1670,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   Widget _buildChatRoomTile(ChatRoom room, bool isMuted) {
     return InkWell(
       onTap: () async {
+        // 채팅방 진입 전 해당 탭(packageName) 저장
+        // → 앱 완전 종료 후 재시작 시 이 탭으로 복원됨
+        _saveSelectedTab(room.packageName);
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -1910,13 +1970,19 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                       messenger.alias,
                       isSelected,
                       () {
-                        setState(() => _selectedPackageName = messenger.packageName);
+                        setState(() {
+                          _selectedPackageName = messenger.packageName;
+                          _isProgrammaticPageChange = true;
+                        });
                         _pageController.animateToPage(
                           index,
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
-                        );
+                        ).then((_) {
+                          if (mounted) setState(() => _isProgrammaticPageChange = false);
+                        });
                         _scrollToSelectedTab(messenger.packageName);
+                        _saveSelectedTab(messenger.packageName);
                       },
                       packageName: messenger.packageName,
                       isDropTarget: candidateData.isNotEmpty,

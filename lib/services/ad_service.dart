@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
@@ -10,18 +12,19 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
-  // 광고 단위 ID (TODO: AdMob 계정 승인 후 실제 ID로 교체)
-  // 실제 ID (승인 후 사용)
-  // static const String _nativeTopFixedId = 'ca-app-pub-8640148276009977/5771138057';
-  // static const String _nativeChatListId = 'ca-app-pub-8640148276009977/4210644377';
-  // static const String _exitAdFullId = 'ca-app-pub-8640148276009977/2877381405';
-  // static const String _rewardSummaryChargeId = 'ca-app-pub-8640148276009977/7938136398';
+  // 실제 ID
+  static const String _nativeTopFixedId = 'ca-app-pub-8640148276009977/5771138057';
+  static const String _nativeChatListId = 'ca-app-pub-8640148276009977/4210644377';
+  static const String _exitAdFullId = 'ca-app-pub-8640148276009977/2877381405';
+  static const String _rewardSummaryChargeId = 'ca-app-pub-8640148276009977/7938136398';
+  static const String _chatDetailExitAdId = 'ca-app-pub-8640148276009977/4943784306';
 
-  // 테스트 ID (Google 공식 테스트 광고)
-  static const String _nativeTopFixedId = 'ca-app-pub-3940256099942544/2247696110';
-  static const String _nativeChatListId = 'ca-app-pub-3940256099942544/2247696110';
-  static const String _exitAdFullId = 'ca-app-pub-3940256099942544/1033173712';
-  static const String _rewardSummaryChargeId = 'ca-app-pub-3940256099942544/5224354917';
+  // 테스트 ID (Google 공식 테스트 광고) - 테스트 시 아래 주석 해제 후 위 실제 ID 주석 처리
+  // static const String _nativeTopFixedId = 'ca-app-pub-3940256099942544/2247696110';
+  // static const String _nativeChatListId = 'ca-app-pub-3940256099942544/2247696110';
+  // static const String _exitAdFullId = 'ca-app-pub-3940256099942544/1033173712';
+  // static const String _rewardSummaryChargeId = 'ca-app-pub-3940256099942544/5224354917';
+  // static const String _chatDetailExitAdId = 'ca-app-pub-3940256099942544/1033173712';
 
   // 네이티브 광고 팩토리 ID (Android NativeAdFactory에 등록된 이름)
   static const String nativeAdFactoryId = 'chatListNativeAd';      // 목록 사이 (흰색)
@@ -31,13 +34,25 @@ class AdService {
   static const String _keyRewardDate = 'ad_reward_date';
   static const String _keyRewardCount = 'ad_reward_count';
   static const String _keyFreeSummaryUsed = 'ad_free_summary_used';
+  static const String _keyChatDetailExitCount = 'ad_chat_detail_exit_count';
+  static const String _keyChatDetailLastAdTime = 'ad_chat_detail_last_time';
+  static const int _chatDetailAdCooldownMinutes = 4; // AdMob 설정과 동일한 쿨다운
+  // 전면광고 표시 중 앱 종료 감지용 키 (부분 로딩 → 강제 종료 → 재시작 시 블랙화면 방지)
+  static const String _keyExitAdShowing = 'ad_exit_showing';
+
+  // 현재 종료 광고가 표시 중인지 추적 (앱 라이프사이클 감지용)
+  bool _exitAdCurrentlyShowing = false;
 
   final PlanService _planService = PlanService();
   bool _isInitialized = false;
 
-  // 전면 광고
+  // 전면 광고 (앱 종료)
   InterstitialAd? _exitInterstitialAd;
   bool _isExitAdLoaded = false;
+
+  // 전면 광고 (채팅방 나갈 때)
+  InterstitialAd? _chatDetailInterstitialAd;
+  bool _isChatDetailAdLoaded = false;
 
   // 리워드 광고
   RewardedAd? _rewardedAd;
@@ -56,6 +71,12 @@ class AdService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     try {
+      // 테스트 기기 등록 (개발/QA용 - 출시 시 제거하거나 유지해도 무방)
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          testDeviceIds: ['4D21F3C8E43D4577D2C5BA909BBCDEC8'],
+        ),
+      );
       await MobileAds.instance.initialize();
       _isInitialized = true;
       debugPrint('✅ AdMob 초기화 완료');
@@ -68,6 +89,8 @@ class AdService {
       }
       // 전면 광고 미리 로드
       _loadExitInterstitialAd();
+      // 채팅방 나갈 때 전면 광고 미리 로드
+      _loadChatDetailInterstitialAd();
       // 리워드 광고 미리 로드 (deviceIdHash SSV 설정 포함)
       await _loadRewardedAd();
     } catch (e) {
@@ -134,26 +157,141 @@ class AdService {
       return false;
     }
 
+    // 광고 표시 시작 플래그 (부분 로딩 감지: 이 플래그가 남아있으면 onDismissed 미호출)
+    _exitAdCurrentlyShowing = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyExitAdShowing, true);
+
     _exitInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         debugPrint('전면 광고 닫힘 → 앱 종료 진행');
+        _exitAdCurrentlyShowing = false;
+        unawaited(prefs.remove(_keyExitAdShowing));
         ad.dispose();
         _exitInterstitialAd = null;
         _isExitAdLoaded = false;
+        // ✅ 수정: SystemNavigator.pop() 이후 광고 재로드 금지
+        // 앱이 종료되는 시점에 AdMob SDK가 새 요청을 시작하면
+        // Dart VM이 완전히 죽지 않아 다음 실행 시 검은 화면 발생
         onAdDismissed?.call();
-        _loadExitInterstitialAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('❌ 전면 광고 표시 실패: ${error.message}');
+        _exitAdCurrentlyShowing = false;
+        unawaited(prefs.remove(_keyExitAdShowing));
         ad.dispose();
         _exitInterstitialAd = null;
         _isExitAdLoaded = false;
         onAdDismissed?.call();
+        // 실패 시에만 재로드 (앱은 종료되지 않음)
         _loadExitInterstitialAd();
       },
     );
 
     await _exitInterstitialAd!.show();
+    return true;
+  }
+
+  /// 전면광고 표시 중 앱이 백그라운드로 전환됐을 때 호출
+  /// (홈 버튼 → 앱이 AdActivity 뒤에 숨겨진 상태)
+  /// finishOnTaskLaunch로 AdActivity가 자동 종료될 경우
+  /// onAdDismissedFullScreenContent 없이 재개될 수 있으므로 상태 정리
+  Future<void> handleAppResumedAfterAdInterrupt() async {
+    if (!_exitAdCurrentlyShowing) return;
+    debugPrint('⚠️ 전면광고 표시 중 앱 복귀 감지 - 광고 상태 정리');
+    _exitAdCurrentlyShowing = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyExitAdShowing);
+    // 광고 객체 정리 및 다음 광고 미리 로드
+    _exitInterstitialAd?.dispose();
+    _exitInterstitialAd = null;
+    _isExitAdLoaded = false;
+    _loadExitInterstitialAd();
+  }
+
+  // ─── 전면 광고 (채팅방 나갈 때, 4번에 1번) ─────────
+
+  /// 채팅방 나갈 때 전면 광고 로드
+  void _loadChatDetailInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: _chatDetailExitAdId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _chatDetailInterstitialAd = ad;
+          _isChatDetailAdLoaded = true;
+          debugPrint('✅ 채팅방 나갈 때 전면 광고 로드 완료');
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('❌ 채팅방 나갈 때 전면 광고 로드 실패: ${error.message}');
+          _isChatDetailAdLoaded = false;
+          // 30초 후 재시도 (fill rate가 낮을 때 대비)
+          Future.delayed(const Duration(seconds: 30), _loadChatDetailInterstitialAd);
+        },
+      ),
+    );
+  }
+
+  /// 채팅방 나갈 때 전면 광고 표시 (4번에 1번)
+  /// 반환: true면 광고 표시됨 (광고 닫힐 때까지 대기 후 [onAdDismissed] 호출)
+  Future<bool> showChatDetailAd({VoidCallback? onAdDismissed}) async {
+    if (!await _isFreeTier()) {
+      debugPrint('✅ 유료 플랜 - 채팅방 나갈 때 광고 건너뜀');
+      return false;
+    }
+
+    // 나간 횟수 카운트 증가 (앱 전체 누적)
+    final prefs = await SharedPreferences.getInstance();
+    final count = (prefs.getInt(_keyChatDetailExitCount) ?? 0) + 1;
+    await prefs.setInt(_keyChatDetailExitCount, count);
+
+    // 4번에 1번만 광고 표시
+    if (count % 4 != 0) {
+      debugPrint('📊 채팅방 나가기 $count회 - 광고 건너뜀 (다음 광고: ${4 - (count % 4)}회 후)');
+      return false;
+    }
+
+    // 마지막 광고 표시 후 쿨다운 체크 (AdMob 설정과 동일하게 코드에서도 적용)
+    final lastAdTime = prefs.getInt(_keyChatDetailLastAdTime) ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final elapsedMinutes = (now - lastAdTime) / 60000;
+    if (lastAdTime > 0 && elapsedMinutes < _chatDetailAdCooldownMinutes) {
+      debugPrint('⏱️ 채팅방 광고 쿨다운 중 (${elapsedMinutes.toStringAsFixed(1)}분 / ${_chatDetailAdCooldownMinutes}분)');
+      return false;
+    }
+
+    if (!_isChatDetailAdLoaded || _chatDetailInterstitialAd == null) {
+      debugPrint('⚠️ 채팅방 전면 광고 미준비 - 건너뜀');
+      _loadChatDetailInterstitialAd();
+      return false;
+    }
+
+    _chatDetailInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        debugPrint('채팅방 전면 광고 닫힘');
+        ad.dispose();
+        _chatDetailInterstitialAd = null;
+        _isChatDetailAdLoaded = false;
+        _loadChatDetailInterstitialAd();
+        // ✅ 수정: 100ms → 300ms로 증가
+        // Flutter surface 복원에 충분한 시간 확보 (100ms는 일부 기기에서 너무 짧음)
+        Future.delayed(const Duration(milliseconds: 300), () {
+          onAdDismissed?.call();
+        });
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('❌ 채팅방 전면 광고 표시 실패: ${error.message}');
+        ad.dispose();
+        _chatDetailInterstitialAd = null;
+        _isChatDetailAdLoaded = false;
+        onAdDismissed?.call();
+        _loadChatDetailInterstitialAd();
+      },
+    );
+
+    // 광고 표시 시각 기록 (쿨다운 계산용)
+    await prefs.setInt(_keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
+    await _chatDetailInterstitialAd!.show();
     return true;
   }
 
@@ -176,21 +314,28 @@ class AdService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) async {
-          // ★ SSV 설정: 광고 시청 완료 시 Google이 서버로 deviceIdHash를 전송
-          if (deviceIdHash.isNotEmpty) {
-            await ad.setServerSideOptions(
-              ServerSideVerificationOptions(customData: deviceIdHash),
-            );
-          }
+          // ★ 광고 준비 상태를 먼저 설정 (SSV await 실패 시에도 광고 사용 가능하도록)
           _rewardedAd = ad;
           _isRewardedAdLoaded = true;
           rewardedAdReadyNotifier.value = true;
           debugPrint('✅ 리워드 광고 로드 완료');
+          // SSV 설정은 부가 기능이므로 실패해도 광고 재생에 영향 없음
+          if (deviceIdHash.isNotEmpty) {
+            try {
+              await ad.setServerSideOptions(
+                ServerSideVerificationOptions(customData: deviceIdHash),
+              );
+            } catch (e) {
+              debugPrint('⚠️ SSV custom_data 설정 실패 (광고는 사용 가능): $e');
+            }
+          }
         },
         onAdFailedToLoad: (error) {
           debugPrint('❌ 리워드 광고 로드 실패: ${error.message}');
           _isRewardedAdLoaded = false;
           rewardedAdReadyNotifier.value = false;
+          // 30초 후 재시도 (채팅방 전면광고와 동일한 재시도 패턴)
+          Future.delayed(const Duration(seconds: 30), _loadRewardedAd);
         },
       ),
     );
@@ -243,6 +388,8 @@ class AdService {
       return false;
     }
 
+    bool rewardEarnedInAd = false; // 광고 강제종료 시 로컬 카운트 차감 방지용
+
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         debugPrint('리워드 광고 닫힘');
@@ -251,7 +398,15 @@ class AdService {
         _isRewardedAdLoaded = false;
         rewardedAdReadyNotifier.value = false;
         _loadRewardedAd(); // 다음 광고 미리 로드 (SSV 포함)
-        onAdClosed?.call();
+        // 광고를 정상적으로 닫았을 때만 로컬 카운트 차감
+        // (광고 시청 후 앱 강제종료 시 차감되지 않도록 onUserEarnedReward에서 이동)
+        if (rewardEarnedInAd) {
+          unawaited(_incrementTodayRewardCount());
+        }
+        // Flutter surface 복원 대기 후 콜백 (채팅방 전면광고와 동일한 300ms 패턴)
+        Future.delayed(const Duration(milliseconds: 300), () {
+          onAdClosed?.call();
+        });
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('❌ 리워드 광고 표시 실패: ${error.message}');
@@ -265,10 +420,11 @@ class AdService {
     );
 
     await _rewardedAd!.show(
-      onUserEarnedReward: (ad, reward) async {
+      onUserEarnedReward: (ad, reward) {
         debugPrint('🎁 리워드 획득: ${reward.type} x ${reward.amount}');
-        // 오늘 시청 횟수 증가
-        await _incrementTodayRewardCount();
+        rewardEarnedInAd = true;
+        // 로컬 카운트는 광고가 정상 닫힌 후 차감 (onAdDismissedFullScreenContent)
+        // 서버 리워드 등록만 여기서 수행
         onRewarded();
       },
     );
@@ -310,9 +466,27 @@ class AdService {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
+  /// 플랜 변경 후 광고 재로드 (유료 → 무료 다운그레이드 시 호출)
+  Future<void> reloadAdsForFreePlan() async {
+    final freeTier = await _isFreeTier();
+    if (!freeTier) return;
+
+    debugPrint('🔄 무료 플랜 전환 감지 - 광고 재로드');
+    if (!_isExitAdLoaded && _exitInterstitialAd == null) {
+      _loadExitInterstitialAd();
+    }
+    if (!_isChatDetailAdLoaded && _chatDetailInterstitialAd == null) {
+      _loadChatDetailInterstitialAd();
+    }
+    if (!_isRewardedAdLoaded && _rewardedAd == null) {
+      await _loadRewardedAd();
+    }
+  }
+
   /// 리소스 정리
   void dispose() {
     _exitInterstitialAd?.dispose();
+    _chatDetailInterstitialAd?.dispose();
     _rewardedAd?.dispose();
   }
 }

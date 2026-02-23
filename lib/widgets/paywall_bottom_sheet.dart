@@ -5,23 +5,46 @@ import '../screens/subscription_screen.dart';
 ///
 /// FREE 유저에게 BASIC 플랜 혜택을 보여주고 구독을 유도하는 바텀시트.
 /// [triggerFeature]에 어떤 기능이 잠겨 있는지 전달하면 해당 기능을 강조해서 보여줌.
+/// [onWatchAd]가 있으면 "광고 보고 1회 무료 요약" 버튼을 함께 표시.
 class PaywallBottomSheet extends StatelessWidget {
   final String? triggerFeature;
+  final bool isLimitReached;
+  final VoidCallback? onWatchAd;
+  final int adRemainingCount;
 
-  const PaywallBottomSheet({super.key, this.triggerFeature});
+  const PaywallBottomSheet({
+    super.key,
+    this.triggerFeature,
+    this.isLimitReached = false,
+    this.onWatchAd,
+    this.adRemainingCount = 0,
+  });
 
   /// 페이월 바텀시트를 표시하는 헬퍼 메서드
-  static Future<void> show(BuildContext context, {String? triggerFeature}) {
+  static Future<void> show(
+    BuildContext context, {
+    String? triggerFeature,
+    bool isLimitReached = false,
+    VoidCallback? onWatchAd,
+    int adRemainingCount = 0,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => PaywallBottomSheet(triggerFeature: triggerFeature),
+      builder: (_) => PaywallBottomSheet(
+        triggerFeature: triggerFeature,
+        isLimitReached: isLimitReached,
+        onWatchAd: onWatchAd,
+        adRemainingCount: adRemainingCount,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final showAdOption = isLimitReached && onWatchAd != null && adRemainingCount > 0;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -85,8 +108,84 @@ class PaywallBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
+          // 무료 횟수 소진 메시지
+          if (isLimitReached) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFFFB74D).withOpacity(0.5),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Text('⚠️', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '오늘 무료 요약 횟수를 모두 사용했어요.\nBASIC 플랜으로 계속 이용하세요.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFFE65100),
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 리워드 광고 옵션 (광고 횟수가 남아있을 때만)
+            if (showAdOption) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onWatchAd!();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2196F3),
+                    side: const BorderSide(color: Color(0xFF2196F3), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.play_circle_outline, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '광고 보고 무료 요약 (오늘 $adRemainingCount회 남음)',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '광고 시청 후 요약 1회가 즉시 충전됩니다',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+            ] else ...[
+              const SizedBox(height: 4),
+            ],
+          ]
           // Trigger feature hint
-          if (triggerFeature != null) ...[
+          else if (triggerFeature != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -126,22 +225,22 @@ class PaywallBottomSheet extends StatelessWidget {
               children: [
                 _buildBenefit(
                   Icons.summarize_rounded,
-                  '월 150회 수동 요약',
-                  'FREE 하루 1회 → 150회/월',
+                  '월 150회 대화 요약',
+                  '자동+수동 통합 월 150회 한도',
                   highlight: triggerFeature?.contains('요약') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),
                 _buildBenefit(
                   Icons.message_rounded,
                   '메시지 최대 200개까지 요약',
-                  'FREE 50개 → BASIC 200개',
+                  'FREE 50개, BASIC 200개',
                   highlight: triggerFeature?.contains('개') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),
                 _buildBenefit(
                   Icons.auto_awesome_rounded,
-                  '자동요약 하루 5회',
-                  '메시지 N개 쌓이면 자동 분석',
+                  '자동요약 및 자동요약 푸시알림',
+                  '메시지 N개 도달 시 자동 분석 및 푸시알림',
                   highlight: triggerFeature?.contains('자동') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),

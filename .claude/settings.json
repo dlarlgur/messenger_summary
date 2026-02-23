@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/ghim/my_business/aipf/**)",
+      "Bash(java -version:*)",
+      "Bash(mvn:*)",
+      "Bash(JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn compile:*)",
+      "Read(//usr/local/opt/**)",
+      "Read(//Library/Java/JavaVirtualMachines/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/ghim/my_business/aipf/src/main/java/com/dksw/aipf/service",
+      "/Users/ghim/my_business/aipf/src/main/java/com/dksw/aipf/controller"
+    ]
+  }
+}

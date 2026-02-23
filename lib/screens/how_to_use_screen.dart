@@ -296,7 +296,7 @@ class HowToUseScreen extends StatelessWidget {
           planName: '무료 플랜',
           planColor: Colors.blue,
           items: [
-            _buildPlanItem('요약 횟수', '일 2회 (매일 자정 초기화)'),
+            _buildPlanItem('요약 횟수', '일 1회 (매일 자정 초기화)'),
             _buildPlanItem('1회 요약 한도', '5~50개'),
             _buildPlanItem('주요 특징', '기본 요약 기능'),
           ],

@@ -3,114 +3,120 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#F5F5F5">
+    android:background="@android:color/transparent"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
+    <!-- 둥근 카드 컨테이너 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="100dp"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_ad_top_card"
+        android:clipToOutline="true"
+        android:elevation="2dp">
 
-        <!-- 채팅방 아이템과 동일한 구조의 광고 아이템 -->
+        <!-- 왼쪽: 아이콘 + 헤드라인 + 본문 + CTA -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingLeft="14dp"
-            android:paddingRight="14dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
             android:gravity="center_vertical">
 
-            <!-- 광고 아이콘 (채팅방 CircleAvatar와 동일 크기) -->
-            <ImageView
-                android:id="@+id/ad_icon"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="center_vertical"
-                android:scaleType="centerCrop"
-                android:clipToOutline="true"
-                android:outlineProvider="background"
-                android:background="@drawable/bg_ad_icon" />
-
-            <!-- 텍스트 영역 -->
+            <!-- 아이콘 + 헤드라인 + 광고 뱃지 -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginLeft="12dp"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-                <!-- 헤드라인 행 (방 이름 + 광고 뱃지) -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                <ImageView
+                    android:id="@+id/ad_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:scaleType="centerCrop"
+                    android:clipToOutline="true"
+                    android:outlineProvider="background"
+                    android:background="@drawable/bg_ad_icon" />
 
-                    <TextView
-                        android:id="@+id/ad_headline"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#1A1A1A"
-                        android:maxLines="1"
-                        android:ellipsize="end"
-                        android:lineSpacingMultiplier="1.2" />
-
-                    <!-- 광고 뱃지 -->
-                    <TextView
-                        android:id="@+id/ad_badge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="광고"
-                        android:textSize="9sp"
-                        android:textColor="#FFFFFF"
-                        android:background="@drawable/bg_ad_badge"
-                        android:paddingLeft="5dp"
-                        android:paddingRight="5dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp"
-                        android:layout_marginLeft="6dp" />
-
-                </LinearLayout>
-
-                <!-- 광고 본문 (마지막 메시지처럼) -->
                 <TextView
-                    android:id="@+id/ad_body"
-                    android:layout_width="match_parent"
+                    android:id="@+id/ad_headline"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
                     android:textSize="14sp"
-                    android:textColor="#757575"
-                    android:maxLines="2"
+                    android:textStyle="bold"
+                    android:textColor="#1A1A1A"
+                    android:maxLines="1"
                     android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/ad_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="광고"
+                    android:textSize="9sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/bg_ad_badge"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="5dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:layout_marginStart="4dp" />
 
             </LinearLayout>
 
-            <!-- CTA 버튼 (오른쪽) -->
+            <!-- 본문 (2줄) -->
+            <TextView
+                android:id="@+id/ad_body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <!-- CTA 버튼 -->
             <TextView
                 android:id="@+id/ad_call_to_action"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="8dp"
+                android:layout_marginTop="8dp"
                 android:textSize="12sp"
                 android:textColor="#2196F3"
                 android:background="@drawable/bg_ad_cta"
-                android:paddingLeft="10dp"
-                android:paddingRight="10dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp" />
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:maxLines="1"
+                android:ellipsize="end" />
 
         </LinearLayout>
 
-        <!-- 하단 구분선 (채팅방 아이템과 동일) -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="0.5dp"
-            android:background="#E0E0E0"
-            android:layout_marginLeft="14dp" />
+        <!-- 오른쪽: 큰 이미지 (MediaView) - 우측 모서리 클리핑 래퍼 -->
+        <!-- MediaView는 SurfaceView 기반이라 부모 clipToOutline 무시 → 래퍼로 클리핑 -->
+        <FrameLayout
+            android:layout_width="130dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_ad_media_right"
+            android:clipToOutline="true">
+
+            <com.google.android.gms.ads.nativead.MediaView
+                android:id="@+id/ad_media"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </FrameLayout>
 
     </LinearLayout>
 

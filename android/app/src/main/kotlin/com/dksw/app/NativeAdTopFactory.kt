@@ -5,11 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin.NativeAdFactory
 
-/// 상단 고정 네이티브 광고 팩토리 (연한 회색 배경)
+/// 상단 고정 네이티브 광고 팩토리 (배너 스타일: 왼쪽 텍스트 + 오른쪽 큰 이미지)
 class NativeAdTopFactory(private val context: Context) : NativeAdFactory {
 
     override fun createNativeAd(
@@ -23,18 +24,23 @@ class NativeAdTopFactory(private val context: Context) : NativeAdFactory {
         val headlineView = nativeAdView.findViewById<TextView>(R.id.ad_headline)
         val bodyView = nativeAdView.findViewById<TextView>(R.id.ad_body)
         val ctaView = nativeAdView.findViewById<TextView>(R.id.ad_call_to_action)
+        val mediaView = nativeAdView.findViewById<MediaView>(R.id.ad_media)
 
+        // 아이콘
         val icon = nativeAd.icon
         if (icon?.drawable != null) {
             iconView.setImageDrawable(icon.drawable)
+            iconView.visibility = View.VISIBLE
         } else {
-            iconView.setImageDrawable(null)
+            iconView.visibility = View.GONE
         }
         nativeAdView.iconView = iconView
 
+        // 헤드라인
         headlineView.text = nativeAd.headline ?: ""
         nativeAdView.headlineView = headlineView
 
+        // 본문
         val body = nativeAd.body
         if (body.isNullOrEmpty()) {
             bodyView.visibility = View.GONE
@@ -44,6 +50,7 @@ class NativeAdTopFactory(private val context: Context) : NativeAdFactory {
         }
         nativeAdView.bodyView = bodyView
 
+        // CTA
         val cta = nativeAd.callToAction
         if (cta.isNullOrEmpty()) {
             ctaView.visibility = View.INVISIBLE
@@ -52,6 +59,9 @@ class NativeAdTopFactory(private val context: Context) : NativeAdFactory {
             ctaView.visibility = View.VISIBLE
         }
         nativeAdView.callToActionView = ctaView
+
+        // 미디어 이미지 (오른쪽 큰 이미지)
+        nativeAdView.mediaView = mediaView
 
         nativeAdView.setNativeAd(nativeAd)
         return nativeAdView

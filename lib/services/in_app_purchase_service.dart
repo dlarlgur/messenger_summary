@@ -79,6 +79,14 @@ class InAppPurchaseService {
     return true;
   }
 
+  /// BillingClient 재연결 (unset 시 Dart는 살아있어도 Native는 끊긴 상태)
+  void _forceReconnect() {
+    _subscription?.cancel();
+    _subscription = null;
+    _isInitialized = false;
+    debugPrint('🔵 [IAP] BillingClient 재연결 시도 (unset 감지)');
+  }
+
   /// 상품 정보 조회
   Future<List<ProductDetails>> getProducts() async {
     if (!_isInitialized) {
@@ -88,26 +96,58 @@ class InAppPurchaseService {
       }
     }
 
+    ProductDetailsResponse response;
     try {
-      final ProductDetailsResponse response = 
-          await _inAppPurchase.queryProductDetails(_productIds);
-      
-      if (response.error != null) {
-        debugPrint('❌ 상품 조회 실패: ${response.error}');
-        return [];
-      }
-
-      if (response.productDetails.isEmpty) {
-        debugPrint('⚠️ 등록된 상품이 없습니다.');
-        return [];
-      }
-
-      debugPrint('✅ 상품 조회 성공: ${response.productDetails.length}개');
-      return response.productDetails;
+      response = await _inAppPurchase.queryProductDetails(_productIds);
     } catch (e) {
-      debugPrint('❌ 상품 조회 에러: $e');
+      if (e.toString().contains('BillingClient is unset') ||
+          e.toString().contains('unset')) {
+        _forceReconnect();
+        final initialized = await initialize();
+        if (!initialized) return [];
+        try {
+          response = await _inAppPurchase.queryProductDetails(_productIds);
+        } catch (e2) {
+          debugPrint('❌ 상품 조회 에러 (재시도 후): $e2');
+          return [];
+        }
+      } else {
+        debugPrint('❌ 상품 조회 에러: $e');
+        return [];
+      }
+    }
+
+    if (response.error != null) {
+      final msg = response.error!.message ?? '';
+      if (msg.contains('BillingClient is unset') || msg.contains('Try reconnecting')) {
+        _forceReconnect();
+        final initialized = await initialize();
+        if (!initialized) return [];
+        try {
+          final retry = await _inAppPurchase.queryProductDetails(_productIds);
+          if (retry.error != null) {
+            debugPrint('❌ 상품 조회 실패 (재시도 후): ${retry.error}');
+            return [];
+          }
+          if (retry.productDetails.isEmpty) return [];
+          debugPrint('✅ 상품 조회 성공 (재연결 후): ${retry.productDetails.length}개');
+          return retry.productDetails;
+        } catch (e2) {
+          debugPrint('❌ 상품 조회 에러 (재시도 후): $e2');
+          return [];
+        }
+      }
+      debugPrint('❌ 상품 조회 실패: ${response.error}');
       return [];
     }
+
+    if (response.productDetails.isEmpty) {
+      debugPrint('⚠️ 등록된 상품이 없습니다.');
+      return [];
+    }
+
+    debugPrint('✅ 상품 조회 성공: ${response.productDetails.length}개');
+    return response.productDetails;
   }
 
   /// 플랜 구매 시작

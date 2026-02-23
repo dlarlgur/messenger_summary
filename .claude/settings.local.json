@@ -18,7 +18,8 @@
       "Bash(ANDROID_HOME=\"$HOME/Library/Android/sdk\")",
       "Bash(bash:*)",
       "Bash(export ANDROID_HOME=\"/Users/ghim/Library/Android/sdk\":*)",
-      "Bash(/Users/ghim/Library/Android/sdk/emulator/emulator:*)"
+      "Bash(/Users/ghim/Library/Android/sdk/emulator/emulator:*)",
+      "Bash(find:*)"
     ]
   }
 }
