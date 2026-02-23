@@ -17,7 +17,8 @@
         android:label="AI 톡비서"
         android:name=".MyApplication"
         android:icon="@mipmap/ic_launcher"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="false">
         <!-- OnboardingActivity: 첫 실행 시 동의 화면 -->
         <activity
             android:name=".OnboardingActivity"

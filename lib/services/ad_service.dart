@@ -39,6 +39,10 @@ class AdService {
   static const int _chatDetailAdCooldownMinutes = 4; // AdMob 설정과 동일한 쿨다운
   // 전면광고 표시 중 앱 종료 감지용 키 (부분 로딩 → 강제 종료 → 재시작 시 블랙화면 방지)
   static const String _keyExitAdShowing = 'ad_exit_showing';
+  // ✅ 광고 캐싱 키 (public으로 변경하여 ChatRoomListScreen에서 접근 가능)
+  static const String keyTopAdCacheTime = 'ad_top_cache_time';
+  static const String keyListAdCacheTime = 'ad_list_cache_time';
+  static const int adCacheDurationMinutes = 60; // 60분 캐시
 
   // 현재 종료 광고가 표시 중인지 추적 (앱 라이프사이클 감지용)
   bool _exitAdCurrentlyShowing = false;
