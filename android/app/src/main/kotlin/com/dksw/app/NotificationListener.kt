@@ -25,6 +25,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileOutputStream
 import org.json.JSONArray
@@ -2049,15 +2050,7 @@ class NotificationListener : NotificationListenerService() {
             addAction(ACTION_CANCEL_ROOM_NOTIFICATIONS)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(cancelReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12-12L (API 31-32): targetSdk >= 31이면 반드시 exported 플래그 지정 필요
-            // Context.RECEIVER_NOT_EXPORTED = 0x4 (API 33에서 정의되나 값은 동일)
-            registerReceiver(cancelReceiver, filter, 0x4)
-        } else {
-            registerReceiver(cancelReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, cancelReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         Log.d(TAG, "취소 리시버 등록됨")
     }
 
@@ -2144,15 +2137,7 @@ class NotificationListener : NotificationListenerService() {
         }
         
         val filter = IntentFilter(ACTION_SEND_MESSAGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(sendMessageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12-12L (API 31-32): targetSdk >= 31이면 반드시 exported 플래그 지정 필요
-            // Context.RECEIVER_NOT_EXPORTED = 0x4 (API 33에서 정의되나 값은 동일)
-            registerReceiver(sendMessageReceiver, filter, 0x4)
-        } else {
-            registerReceiver(sendMessageReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, sendMessageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         Log.d(TAG, "✅ 메시지 전송 리시버 등록됨: ACTION=$ACTION_SEND_MESSAGE")
     }
     

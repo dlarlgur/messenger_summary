@@ -43,7 +43,8 @@ class PaywallBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showAdOption = isLimitReached && onWatchAd != null && adRemainingCount > 0;
+    // 횟수가 남아있으면 버튼 표시 (광고 로딩 중이어도 표시, 로딩 중엔 비활성화)
+    final showAdOption = isLimitReached && adRemainingCount > 0;
 
     return Container(
       decoration: const BoxDecoration(
@@ -140,7 +141,7 @@ class PaywallBottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 리워드 광고 옵션 (광고 횟수가 남아있을 때만)
+            // 리워드 광고 옵션 (횟수가 남아있을 때만)
             if (showAdOption) ...[
               SizedBox(
                 width: double.infinity,

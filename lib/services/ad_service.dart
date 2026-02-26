@@ -276,11 +276,12 @@ class AdService {
         ad.dispose();
         _chatDetailInterstitialAd = null;
         _isChatDetailAdLoaded = false;
-        _loadChatDetailInterstitialAd();
-        // ✅ 수정: 100ms → 300ms로 증가
-        // Flutter surface 복원에 충분한 시간 확보 (100ms는 일부 기기에서 너무 짧음)
-        Future.delayed(const Duration(milliseconds: 300), () {
+        // Flutter Surface 복원 후 첫 프레임이 실제로 그려진 시점에 pop 실행
+        // 고정 딜레이(300ms) 대신 프레임 콜백을 사용하여 블랙화면 방지
+        SchedulerBinding.instance.addPostFrameCallback((_) {
           onAdDismissed?.call();
+          // pop 완료 후 다음 광고 로드 (Surface 복원과 네트워크 요청 경합 방지)
+          Future.delayed(const Duration(milliseconds: 300), _loadChatDetailInterstitialAd);
         });
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
@@ -353,10 +354,7 @@ class AdService {
     final prefs = await SharedPreferences.getInstance();
     final savedDate = prefs.getString(_keyRewardDate) ?? '';
     final today = _todayString();
-
-    if (savedDate != today) {
-      return 0;
-    }
+    if (savedDate != today) return 0;
     return prefs.getInt(_keyRewardCount) ?? 0;
   }
 
@@ -451,23 +449,27 @@ class AdService {
     await prefs.setInt(_keyRewardCount, count + 1);
   }
 
-  /// 오늘 무료 요약 사용 여부 (1일 1회 무료)
+  /// 오늘 날짜 문자열 (yyyy-MM-dd)
+  String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 오늘 무료 요약 사용 여부 (1일 1회 무료, 자정 기준)
   Future<bool> hasUsedFreeSummaryToday() async {
     final prefs = await SharedPreferences.getInstance();
     final savedDate = prefs.getString(_keyFreeSummaryUsed) ?? '';
-    return savedDate == _todayString();
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    return savedDate == today;
   }
 
   /// 오늘 무료 요약 사용 표시
   Future<void> markFreeSummaryUsed() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyFreeSummaryUsed, _todayString());
-  }
-
-  /// 오늘 날짜 문자열 (yyyy-MM-dd)
-  String _todayString() {
     final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    await prefs.setString(_keyFreeSummaryUsed, today);
   }
 
   /// 플랜 변경 후 광고 재로드 (유료 → 무료 다운그레이드 시 호출)

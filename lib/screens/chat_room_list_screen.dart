@@ -116,6 +116,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _startDbObserver(); // ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
     _preloadPlanType(); // ✅ 플랜 타입 미리 로드 (컨텍스트 메뉴 지연 방지)
     _loadNativeAds(); // 네이티브 광고 로드 (채팅방과 동시)
+    _planService.planTypeNotifier.addListener(_onPlanTypeChanged);
     _restoreLastSelectedTab(); // 마지막 선택된 탭 복원
     // 알림 다이얼로그 제거
   }
@@ -257,8 +258,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
   }
 
+  void _onPlanTypeChanged() {
+    _refreshAdSlotVisibility();
+  }
+
   @override
   void dispose() {
+    _planService.planTypeNotifier.removeListener(_onPlanTypeChanged);
     WidgetsBinding.instance.removeObserver(this);
     _dbObserverTimer?.cancel(); // ✅ 핵심 수정: DB Observer 중지
     _topNativeAd?.dispose();

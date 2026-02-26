@@ -34,6 +34,9 @@ class PlanService {
   DateTime? _lastFetchTime;
   static const Duration _cacheExpiry = Duration(minutes: 5);
 
+  /// 플랜 타입 변경 알림 (구독 화면, 채팅방 목록 등에서 실시간 감지용)
+  final ValueNotifier<String> planTypeNotifier = ValueNotifier('free');
+
   // SharedPreferences 키 (Android NotificationListener에서도 읽음)
   static const String _sharedPrefsPlanTypeKey = 'flutter.plan_type';
 
@@ -62,6 +65,7 @@ class PlanService {
     if (usage != null) {
       _cachedPlanType = usage['planType'] as String? ?? 'free';
       _lastFetchTime = DateTime.now();
+      planTypeNotifier.value = _cachedPlanType!;
       // Android NotificationListener에서도 읽을 수 있도록 SharedPreferences에 캐시
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -270,6 +274,7 @@ class PlanService {
         // 캐시 업데이트
         _cachedPlanType = result['planType'] as String? ?? 'free';
         _lastFetchTime = DateTime.now();
+        planTypeNotifier.value = _cachedPlanType!;
         // Android NotificationListener에서도 읽을 수 있도록 SharedPreferences에 캐시
         try {
           final prefs = await SharedPreferences.getInstance();

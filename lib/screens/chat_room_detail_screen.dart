@@ -4420,18 +4420,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
       // 리워드 광고도 다 봤으면 → 페이월만 표시
       // 리워드 광고가 남아있으면 → 페이월에 광고 시청 버튼 포함해서 표시
-      // ValueListenableBuilder로 광고 로딩 완료 시 버튼 자동 활성화
       await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => ValueListenableBuilder<bool>(
-          valueListenable: adService.rewardedAdReadyNotifier,
-          builder: (_, adReady, __) => PaywallBottomSheet(
-            isLimitReached: true,
-            onWatchAd: (adRemaining > 0 && adReady) ? () => _watchRewardAdAndRetry() : null,
-            adRemainingCount: adRemaining,
-          ),
+        builder: (_) => PaywallBottomSheet(
+          isLimitReached: true,
+          onWatchAd: adRemaining > 0 ? () => _watchRewardAdAndRetry() : null,
+          adRemainingCount: adRemaining,
         ),
       );
       return;
@@ -4440,12 +4436,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => ValueListenableBuilder<bool>(
-            valueListenable: adService.rewardedAdReadyNotifier,
-            builder: (context, adReady, _) {
-          // 잔여 횟수가 있으면 광고 섹션 표시 (광고 로딩 중이어도 표시)
+      builder: (sheetContext) {
           final hasRemaining = remaining > 0;
-          final canWatchAd = hasRemaining && adReady;
 
           return Container(
             margin: const EdgeInsets.all(16),
@@ -4543,26 +4535,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton.icon(
-                      // 광고가 아직 로딩 중이면 비활성화
-                      onPressed: canWatchAd
-                          ? () {
-                              Navigator.pop(sheetContext);
-                              _watchRewardAdAndRetry();
-                            }
-                          : null,
-                      icon: canWatchAd
-                          ? const Icon(Icons.play_arrow_rounded, size: 20)
-                          : const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                      label: Text(
-                        canWatchAd ? '광고 보고 요약하기' : '광고 로딩 중...',
-                        style: const TextStyle(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _watchRewardAdAndRetry();
+                      },
+                      icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                      label: const Text(
+                        '광고 보고 요약하기',
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -4570,8 +4550,6 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2196F3),
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFF2196F3).withOpacity(0.5),
-                        disabledForegroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -4605,8 +4583,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               ],
             ),
           );
-            },
-          ),
+      },
     );
   }
 
@@ -4637,45 +4614,36 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   Future<void> _watchRewardAdAndRetry() async {
     final adService = AdService();
     final llmService = LlmService();
-    bool rewardEarned = false;
-    bool adClosed = false;
-    // onUserEarnedReward 시점에 서버 등록 시작 (광고 닫힘 전 미리 시작)
-    Future<bool>? rewardRegistrationFuture;
 
-    final success = await adService.showRewardedAd(
-      onRewarded: () {
-        debugPrint('🎁 리워드 획득 - 서버 등록 시작');
-        rewardEarned = true;
-        // 광고가 표시 중인 동안 미리 서버에 리워드 등록 요청
-        rewardRegistrationFuture = llmService.registerAdReward();
+    // 광고가 아직 로드되지 않았으면 로드될 때까지 대기
+    if (!adService.isRewardedAdReady) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
 
-        if (adClosed && mounted) {
-          debugPrint('✅ 리워드 획득 후 광고 닫힘 확인 - 요약 신청 실행');
-          Future.microtask(() {
-            if (mounted) {
-              _requestSummaryAfterReward(rewardRegistrationFuture!);
-            }
-          });
+      final loadDone = Completer<void>();
+      void listener() {
+        if (adService.rewardedAdReadyNotifier.value && !loadDone.isCompleted) {
+          loadDone.complete();
         }
-      },
-      onAdClosed: () {
-        debugPrint('📺 광고 닫힘');
-        adClosed = true;
-        if (rewardEarned && mounted) {
-          debugPrint('✅ 리워드 광고 닫힘 후 요약 신청 실행');
-          Future.microtask(() {
-            if (mounted) {
-              // onRewarded에서 이미 등록 시작됐으면 그 Future 재사용
-              final future = rewardRegistrationFuture ?? llmService.registerAdReward();
-              _requestSummaryAfterReward(future);
-            }
-          });
-        } else if (!rewardEarned) {
-          debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');
-        }
-      },
-      onFailed: () {
-        debugPrint('❌ 광고 표시 실패');
+      }
+      adService.rewardedAdReadyNotifier.addListener(listener);
+      try {
+        await loadDone.future.timeout(const Duration(seconds: 15));
+      } catch (_) {
+        // 타임아웃
+      } finally {
+        adService.rewardedAdReadyNotifier.removeListener(listener);
+      }
+
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      if (!adService.isRewardedAdReady) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -4684,17 +4652,58 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             ),
           );
         }
+        return;
+      }
+    }
+
+    bool rewardEarned = false;
+    Future<bool>? rewardRegistrationFuture;
+    // 광고 완전히 닫힐 때까지 기다리기 위한 Completer
+    final adDone = Completer<void>();
+
+    final success = await adService.showRewardedAd(
+      onRewarded: () {
+        debugPrint('🎁 리워드 획득 - 서버 등록 시작');
+        rewardEarned = true;
+        // 광고가 표시 중인 동안 미리 서버에 리워드 등록 요청
+        rewardRegistrationFuture = llmService.registerAdReward();
+      },
+      onAdClosed: () {
+        debugPrint('📺 광고 닫힘');
+        if (!adDone.isCompleted) adDone.complete();
+      },
+      onFailed: () {
+        debugPrint('❌ 광고 표시 실패');
+        if (!adDone.isCompleted) adDone.complete();
       },
     );
 
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    if (!success) {
+      if (!adDone.isCompleted) adDone.complete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
     }
+
+    // 광고가 완전히 닫힐 때까지 대기
+    await adDone.future;
+
+    if (!rewardEarned) {
+      debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');
+      return;
+    }
+
+    if (!mounted) return;
+
+    debugPrint('✅ 리워드 획득 확인 - 요약 신청 실행');
+    final future = rewardRegistrationFuture ?? llmService.registerAdReward();
+    _requestSummaryAfterReward(future);
   }
 
   /// 요약 결과 BottomSheet 표시 (완전히 새로운 디자인)

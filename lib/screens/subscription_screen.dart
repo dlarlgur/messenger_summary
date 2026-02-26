@@ -28,6 +28,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     super.initState();
     _subscribeToVerificationResults();
     _initialize();
+    _planService.planTypeNotifier.addListener(_onPlanTypeChanged);
+  }
+
+  void _onPlanTypeChanged() {
+    if (!mounted) return;
+    setState(() {
+      _currentPlanType = _planService.planTypeNotifier.value;
+      _isPurchasing = false;
+    });
   }
 
   /// 검증 결과 스트림 구독
@@ -37,9 +46,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         if (!mounted) return;
 
         if (result.success) {
-          // 성공: 플랜 정보 갱신 및 성공 메시지
+          // 성공: 캐시 무효화 후 서버 재조회 → planTypeNotifier 자동 갱신
           _planService.invalidateCache();
-          _loadCurrentPlan();
+          _planService.getCurrentPlanType(); // 결과는 _onPlanTypeChanged에서 처리
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.message),
@@ -228,6 +237,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   void dispose() {
+    _planService.planTypeNotifier.removeListener(_onPlanTypeChanged);
     _verificationSubscription?.cancel();
     // InAppPurchaseService는 싱글톤이므로 dispose 호출 금지
     // dispose 시 BillingClient 연결이 끊겨 재진입 시 "BillingClient is unset" 에러 발생

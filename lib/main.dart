@@ -62,6 +62,12 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color(0xFF2196F3),
             foregroundColor: Colors.white,
           ),
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            },
+          ),
         ),
         home: const MainScreen(),
       ),
