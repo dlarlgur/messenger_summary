@@ -4615,45 +4615,17 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     final adService = AdService();
     final llmService = LlmService();
 
-    // 광고가 아직 로드되지 않았으면 로드될 때까지 대기
+    // 광고가 아직 로드되지 않았으면 안내 후 종료
     if (!adService.isRewardedAdReady) {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
-
-      final loadDone = Completer<void>();
-      void listener() {
-        if (adService.rewardedAdReadyNotifier.value && !loadDone.isCompleted) {
-          loadDone.complete();
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('광고를 준비 중입니다. 잠시 후 다시 시도해주세요.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
-      adService.rewardedAdReadyNotifier.addListener(listener);
-      try {
-        await loadDone.future.timeout(const Duration(seconds: 15));
-      } catch (_) {
-        // 타임아웃
-      } finally {
-        adService.rewardedAdReadyNotifier.removeListener(listener);
-      }
-
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-
-      if (!adService.isRewardedAdReady) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
+      return;
     }
 
     bool rewardEarned = false;
@@ -4691,8 +4663,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       return;
     }
 
-    // 광고가 완전히 닫힐 때까지 대기
-    await adDone.future;
+    // 광고가 완전히 닫힐 때까지 대기 (최대 60초 타임아웃)
+    try {
+      await adDone.future.timeout(const Duration(seconds: 60));
+    } catch (_) {
+      debugPrint('⚠️ 광고 닫힘 대기 타임아웃');
+    }
 
     if (!rewardEarned) {
       debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');

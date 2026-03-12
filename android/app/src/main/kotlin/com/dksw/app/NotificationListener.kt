@@ -1523,6 +1523,7 @@ class NotificationListener : NotificationListenerService() {
             }
 
             extras?.let { bundle ->
+              try { // ★ Android 12 크래시 방지: Bundle 파싱 시 BadParcelableException/RuntimeException 보호
                 val title = bundle.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
                 val text = bundle.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
                 val subText = bundle.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
@@ -1535,8 +1536,9 @@ class NotificationListener : NotificationListenerService() {
                 val selfDisplayName = bundle.getCharSequence(Notification.EXTRA_SELF_DISPLAY_NAME)?.toString() ?: ""
                 val isGroupConversation = bundle.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION, false)
                 val messages = bundle.getParcelableArray(Notification.EXTRA_MESSAGES)
-                val remotePerson = bundle.get("android.remotePerson")
-                val messagingPerson = bundle.get("android.messagingUser")
+                // ⚠️ Android 12: KakaoTalk 전용 Parcelable 클래스일 경우 BadParcelableException 가능 → 개별 try-catch
+                val remotePerson = try { bundle.get("android.remotePerson") } catch (_: Exception) { null }
+                val messagingPerson = try { bundle.get("android.messagingUser") } catch (_: Exception) { null }
 
                 // 상세 로그는 샘플링으로 최적화 (성능 향상)
                 if (shouldLog) {
@@ -1898,10 +1900,19 @@ class NotificationListener : NotificationListenerService() {
                 }
 
                 // 모든 extras를 문자열로 변환
+                // ⚠️ Android 12: bundle.keySet() + bundle.get() 은 KakaoTalk 전용 Parcelable 클래스에서 BadParcelableException 발생 가능
                 val allExtrasString = StringBuilder()
-                for (key in bundle.keySet()) {
-                    val value = bundle.get(key)
-                    allExtrasString.append("$key: $value (${value?.javaClass?.simpleName})\n")
+                try {
+                    for (key in bundle.keySet()) {
+                        try {
+                            val value = bundle.get(key)
+                            allExtrasString.append("$key: $value (${value?.javaClass?.simpleName})\n")
+                        } catch (_: Exception) {
+                            allExtrasString.append("$key: [파싱 불가]\n")
+                        }
+                    }
+                } catch (_: Exception) {
+                    allExtrasString.append("[extras 전체 파싱 오류]")
                 }
 
                 // Flutter로 브로드캐스트 전송 (앱이 포그라운드일 때)
@@ -1928,6 +1939,10 @@ class NotificationListener : NotificationListenerService() {
                     setPackage(this@NotificationListener.packageName)
                 }
                 sendBroadcast(intent)
+              } catch (e: Exception) {
+                // ★ Android 12 크래시 방지: Bundle 파싱 오류 (BadParcelableException 등) 전체 보호
+                Log.e(TAG, "❌ onNotificationPosted 처리 중 예외 (패키지: $packageName): ${e.message}", e)
+              }
             }
 
             // 로그 종료 마커는 샘플링

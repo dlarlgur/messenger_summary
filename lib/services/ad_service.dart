@@ -12,19 +12,12 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
-  // 실제 ID
+  // 실제 광고 ID
   static const String _nativeTopFixedId = 'ca-app-pub-8640148276009977/5771138057';
   static const String _nativeChatListId = 'ca-app-pub-8640148276009977/4210644377';
   static const String _exitAdFullId = 'ca-app-pub-8640148276009977/2877381405';
   static const String _rewardSummaryChargeId = 'ca-app-pub-8640148276009977/7938136398';
   static const String _chatDetailExitAdId = 'ca-app-pub-8640148276009977/4943784306';
-
-  // 테스트 ID (Google 공식 테스트 광고) - 테스트 시 아래 주석 해제 후 위 실제 ID 주석 처리
-  // static const String _nativeTopFixedId = 'ca-app-pub-3940256099942544/2247696110';
-  // static const String _nativeChatListId = 'ca-app-pub-3940256099942544/2247696110';
-  // static const String _exitAdFullId = 'ca-app-pub-3940256099942544/1033173712';
-  // static const String _rewardSummaryChargeId = 'ca-app-pub-3940256099942544/5224354917';
-  // static const String _chatDetailExitAdId = 'ca-app-pub-3940256099942544/1033173712';
 
   // 네이티브 광고 팩토리 ID (Android NativeAdFactory에 등록된 이름)
   static const String nativeAdFactoryId = 'chatListNativeAd';      // 목록 사이 (흰색)

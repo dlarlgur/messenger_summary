@@ -121,16 +121,24 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     // 알림 다이얼로그 제거
   }
 
-  /// ✅ 캐시된 광고 초기화 (동기 - 슬롯 미리 예약)
   /// 마지막으로 선택된 메신저 탭을 SharedPreferences에서 복원
+  /// _selectedPackageName의 유일한 초기화 지점 (_buildPackageTabs race condition 방지)
   Future<void> _restoreLastSelectedTab() async {
+    // main()에서 unawaited로 호출된 initialize()가 완료되지 않았을 수 있으므로
+    // _cachedEnabledPackages가 실제 데이터로 채워지도록 보장
+    await MessengerSettingsService().initialize();
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final saved = prefs.getString(_keyLastSelectedTab);
-    if (!mounted || saved == null) return;
     final messengers = MessengerSettingsService().getEnabledMessengers();
-    if (!messengers.any((m) => m.packageName == saved)) return;
-    setState(() => _selectedPackageName = saved);
-    final idx = messengers.indexWhere((m) => m.packageName == saved);
+    if (messengers.isEmpty) return;
+
+    final target = (saved != null && messengers.any((m) => m.packageName == saved))
+        ? saved
+        : messengers.first.packageName;
+
+    setState(() => _selectedPackageName = target);
+    final idx = messengers.indexWhere((m) => m.packageName == target);
     if (idx > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _pageController.hasClients) {
@@ -928,6 +936,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     }
                   },
                 ),
+              // 읽음 처리 (unread가 있을 때만 표시)
+              if (room.unreadCount > 0)
+                _buildMenuItem(
+                  icon: Icons.done_all,
+                  title: '읽음 처리',
+                  subtitle: '${room.unreadCount}개의 안 읽은 메시지를 읽음으로 표시',
+                  iconColor: const Color(0xFF2196F3),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _markSingleRoomAsRead(room);
+                  },
+                ),
               // 채팅방 상단 고정
               _buildMenuItem(
                 icon: room.pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -1066,6 +1086,32 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         ),
       ),
     );
+  }
+
+  /// 단일 채팅방 읽음 처리
+  Future<void> _markSingleRoomAsRead(ChatRoom room) async {
+    try {
+      await _localDb.markRoomAsRead(room.id!);
+      if (mounted) {
+        setState(() {
+          final idx = _chatRooms.indexWhere((r) => r.id == room.id);
+          if (idx >= 0) {
+            _chatRooms[idx] = _chatRooms[idx].copyWith(unreadCount: 0);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('읽음 처리 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('읽음 처리에 실패했습니다.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 
   /// 모든 채팅방 읽음 처리
@@ -1920,14 +1966,22 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       return const SizedBox.shrink();
     }
 
-    // 선택된 패키지가 없거나 활성 목록에 없으면 첫 번째 자동 선택
-    if (_selectedPackageName == null ||
+    // 선택된 패키지가 활성 목록에 없으면 첫 번째로 리셋 (비활성화된 탭 선택 시)
+    // _selectedPackageName == null 인 경우는 _restoreLastSelectedTab()에서 처리하므로 제외
+    // (race condition 방지: postFrameCallback이 _restoreLastSelectedTab 복원값을 덮어쓰는 문제)
+    if (_selectedPackageName != null &&
         !enabledMessengers.any((m) => m.packageName == _selectedPackageName)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() {
-            _selectedPackageName = enabledMessengers.first.packageName;
-          });
+          final current = MessengerSettingsService().getEnabledMessengers();
+          if (current.isEmpty) return;
+          // 여전히 유효하지 않은 경우에만 리셋
+          if (!current.any((m) => m.packageName == _selectedPackageName)) {
+            setState(() {
+              _selectedPackageName = current.first.packageName;
+            });
+            if (_pageController.hasClients) _pageController.jumpToPage(0);
+          }
         }
       });
     }
@@ -1949,7 +2003,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             children: enabledMessengers.asMap().entries.map((entry) {
               final index = entry.key;
               final messenger = entry.value;
-              final isSelected = _selectedPackageName == messenger.packageName;
+              // _selectedPackageName == null 이면 첫 번째 탭 선택으로 표시 (복원 대기 중)
+              final isSelected = _selectedPackageName == null
+                  ? index == 0
+                  : _selectedPackageName == messenger.packageName;
               final tabKey = _getTabKey(messenger.packageName);
 
               return LongPressDraggable<int>(
