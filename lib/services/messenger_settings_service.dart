@@ -43,13 +43,13 @@ class MessengerSettingsService {
         final List<dynamic> list = jsonDecode(json);
         _cachedEnabledPackages = list.cast<String>();
       } else {
-        // 기본값: 카카오톡만
-        _cachedEnabledPackages = ['com.kakao.talk'];
+        // 기본값: 전체 메신저
+        _cachedEnabledPackages = MessengerRegistry.allMessengers.map((m) => m.packageName).toList();
         await _saveToPrefs();
       }
     } catch (e) {
       debugPrint('메신저 설정 로드 오류: $e');
-      _cachedEnabledPackages = ['com.kakao.talk'];
+      _cachedEnabledPackages = MessengerRegistry.allMessengers.map((m) => m.packageName).toList();
     }
   }
 
@@ -89,12 +89,12 @@ class MessengerSettingsService {
 
   /// 저장된 전체 패키지 목록 (플랜 무관) - 설정 화면용
   List<String> getSavedEnabledPackages() {
-    return List.from(_cachedEnabledPackages ?? ['com.kakao.talk']);
+    return List.from(_cachedEnabledPackages ?? MessengerRegistry.allMessengers.map((m) => m.packageName).toList());
   }
 
   /// 메신저 활성화
   Future<void> enableMessenger(String packageName) async {
-    _cachedEnabledPackages ??= ['com.kakao.talk'];
+    _cachedEnabledPackages ??= MessengerRegistry.allMessengers.map((m) => m.packageName).toList();
     if (!_cachedEnabledPackages!.contains(packageName)) {
       _cachedEnabledPackages!.add(packageName);
       await _saveToPrefs();

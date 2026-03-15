@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import '../config/constants.dart';
 import '../interceptors/auth_interceptor.dart';
 import '../services/privacy_masking_service.dart';
 
@@ -88,7 +89,7 @@ class LlmService {
   /// [roomName] - 채팅방 이름
   ///
   /// Returns: 요약 결과 Map 또는 에러 시 null
-  /// Throws: [RateLimitException] 사용량 초과 시
+  /// Throws: [RateLimitException] 사용량 한도 도달/초과 시
   Future<Map<String, dynamic>?> summarizeMessages({
     required List<Map<String, dynamic>> messages,
     required String roomName,
@@ -218,10 +219,12 @@ class LlmService {
         int limit = 0;
         String? nextResetDate;
         
+        int? maxLimit;
         if (responseData is Map<String, dynamic>) {
           planType = responseData['planType'] as String? ?? 'free';
           currentUsage = responseData['currentUsage'] as int? ?? 0;
           limit = responseData['limit'] as int? ?? 0;
+          maxLimit = responseData['maxLimit'] as int?;
           dynamic nextResetDateValue = responseData['nextResetDate'];
           if (nextResetDateValue is String) {
             nextResetDate = nextResetDateValue;
@@ -230,13 +233,12 @@ class LlmService {
           }
         }
         
-        // 플랜별 에러 메시지 생성
-        // Free: 분모를 항상 4(기본1 + 광고3)로 고정 → 사용자에게 처음부터 "4회 가능" 인식
+        // 플랜별 에러 메시지 생성. Free: 서버 maxLimit 사용, 없으면 fallback
         final displayUsage = currentUsage > limit ? limit : currentUsage;
-        const int freeMaxTotal = 4; // FREE_DAILY_LIMIT(1) + MAX_DAILY_REWARDS(3)
+        final freeMax = maxLimit ?? UsageConstants.freePlanMaxLimitFallback;
         String message;
         if (planType == 'free') {
-          message = '오늘 무료 요약 $displayUsage/${freeMaxTotal}회 사용 완료';
+          message = '오늘 무료 요약 $displayUsage/$freeMax회 사용 완료';
         } else {
           message = '이번 달 요약 $displayUsage/$limit회 사용 완료';
         }
@@ -245,6 +247,8 @@ class LlmService {
         throw RateLimitException(
           message,
           retryAfterSeconds: int.tryParse(retryAfter ?? '60') ?? 60,
+          serverLimit: limit,
+          serverMaxLimit: maxLimit ?? 0,
         );
       } else if (e.response?.statusCode == 401) {
         throw AuthException('인증에 실패했습니다. 앱을 다시 설치해주세요.');
@@ -269,8 +273,11 @@ class LlmService {
 class RateLimitException implements Exception {
   final String message;
   final int retryAfterSeconds;
+  final int serverLimit;
+  /// 무료 플랜 절대 최대 (서버에서 내려줌). 0이면 미제공
+  final int serverMaxLimit;
 
-  RateLimitException(this.message, {this.retryAfterSeconds = 60});
+  RateLimitException(this.message, {this.retryAfterSeconds = 60, this.serverLimit = 0, this.serverMaxLimit = 0});
 
   @override
   String toString() => message;

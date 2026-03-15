@@ -9,6 +9,7 @@ import '../services/auto_summary_settings_service.dart';
 import '../services/profile_image_service.dart';
 import '../services/messenger_registry.dart';
 import '../services/messenger_settings_service.dart';
+import '../config/constants.dart';
 import '../models/chat_room.dart';
 import 'summary_history_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
@@ -98,9 +99,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-
+    debugPrint('📊 [요약관리] 사용량 로드 시작 (GET /api/v1/llm/usage)');
     try {
       final usageData = await _planService.getUsage();
+      debugPrint('📊 [요약관리] 사용량 로드 완료: ${usageData != null ? "성공" : "null"}');
       if (mounted) {
         setState(() {
           _usageData = usageData;
@@ -108,6 +110,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         });
       }
     } catch (e) {
+      debugPrint('📊 [요약관리] 사용량 로드 실패: $e');
       if (mounted) {
         setState(() {
           _errorMessage = '사용량 정보를 불러오는데 실패했습니다.';
@@ -293,10 +296,12 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     final nextResetDate = _usageData!['nextResetDate'] as String?;
 
     final isFree = planType == 'free';
-    final usagePercent = limit > 0 ? (currentUsage / limit).clamp(0.0, 1.0) : 0.0;
-    final remaining = (limit - currentUsage).clamp(0, limit);
-    // 사용량이 제한을 초과하면 제한값으로 표시 (예: 4/3 → 3/3)
-    final displayUsage = currentUsage > limit ? limit : currentUsage;
+    // 무료 플랜 분모: 서버 maxLimit 사용, 미제공 시 fallback
+    final maxLimit = _usageData!['maxLimit'] as int?;
+    final displayLimit = isFree ? (maxLimit ?? UsageConstants.freePlanMaxLimitFallback) : limit;
+    final usagePercent = displayLimit > 0 ? (currentUsage / displayLimit).clamp(0.0, 1.0) : 0.0;
+    final remaining = (displayLimit - currentUsage).clamp(0, displayLimit);
+    final displayUsage = currentUsage > displayLimit ? displayLimit : currentUsage;
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -314,7 +319,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             // 사용량 게이지 카드
             _buildUsageGaugeCard(
               currentUsage: currentUsage,
-              limit: limit,
+              limit: displayLimit,
               usagePercent: usagePercent,
               remaining: remaining,
               period: period,

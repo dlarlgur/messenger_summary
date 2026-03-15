@@ -5,7 +5,7 @@ import '../screens/subscription_screen.dart';
 ///
 /// FREE 유저에게 BASIC 플랜 혜택을 보여주고 구독을 유도하는 바텀시트.
 /// [triggerFeature]에 어떤 기능이 잠겨 있는지 전달하면 해당 기능을 강조해서 보여줌.
-/// [onWatchAd]가 있으면 "광고 보고 1회 무료 요약" 버튼을 함께 표시.
+/// [onWatchAd]가 있으면 "광고 보고 무료 요약" 버튼을 함께 표시.
 class PaywallBottomSheet extends StatelessWidget {
   final String? triggerFeature;
   final bool isLimitReached;
@@ -55,9 +55,10 @@ class PaywallBottomSheet extends StatelessWidget {
         24,
         16,
         24,
-        24 + MediaQuery.of(context).viewInsets.bottom,
+        24 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom,
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle bar
@@ -109,7 +110,7 @@ class PaywallBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
-          // 무료 횟수 소진 메시지
+          // 무료 횟수 소진 메시지 (광고 남은 횟수 있으면 문구 구분)
           if (isLimitReached) ...[
             Container(
               width: double.infinity,
@@ -121,14 +122,16 @@ class PaywallBottomSheet extends StatelessWidget {
                   color: const Color(0xFFFFB74D).withOpacity(0.5),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Text('⚠️', style: TextStyle(fontSize: 16)),
-                  SizedBox(width: 8),
+                  const Text('⚠️', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '오늘 무료 요약 횟수를 모두 사용했어요.\nBASIC 플랜으로 계속 이용하세요.',
-                      style: TextStyle(
+                      adRemainingCount > 0
+                          ? '기본 무료 횟수를 모두 사용했어요.\n광고를 보시면 오늘 $adRemainingCount회 더 이용할 수 있어요.'
+                          : '오늘 무료 요약 횟수를 모두 사용했어요.\nBASIC 플랜으로 계속 이용하세요.',
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFFE65100),
                         fontWeight: FontWeight.w500,
@@ -307,6 +310,7 @@ class PaywallBottomSheet extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

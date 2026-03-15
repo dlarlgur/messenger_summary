@@ -1,7 +1,6 @@
 package com.dksw.app
 
 import android.Manifest
-import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -24,8 +23,10 @@ import android.widget.TextView
 import android.widget.Toast
 import android.os.Build
 import android.view.ViewGroup
+import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 
-class OnboardingActivity : Activity() {
+class OnboardingActivity : ComponentActivity() {
     companion object {
         private const val TAG = "OnboardingActivity"
         private const val PREFS_NAME = "onboarding_prefs"
@@ -60,6 +61,7 @@ class OnboardingActivity : Activity() {
     private val privacyUrl = "https://dksw4.com/privacy"
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_onboarding)
 

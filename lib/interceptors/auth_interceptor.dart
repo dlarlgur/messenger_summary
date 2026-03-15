@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../config/constants.dart';
 import '../services/auth_service.dart';
 
 /// JWT 토큰 및 X-Timestamp 헤더를 자동 추가하는 Dio 인터셉터
@@ -90,7 +91,7 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
-    // 429 Too Many Requests: 사용량 초과
+    // 429 Too Many Requests: 사용량 한도(도달/초과)
     if (err.response?.statusCode == 429) {
       final responseData = err.response?.data;
       if (responseData is Map<String, dynamic>) {
@@ -106,11 +107,15 @@ class AuthInterceptor extends Interceptor {
         
         final currentUsage = responseData['currentUsage'] as int?;
         final limit = responseData['limit'] as int?;
+        final maxLimit = responseData['maxLimit'] as int?;
         final planType = responseData['planType'] as String?;
         final message = responseData['message'] as String?;
 
-        // 사용자에게 알림 표시
-        print('⚠️ 사용량 초과: $currentUsage/$limit (플랜: $planType)');
+        // 로그: limit=현재 최대(2+받은 리워드). maxLimit 미제공 시 5 디폴트 적용
+        final freeHint = (planType == 'free' && limit != null)
+            ? ' [limit=$limit, maxLimit=${maxLimit ?? "${UsageConstants.freePlanMaxLimitFallback}(디폴트)"}]'
+            : '';
+        print('⚠️ 사용량 한도: $currentUsage/$limit (플랜: $planType)$freeHint');
         print('📅 다음 갱신일: $nextResetDate');
         if (message != null) {
           print('💬 메시지: $message');

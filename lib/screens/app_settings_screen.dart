@@ -9,6 +9,7 @@ import 'usage_management_screen.dart';
 import 'subscription_screen.dart';
 import 'how_to_use_screen.dart';
 import 'about_screen.dart';
+import '../config/constants.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/plan_service.dart';
 
@@ -37,14 +38,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     _loadCurrentPlan();
   }
 
+  /// 서버에서 받은 무료 플랜 maxLimit (요약관리와 동일하게 usage API 사용)
+  int? _freePlanMaxLimit;
+
   Future<void> _loadCurrentPlan() async {
     try {
-      // 설정 화면 진입 시 항상 서버에서 최신 플랜 정보 조회
+      // 설정 화면 진입 시 항상 서버에서 최신 플랜 정보·사용량 조회
       _planService.invalidateCache();
-      final planType = await _planService.getCurrentPlanType();
+      final usage = await _planService.getUsage();
+      final planType = usage?['planType'] as String? ?? await _planService.getCurrentPlanType();
       if (mounted) {
         setState(() {
           _currentPlanType = planType;
+          _freePlanMaxLimit = usage?['maxLimit'] as int?;
         });
       }
     } catch (e) {
@@ -413,12 +419,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           _buildFeatureItem('광고 완전 제거'),
         ];
       default: // free
+        final maxLimit = _freePlanMaxLimit ?? UsageConstants.freePlanMaxLimitFallback;
+        final adRewards = _freePlanMaxLimit != null ? (_freePlanMaxLimit! - 2) : UsageConstants.freePlanMaxAdRewardsFallback;
         return [
-          _buildFeatureItem('하루 1회 무료 요약'),
+          _buildFeatureItem('하루 최대 ${maxLimit}회 무료 요약'),
           const SizedBox(height: 8),
           _buildFeatureItem('메시지 최대 50개 요약'),
           const SizedBox(height: 8),
-          _buildFeatureItem('광고 시청 시 하루 최대 3회 추가'),
+          _buildFeatureItem('$adRewards회는 광고 시청 시 제공'),
         ];
     }
   }

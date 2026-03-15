@@ -4356,7 +4356,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       _planService.invalidateCache();
 
       if (mounted) {
-        _showRateLimitWithRewardOption(e.message);
+        _showRateLimitWithRewardOption(e.message, serverLimit: e.serverLimit, serverMaxLimit: e.serverMaxLimit);
       }
     } on AuthException catch (e) {
       // 로딩 다이얼로그 닫기
@@ -4403,9 +4403,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     }
   }
 
-  /// 사용량 초과 시 리워드 광고 옵션 포함 바텀시트
-  Future<void> _showRateLimitWithRewardOption(String message) async {
-    final adService = AdService();
+  /// 사용량 한도 도달/초과 시 리워드 광고 옵션 포함 바텀시트
+  Future<void> _showRateLimitWithRewardOption(String message, {int serverLimit = 0, int serverMaxLimit = 0}) async {
     final llmService = LlmService();
 
     // 잔여 횟수 먼저 확인 (서버 기준)
@@ -4413,9 +4412,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     if (!mounted) return;
 
-    // 잔여 횟수 없으면 → 로컬 리워드 광고 남은 횟수 확인
+    // 잔여 횟수 없으면 → 서버 maxLimit으로 광고 남은 횟수 계산 (maxLimit - limit, 최대 3). 서버 미제공 시 fallback
     if (remaining <= 0) {
-      final adRemaining = await adService.getRemainingRewardCount();
+      final maxLimit = serverMaxLimit > 0 ? serverMaxLimit : UsageConstants.freePlanMaxLimitFallback;
+      final maxRewards = maxLimit - 2; // FREE 2
+      final adRemaining = serverLimit > 0
+          ? (maxLimit - serverLimit).clamp(0, maxRewards > 0 ? maxRewards : UsageConstants.freePlanMaxAdRewardsFallback)
+          : 0;
       if (!mounted) return;
 
       // 리워드 광고도 다 봤으면 → 페이월만 표시
@@ -4630,14 +4633,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     bool rewardEarned = false;
     Future<bool>? rewardRegistrationFuture;
-    // 광고 완전히 닫힐 때까지 기다리기 위한 Completer
     final adDone = Completer<void>();
 
     final success = await adService.showRewardedAd(
       onRewarded: () {
         debugPrint('🎁 리워드 획득 - 서버 등록 시작');
         rewardEarned = true;
-        // 광고가 표시 중인 동안 미리 서버에 리워드 등록 요청
         rewardRegistrationFuture = llmService.registerAdReward();
       },
       onAdClosed: () {

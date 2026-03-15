@@ -24,6 +24,7 @@ import 'blocked_rooms_screen.dart';
 import 'notification_list_screen.dart';
 import 'usage_management_screen.dart';
 import 'app_settings_screen.dart';
+import 'app_guide_screen.dart';
 import 'subscription_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
 
@@ -467,12 +468,16 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     return _profileService.getRoomProfile(roomName, packageName);
   }
 
-  /// 알림 설정 안내 다이얼로그 표시 (첫 진입 시)
+  /// 알림 설정 안내 다이얼로그 표시 (첫 진입 시, 가이드 건너뛰기/완료 후 메인에 진입했을 때만)
   Future<void> _showNotificationDialogIfNeeded() async {
     // 이미 다이얼로그 표시 중이면 리턴
     if (_isShowingNotificationDialog) return;
 
     try {
+      // 안내 페이지를 건너뛰거나 완료한 뒤 메인에 진입한 경우에만 표시 (가이드 위에 팝업 뜨는 것 방지)
+      final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
+      if (!hasSeenGuide) return;
+
       final prefs = await SharedPreferences.getInstance();
       final hasShown = prefs.getBool('has_shown_notification_dialog') ?? false;
 

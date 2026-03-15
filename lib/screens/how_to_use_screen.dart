@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/constants.dart';
 
 /// AI 톡비서 사용 가이드 화면
 class HowToUseScreen extends StatelessWidget {
@@ -296,7 +297,7 @@ class HowToUseScreen extends StatelessWidget {
           planName: '무료 플랜',
           planColor: Colors.blue,
           items: [
-            _buildPlanItem('요약 횟수', '일 1회 (매일 자정 초기화)'),
+            _buildPlanItem('요약 횟수', '하루 최대 ${UsageConstants.freePlanMaxLimitFallback}회 (${UsageConstants.freePlanMaxAdRewardsFallback}회는 광고 시청 시, 매일 자정 초기화)'),
             _buildPlanItem('1회 요약 한도', '5~50개'),
             _buildPlanItem('주요 특징', '기본 요약 기능'),
           ],
@@ -309,7 +310,7 @@ class HowToUseScreen extends StatelessWidget {
           items: [
             _buildPlanItem('요약 횟수', '150회 (결제일 기준 초기화)'),
             _buildPlanItem('1회 요약 한도', '5~200개'),
-            _buildPlanItem('주요 특징', '자동 요약, 푸시 알림 제공, 타 메신저 추가 설정 가능'),
+            _buildPlanItem('주요 특징', '사용자가 설정한 메시지 수만큼 자동요약.\n자동요약 후 푸시 알림 제공'),
           ],
         ),
       ],

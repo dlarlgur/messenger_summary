@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/constants.dart';
 import 'auth_service.dart';
 import 'plan_service.dart';
 
@@ -294,6 +295,12 @@ class AdService {
   }
 
   // ─── 리워드 광고 (무료 요약 충전) ──────────────────
+  //
+  // 참고: 테스트 광고는 onUserEarnedReward가 잘 호출되지만, 실광고(특히 매체)에서는
+  // 호출이 누락되거나 onAdDismissedFullScreenContent *이후*에 호출될 수 있음.
+  // - 콜백 순서 대응: 광고 닫힌 뒤 600ms 지연 후 reward 여부를 확인하도록 처리함.
+  // - 여전히 콜백이 안 오는 경우: AdMob 콘솔에서 리워드 광고 유닛 설정(리워드 이름/수량),
+  //   매체 파트너, "고참여 광고" 옵션 확인. 일부 네트워크는 리워드 이벤트를 전달하지 않을 수 있음.
 
   /// 리워드 광고 로드
   /// SSV(Server-Side Verification) 설정: custom_data = deviceIdHash
@@ -351,10 +358,11 @@ class AdService {
     return prefs.getInt(_keyRewardCount) ?? 0;
   }
 
-  /// 오늘 남은 리워드 광고 시청 가능 횟수 (최대 3회)
+  /// 오늘 남은 리워드 광고 시청 가능 횟수 (서버 maxLimit 없을 때 fallback 사용)
   Future<int> getRemainingRewardCount() async {
     final used = await getTodayRewardCount();
-    return (3 - used).clamp(0, 3);
+    final maxRewards = UsageConstants.freePlanMaxAdRewardsFallback;
+    return (maxRewards - used).clamp(0, maxRewards);
   }
 
   /// 리워드 광고 표시
@@ -375,10 +383,10 @@ class AdService {
       return false;
     }
 
-    // 오늘 3회 초과 체크
+    // 오늘 리워드 광고 한도 초과 체크
     final remaining = await getRemainingRewardCount();
     if (remaining <= 0) {
-      debugPrint('⚠️ 오늘 리워드 광고 시청 한도 초과 (3회)');
+      debugPrint('⚠️ 오늘 리워드 광고 시청 한도 초과 (하루 ${UsageConstants.freePlanMaxAdRewardsFallback}회)');
       onFailed?.call();
       return false;
     }
@@ -393,13 +401,12 @@ class AdService {
         _isRewardedAdLoaded = false;
         rewardedAdReadyNotifier.value = false;
         _loadRewardedAd(); // 다음 광고 미리 로드 (SSV 포함)
-        // 광고를 정상적으로 닫았을 때만 로컬 카운트 차감
-        // (광고 시청 후 앱 강제종료 시 차감되지 않도록 onUserEarnedReward에서 이동)
-        if (rewardEarnedInAd) {
-          unawaited(_incrementTodayRewardCount());
-        }
-        // Flutter surface 복원 대기 후 콜백 (채팅방 전면광고와 동일한 300ms 패턴)
-        Future.delayed(const Duration(milliseconds: 300), () {
+        // 실광고/매체에서는 onUserEarnedReward가 onAdDismissed *이후*에 호출되는 경우가 있음.
+        // 닫힌 직후에 rewardEarnedInAd를 보면 아직 false일 수 있으므로, 짧은 지연 후 다시 확인.
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (rewardEarnedInAd) {
+            unawaited(_incrementTodayRewardCount());
+          }
           onAdClosed?.call();
         });
       },

@@ -1,3 +1,14 @@
+/// 무료 플랜 사용량 fallback (서버에서 maxLimit 미제공 시에만 사용)
+///
+/// 서버 응답: limit = 현재 최대(2+받은 리워드), maxLimit = 절대 최대(2+3=5). 앱은 서버 값을 사용.
+/// 서버에서 해당 값을 못 받아왔을 때는 5회로 디폴트 적용.
+class UsageConstants {
+  /// 서버 maxLimit 미제공 시 디폴트 5회 (FREE 2 + 최대 리워드 3)
+  static const int freePlanMaxLimitFallback = 5;
+  /// 서버 maxLimit 없을 때 리워드 광고 최대 횟수 디폴트 3회
+  static const int freePlanMaxAdRewardsFallback = 3;
+}
+
 // API 서버 설정
 class ApiConstants {
   // 개발 환경: 에뮬레이터에서 호스트 PC 접근 시 10.0.2.2 사용
