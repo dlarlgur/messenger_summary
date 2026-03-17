@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,15 +6,39 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
+import '../../data/services/version_service.dart';
 import '../../providers/providers.dart';
 import '../map/map_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/update_dialog.dart';
 import '../filter/gas_filter_sheet.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../favorites/favorites_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 앱 시작 시 버전 체크
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint('[HomeScreen] 버전 체크 시작');
+      final result = await VersionService.check();
+      debugPrint('[HomeScreen] 버전 체크 결과: ${result?.type}');
+      if (!mounted) return;
+      
+      if (result != null && result.type != UpdateType.none) {
+        debugPrint('[HomeScreen] 업데이트 다이얼로그 표시');
+        await UpdateDialog.showIfNeeded(context, result);
+      }
+    });
+  }
 
   Future<bool> _onWillPop(BuildContext context) async {
     return await showDialog<bool>(
@@ -37,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final bottomIndex = ref.watch(bottomNavIndexProvider);
 
     return PopScope(
@@ -173,6 +198,7 @@ class _GasListViewState extends ConsumerState<_GasListView> {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
+        ref.invalidate(locationProvider);
         ref.invalidate(gasStationsProvider);
       },
       child: CustomScrollView(
@@ -364,6 +390,7 @@ class _EvListViewState extends ConsumerState<_EvListView> {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() { _displayCount = _pageSize; _searchQuery = ''; _searchController.clear(); });
+        ref.invalidate(locationProvider);
         ref.invalidate(evStationsProvider);
       },
       child: CustomScrollView(
@@ -640,12 +667,6 @@ class SettingsScreenEmbed extends ConsumerWidget {
                 FuelType.values.indexOf(settings.fuelType),
                 (i) => ref.read(settingsProvider.notifier).setFuelType(FuelType.values[i]));
             }),
-          _tile(context, isDark, Icons.radar_rounded, '검색 반경', '${(settings.radius / 1000).toInt()}Km', () {
-            _showPicker(context, '검색 반경',
-              AppConstants.radiusOptions.map((r) => '${(r / 1000).toInt()}Km').toList(),
-              AppConstants.radiusOptions.indexOf(settings.radius),
-              (i) => ref.read(settingsProvider.notifier).setRadius(AppConstants.radiusOptions[i]));
-          }),
           const SizedBox(height: 16),
           _sectionHeader(context, '앱 설정'),
           _tile(context, isDark, Icons.dark_mode_rounded, '테마',
