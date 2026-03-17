@@ -11,6 +11,7 @@ const gasRoutes = require('./routes/gas');
 const evRoutes = require('./routes/ev');
 const priceRoutes = require('./routes/prices');
 const searchRoutes = require('./routes/search');
+const versionRoutes = require('./routes/version');
 const { getChargersByZcode, buildGeoIndex } = require('./services/evApi');
 
 const ALL_ZCODES = ['11','21','27','28','29','30','31','36','41','42','43','44','45','46','47','48','49'];
@@ -81,6 +82,7 @@ app.use('/api/stations/gas', gasRoutes);
 app.use('/api/stations/ev', evRoutes);
 app.use('/api/prices', priceRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/version', versionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
