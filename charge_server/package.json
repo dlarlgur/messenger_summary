@@ -1,0 +1,25 @@
+{
+  "name": "com.dksw.charge.server",
+  "version": "1.0.0",
+  "description": "주유/충전 도우미 API 프록시 서버",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "redis": "^4.6.12",
+    "proj4": "^2.9.2",
+    "xml2js": "^0.6.2",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

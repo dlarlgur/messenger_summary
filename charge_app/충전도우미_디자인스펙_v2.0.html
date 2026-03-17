@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>충전도우미 - UI 디자인 스펙 v2.0</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:#F0F2F5;color:#1a1a1a}
+.page{width:1440px;margin:0 auto;background:#fff;padding:60px 80px;min-height:100vh;page-break-after:always}
+.page-header{text-align:center;padding:60px 0 40px;border-bottom:2px solid #E2E8F0;margin-bottom:48px}
+.page-header h1{font-size:42px;font-weight:800;color:#0F172A;letter-spacing:-1px}
+.page-header .sub{font-size:18px;color:#64748B;margin-top:8px}
+.page-header .badge{display:inline-block;padding:6px 20px;border-radius:20px;font-size:14px;font-weight:600;margin-top:16px}
+.section-title{font-size:28px;font-weight:700;color:#0F172A;margin:48px 0 8px;letter-spacing:-0.5px}
+.section-sub{font-size:15px;color:#64748B;margin-bottom:32px}
+.screen-row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:48px;align-items:flex-start}
+.screen-wrap{text-align:center}
+.screen-label{font-size:13px;font-weight:600;margin-bottom:10px;letter-spacing:0.5px}
+.screen-label.gas{color:#2563EB}
+.screen-label.ev{color:#059669}
+.screen-label.neutral{color:#64748B}
+.screen-note{font-size:11px;color:#94A3B8;margin-top:8px;max-width:280px;line-height:1.5}
+.phone{width:280px;border-radius:32px;overflow:hidden;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.08)}
+.phone.dark{background:#0C0E13}
+.phone.light{background:#F8FAFB}
+.statusbar{padding:10px 20px 6px;display:flex;justify-content:space-between;font-size:11px;font-weight:600}
+.dark .statusbar{color:#E2E8F0}
+.light .statusbar{color:#1E293B}
+.sc{padding:0 14px 16px}
+.d-header{padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:center}
+.d-title{font-size:17px;font-weight:700}
+.dark .d-title{color:#F1F5F9}
+.light .d-title{color:#0F172A}
+.chip-row{display:flex;gap:5px;padding:0 14px 8px;overflow:hidden}
+.chip{padding:5px 12px;border-radius:14px;font-size:10px;font-weight:600;white-space:nowrap}
+.dark .chip{background:rgba(255,255,255,0.05);color:#94A3B8;border:0.5px solid rgba(255,255,255,0.08)}
+.dark .chip.on{background:#3B82F6;color:#fff;border-color:#3B82F6}
+.dark .chip.ev{background:#10B981;color:#fff;border-color:#10B981}
+.light .chip{background:#F1F5F9;color:#64748B;border:0.5px solid #E2E8F0}
+.light .chip.on{background:#2563EB;color:#fff;border-color:#2563EB}
+.light .chip.ev{background:#059669;color:#fff;border-color:#059669}
+.tab-bar{display:flex;margin:0 14px 8px;border-radius:10px;overflow:hidden}
+.tab{flex:1;text-align:center;padding:9px;font-size:12px;font-weight:600}
+.dark .tab{background:rgba(255,255,255,0.04);color:#64748B}
+.dark .tab.on{background:#3B82F6;color:#fff}
+.dark .tab.ev-on{background:#10B981;color:#fff}
+.light .tab{background:#E2E8F0;color:#94A3B8}
+.light .tab.on{background:#2563EB;color:#fff}
+.light .tab.ev-on{background:#059669;color:#fff}
+.card{border-radius:10px;padding:10px 12px;margin:0 14px 5px;display:flex;justify-content:space-between;align-items:center}
+.dark .card{background:rgba(255,255,255,0.03)}
+.dark .card.top{background:rgba(59,130,246,0.07);border:0.5px solid rgba(59,130,246,0.18)}
+.dark .card.ev-top{background:rgba(16,185,129,0.07);border:0.5px solid rgba(16,185,129,0.18)}
+.light .card{background:#fff;border:0.5px solid #E8ECF0}
+.light .card.top{background:#EFF6FF;border:0.5px solid #BFDBFE}
+.light .card.ev-top{background:#ECFDF5;border:0.5px solid #A7F3D0}
+.card-left{display:flex;align-items:center;gap:8px}
+.card-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.dark .card-icon{background:#1E293B;color:#64748B}
+.dark .card-icon.ev{background:#064E3B;color:#34D399}
+.light .card-icon{background:#F1F5F9;color:#64748B}
+.light .card-icon.ev{background:#ECFDF5;color:#059669}
+.card-name{font-size:12px;font-weight:600}
+.dark .card-name{color:#E2E8F0}
+.light .card-name{color:#1E293B}
+.card-sub{font-size:9px;margin-top:1px}
+.dark .card-sub{color:#4B5563}
+.light .card-sub{color:#94A3B8}
+.card-price{font-size:14px;font-weight:700}
+.dark .card-price{color:#E2E8F0}
+.light .card-price{color:#1E293B}
+.card-price.best{color:#3B82F6}
+.card-price.ev-best{color:#10B981}
+.card-unit{font-size:9px;font-weight:400}
+.dark .card-unit{color:#64748B}
+.light .card-unit{color:#94A3B8}
+.summary{border-radius:12px;padding:12px 14px;margin:0 14px 8px}
+.dark .summary{background:linear-gradient(135deg,#162032,#111827)}
+.dark .summary.ev{background:linear-gradient(135deg,#064E3B,#111827)}
+.light .summary{background:linear-gradient(135deg,#EFF6FF,#DBEAFE)}
+.light .summary.ev{background:linear-gradient(135deg,#ECFDF5,#D1FAE5)}
+.summary-label{font-size:9px;font-weight:600;letter-spacing:0.4px}
+.dark .summary-label{color:#60A5FA}
+.dark .summary.ev .summary-label{color:#34D399}
+.light .summary-label{color:#2563EB}
+.light .summary.ev .summary-label{color:#059669}
+.summary-price{font-size:20px;font-weight:700;margin-top:2px}
+.dark .summary-price{color:#F1F5F9}
+.light .summary-price{color:#0F172A}
+.summary-unit{font-size:11px;font-weight:400;color:#64748B}
+.bottomnav{display:flex;justify-content:space-around;padding:8px 0 12px;border-top:0.5px solid rgba(128,128,128,0.15);margin:6px 0 0}
+.navitem{text-align:center;font-size:8px;font-weight:500}
+.dark .navitem{color:#475569}
+.dark .navitem.on{color:#3B82F6}
+.light .navitem{color:#94A3B8}
+.light .navitem.on{color:#2563EB}
+.badge-s{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:600;margin-left:3px}
+.badge-s.avail{background:rgba(16,185,129,0.15);color:#10B981}
+.badge-s.busy{background:rgba(245,158,11,0.15);color:#F59E0B}
+.badge-s.off{background:rgba(239,68,68,0.15);color:#EF4444}
+.badge-s.fast{background:rgba(59,130,246,0.12);color:#60A5FA}
+.light .badge-s.avail{background:#D1FAE5;color:#059669}
+.light .badge-s.busy{background:#FEF3C7;color:#D97706}
+.light .badge-s.off{background:#FEE2E2;color:#DC2626}
+.light .badge-s.fast{background:#DBEAFE;color:#2563EB}
+.onb-option{border-radius:9px;padding:10px 12px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:500}
+.dark .onb-option{background:rgba(255,255,255,0.04);color:#CBD5E1;border:0.5px solid rgba(255,255,255,0.06)}
+.dark .onb-option.sel{background:rgba(59,130,246,0.1);color:#60A5FA;border:0.5px solid rgba(59,130,246,0.3)}
+.light .onb-option{background:#F8FAFC;color:#475569;border:0.5px solid #E2E8F0}
+.light .onb-option.sel{background:#EFF6FF;color:#2563EB;border:0.5px solid #93C5FD}
+.radio{width:16px;height:16px;border-radius:50%;border:2px solid #475569}
+.radio.on{border-color:#3B82F6;background:radial-gradient(circle,#3B82F6 38%,transparent 42%)}
+.car-card{border-radius:12px;padding:14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;border:0.5px solid transparent}
+.dark .car-card{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.06)}
+.dark .car-card.sel{border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.08)}
+.light .car-card{background:#F8FAFC;border-color:#E2E8F0}
+.light .car-card.sel{border-color:#93C5FD;background:#EFF6FF}
+.car-emoji{font-size:24px}
+.car-label{font-size:13px;font-weight:600}
+.dark .car-label{color:#E2E8F0}
+.light .car-label{color:#1E293B}
+.car-desc{font-size:9px;margin-top:1px}
+.dark .car-desc{color:#64748B}
+.light .car-desc{color:#94A3B8}
+.perm-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:16px auto 12px}
+.dark .perm-icon{background:rgba(59,130,246,0.12)}
+.light .perm-icon{background:#EFF6FF}
+.perm-title{text-align:center;font-size:15px;font-weight:700;margin-bottom:4px}
+.dark .perm-title{color:#F1F5F9}
+.light .perm-title{color:#0F172A}
+.perm-desc{text-align:center;font-size:10px;line-height:1.6;padding:0 8px;margin-bottom:14px}
+.dark .perm-desc{color:#64748B}
+.light .perm-desc{color:#64748B}
+.perm-check{display:flex;gap:6px;align-items:center;padding:6px 0;font-size:10px}
+.dark .perm-check{color:#94A3B8}
+.light .perm-check{color:#64748B}
+.perm-btn{padding:10px;border-radius:10px;text-align:center;font-size:12px;font-weight:600;margin:0 14px 6px}
+.perm-btn.primary{background:#2563EB;color:#fff}
+.perm-btn.secondary{color:#64748B}
+.splash-center{display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px}
+.splash-logo{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:linear-gradient(135deg,#2563EB,#10B981)}
+.splash-name{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.dark .splash-name{color:#F1F5F9}
+.light .splash-name{color:#0F172A}
+.splash-sub{font-size:11px;margin-top:3px}
+.dark .splash-sub{color:#475569}
+.light .splash-sub{color:#94A3B8}
+.map-placeholder{border-radius:10px;height:120px;margin:0 14px 8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500}
+.dark .map-placeholder{background:#1A1F2E;color:#475569}
+.light .map-placeholder{background:#E2E8F0;color:#94A3B8}
+.filter-section{margin-bottom:14px}
+.filter-label{font-size:10px;font-weight:600;letter-spacing:0.3px;margin-bottom:6px;padding:0 4px}
+.dark .filter-label{color:#64748B}
+.light .filter-label{color:#94A3B8}
+.filter-grid{display:flex;gap:5px;flex-wrap:wrap}
+.filter-chip{padding:6px 11px;border-radius:7px;font-size:10px;font-weight:500}
+.dark .filter-chip{background:rgba(255,255,255,0.04);color:#94A3B8;border:0.5px solid rgba(255,255,255,0.06)}
+.dark .filter-chip.on{background:rgba(59,130,246,0.12);color:#60A5FA;border:0.5px solid rgba(59,130,246,0.25)}
+.dark .filter-chip.ev-on{background:rgba(16,185,129,0.12);color:#34D399;border:0.5px solid rgba(16,185,129,0.25)}
+.light .filter-chip{background:#F8FAFC;color:#64748B;border:0.5px solid #E2E8F0}
+.light .filter-chip.on{background:#EFF6FF;color:#2563EB;border:0.5px solid #93C5FD}
+.light .filter-chip.ev-on{background:#ECFDF5;color:#059669;border:0.5px solid #A7F3D0}
+.step-badge{display:inline-flex;align-items:center;gap:6px;background:#EFF6FF;color:#2563EB;padding:4px 14px;border-radius:16px;font-size:13px;font-weight:600;margin-bottom:16px}
+.step-badge.ev{background:#ECFDF5;color:#059669}
+.color-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:24px 0 40px}
+.color-swatch{border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.color-swatch .swatch{height:56px}
+.color-swatch .info{padding:8px 10px;background:#fff;border-top:0.5px solid #E2E8F0}
+.color-swatch .info .name{font-size:11px;font-weight:600;color:#1E293B}
+.color-swatch .info .hex{font-size:10px;color:#94A3B8;font-family:monospace}
+.spec-table{width:100%;border-collapse:collapse;margin:16px 0 40px}
+.spec-table th{background:#1E3A5F;color:#fff;padding:10px 16px;text-align:left;font-size:13px;font-weight:600}
+.spec-table td{padding:10px 16px;font-size:13px;color:#344054;border-bottom:1px solid #E8ECF0}
+.spec-table tr:nth-child(even) td{background:#F8FAFC}
+.code{font-family:monospace;font-size:12px;color:#2563EB;background:#EFF6FF;padding:2px 6px;border-radius:4px}
+@media print{body{background:#fff}.page{box-shadow:none;padding:40px 60px}}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="page">
+<div class="page-header" style="border:none;padding:120px 0 60px">
+<div style="font-size:64px;margin-bottom:16px">⛽🔋</div>
+<h1>충전도우미</h1>
+<div class="sub">주유소 + 전기차 충전소 통합 앱</div>
+<div class="badge" style="background:#2563EB;color:#fff">UI/UX 디자인 스펙 v2.0</div>
+<div style="margin-top:40px;color:#94A3B8;font-size:14px">2026.03.16 · Flutter · Dark/Light · 주유 + EV 충전 통합</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:40px">
+<div style="background:#F8FAFC;border-radius:16px;padding:28px">
+<div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:12px">📋 문서 구성</div>
+<div style="font-size:13px;color:#475569;line-height:2">
+1. UX 플로우 (전체 화면 흐름)<br>
+2. 스플래시 / 권한 / 온보딩 (차종 선택 NEW)<br>
+3. 메인 — ⛽ 주유 탭 (Dark / Light)<br>
+4. 메인 — 🔋 충전 탭 (Dark / Light)<br>
+5. 지도 뷰 (주유+충전 통합)<br>
+6. 주유소 상세 / 충전소 상세 (별도 UI)<br>
+7. 필터 (주유용 / 충전용 각각)<br>
+8. 디자인 토큰 (컬러 / 타이포 / 컴포넌트)
+</div>
+</div>
+<div style="background:#F8FAFC;border-radius:16px;padding:28px">
+<div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:12px">🎨 v2.0 핵심 변경</div>
+<div style="font-size:13px;color:#475569;line-height:2">
+• 앱명: "주유도우미" → <b>"충전도우미"</b><br>
+• 온보딩: 차종 선택 추가 (3단계)<br>
+• 메인: <span style="color:#2563EB;font-weight:600">⛽ 주유</span> / <span style="color:#059669;font-weight:600">🔋 충전</span> 탭 분리<br>
+• 컬러: 주유=Blue / 충전=Green 코드분리<br>
+• 충전소: 실시간 상태 배지 시스템<br>
+• API: 오피넷 + 환경부 공공데이터 이중<br>
+• 충전기 타입 필터 (DC콤보/차데모/AC)
+</div>
+</div>
+</div>
+</div>
+
+<!-- SPLASH + PERMISSION -->
+<div class="page">
+<div class="step-badge">STEP 1</div>
+<div class="section-title">스플래시 → 위치 권한 요청</div>
+<div class="section-sub">로고가 블루→그린 그라디언트로 주유+충전 통합 브랜딩. 1.5초 후 권한 요청 화면으로 전환.</div>
+<div class="screen-row">
+<div class="screen-wrap">
+<div class="screen-label neutral">SPLASH · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="splash-center">
+<div class="splash-logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="splash-name">충전도우미</div>
+<div class="splash-sub">주유소 · 전기차 충전소 한번에</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label neutral">SPLASH · LIGHT</div>
+<div class="phone light">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="splash-center">
+<div class="splash-logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="splash-name">충전도우미</div>
+<div class="splash-sub">주유소 · 전기차 충전소 한번에</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label neutral">위치 권한 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div class="perm-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+<div class="perm-title">위치 권한이 필요해요</div>
+<div class="perm-desc">주변 주유소와 충전소를 찾고<br>거리 정보를 보여드리기 위해 필요합니다.</div>
+<div style="padding:0 8px;margin-bottom:12px">
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>내 위치 기반 거리 계산</span></div>
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>지도에서 주유소/충전소 확인</span></div>
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>길찾기 연동</span></div>
+</div>
+<div class="perm-btn primary">위치 권한 허용하기</div>
+<div class="perm-btn secondary">나중에 설정할게요</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label neutral">위치 권한 · LIGHT</div>
+<div class="phone light">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div class="perm-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+<div class="perm-title">위치 권한이 필요해요</div>
+<div class="perm-desc">주변 주유소와 충전소를 찾고<br>거리 정보를 보여드리기 위해 필요합니다.</div>
+<div style="padding:0 8px;margin-bottom:12px">
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>내 위치 기반 거리 계산</span></div>
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>지도에서 주유소/충전소 확인</span></div>
+<div class="perm-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg><span>길찾기 연동</span></div>
+</div>
+<div class="perm-btn primary">위치 권한 허용하기</div>
+<div class="perm-btn secondary">나중에 설정할게요</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ONBOARDING -->
+<div class="page">
+<div class="step-badge">STEP 2</div>
+<div class="section-title">온보딩 — 차종 / 유종·충전타입 / 반경 (3단계)</div>
+<div class="section-sub">차종 선택에 따라 2단계가 분기됨. 내연기관→유종 선택, 전기차→충전기 타입 선택, 둘 다→유종+충전기 모두 선택.</div>
+<div class="screen-row">
+<div class="screen-wrap">
+<div class="screen-label neutral">1/3 차종 선택 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div style="padding:16px 4px 0">
+<div style="display:flex;gap:3px;margin-bottom:16px"><div style="flex:1;height:3px;border-radius:2px;background:#3B82F6"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.08)"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.08)"></div></div>
+<div style="color:#60A5FA;font-size:10px;font-weight:600;margin-bottom:4px">1 / 3</div>
+<div style="color:#F1F5F9;font-size:18px;font-weight:700;line-height:1.4;margin-bottom:3px">어떤 차를<br>운전하시나요?</div>
+<div style="color:#475569;font-size:10px;margin-bottom:14px">선택에 맞춰 맞춤 화면을 보여드려요</div>
+<div class="car-card sel"><div class="car-emoji">⛽</div><div style="flex:1"><div class="car-label">내연기관차</div><div class="car-desc">휘발유 · 경유 · LPG</div></div><div class="radio on"></div></div>
+<div class="car-card"><div class="car-emoji">🔋</div><div style="flex:1"><div class="car-label">전기차</div><div class="car-desc">DC콤보 · AC완속 · 급속</div></div><div class="radio"></div></div>
+<div class="car-card"><div class="car-emoji">⚡</div><div style="flex:1"><div class="car-label">둘 다 사용</div><div class="car-desc">PHEV 또는 차량 2대 이상</div></div><div class="radio"></div></div>
+<div style="background:#2563EB;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:12px">다음</div>
+</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label gas">2/3 유종 선택 (내연기관)</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div style="padding:16px 4px 0">
+<div style="display:flex;gap:3px;margin-bottom:16px"><div style="flex:1;height:3px;border-radius:2px;background:#3B82F6"></div><div style="flex:1;height:3px;border-radius:2px;background:#3B82F6"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.08)"></div></div>
+<div style="color:#60A5FA;font-size:10px;font-weight:600;margin-bottom:4px">2 / 3 · 내연기관</div>
+<div style="color:#F1F5F9;font-size:18px;font-weight:700;line-height:1.4;margin-bottom:3px">주로 넣는 기름은<br>무엇인가요?</div>
+<div style="color:#475569;font-size:10px;margin-bottom:14px">설정에서 변경할 수 있어요</div>
+<div class="onb-option sel"><span>휘발유</span><div class="radio on"></div></div>
+<div class="onb-option"><span>고급휘발유</span><div class="radio"></div></div>
+<div class="onb-option"><span>경유</span><div class="radio"></div></div>
+<div class="onb-option"><span>LPG</span><div class="radio"></div></div>
+<div style="background:#2563EB;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:14px">다음</div>
+</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label ev">2/3 충전기 타입 (전기차)</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div style="padding:16px 4px 0">
+<div style="display:flex;gap:3px;margin-bottom:16px"><div style="flex:1;height:3px;border-radius:2px;background:#10B981"></div><div style="flex:1;height:3px;border-radius:2px;background:#10B981"></div><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.08)"></div></div>
+<div style="color:#34D399;font-size:10px;font-weight:600;margin-bottom:4px">2 / 3 · 전기차</div>
+<div style="color:#F1F5F9;font-size:18px;font-weight:700;line-height:1.4;margin-bottom:3px">충전기 타입을<br>선택해주세요</div>
+<div style="color:#475569;font-size:10px;margin-bottom:14px">복수 선택 가능 · 설정에서 변경</div>
+<div class="onb-option sel"><span>DC콤보 (CCS1)</span><div class="radio on"></div></div>
+<div class="onb-option"><span>DC차데모</span><div class="radio"></div></div>
+<div class="onb-option"><span>AC 3상</span><div class="radio"></div></div>
+<div class="onb-option sel"><span>AC 완속 (7kW)</span><div class="radio on"></div></div>
+<div style="background:#10B981;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:14px">다음</div>
+</div>
+</div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label neutral">3/3 반경 선택 (공통)</div>
+<div class="phone light">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="sc">
+<div style="padding:16px 4px 0">
+<div style="display:flex;gap:3px;margin-bottom:16px"><div style="flex:1;height:3px;border-radius:2px;background:#2563EB"></div><div style="flex:1;height:3px;border-radius:2px;background:#2563EB"></div><div style="flex:1;height:3px;border-radius:2px;background:#2563EB"></div></div>
+<div style="color:#2563EB;font-size:10px;font-weight:600;margin-bottom:4px">3 / 3</div>
+<div style="color:#0F172A;font-size:18px;font-weight:700;line-height:1.4;margin-bottom:3px">검색 반경을<br>설정해주세요</div>
+<div style="color:#94A3B8;font-size:10px;margin-bottom:14px">현재 위치 기준으로 검색합니다</div>
+<div class="onb-option"><span>3Km</span><div class="radio"></div></div>
+<div class="onb-option sel"><span>5Km <span style="color:#94A3B8;font-size:10px">(추천)</span></span><div class="radio on"></div></div>
+<div class="onb-option"><span>10Km</span><div class="radio"></div></div>
+<div style="background:#2563EB;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:14px">시작하기</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- MAIN - GAS TAB -->
+<div class="page">
+<div class="step-badge">STEP 3</div>
+<div class="section-title">메인 — ⛽ 주유 탭</div>
+<div class="section-sub">디폴트 탭은 온보딩 차종에 따라 결정. 주유 탭은 기존과 동일한 가격 비교 중심 UI. 탭 전환으로 충전소도 바로 접근 가능.</div>
+<div class="screen-row">
+<div class="screen-wrap">
+<div class="screen-label gas">주유 탭 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="d-header"><div class="d-title">충전도우미</div><div style="display:flex;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div></div>
+<div class="tab-bar"><div class="tab on">⛽ 주유</div><div class="tab">🔋 충전</div></div>
+<div class="chip-row"><div class="chip on">가격순</div><div class="chip">5Km</div><div class="chip">휘발유</div><div class="chip">현위치</div></div>
+<div class="summary"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="summary-label">주변 평균 휘발유</div><div class="summary-price">1,823<span class="summary-unit">원/L</span></div></div><div style="text-align:right"><div style="color:#34D399;font-size:10px;font-weight:600">▼ 12원</div><div style="color:#475569;font-size:9px">전주 대비</div></div></div></div>
+<div class="card top"><div class="card-left"><div class="card-icon">G</div><div><div class="card-name">지알씨</div><div class="card-sub">1.2Km · 알뜰</div></div></div><div><div class="card-price best">1,796<span class="card-unit">원</span></div><div style="color:#34D399;font-size:9px;font-weight:600;text-align:right">최저가</div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">H</div><div><div class="card-name">수내동</div><div class="card-sub">1.8Km · 현대</div></div></div><div><div class="card-price">1,797<span class="card-unit">원</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">G</div><div><div class="card-name">이매동</div><div class="card-sub">2.3Km · GS</div></div></div><div><div class="card-price">1,797<span class="card-unit">원</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">S</div><div><div class="card-name">서현</div><div class="card-sub">3.1Km · S-OIL</div></div></div><div><div class="card-price">1,798<span class="card-unit">원</span></div></div></div>
+<div class="bottomnav"><div class="navitem on"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg><div>홈</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><div>지도</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><div>즐겨찾기</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/></svg><div>설정</div></div></div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label gas">주유 탭 · LIGHT</div>
+<div class="phone light">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="d-header"><div class="d-title">충전도우미</div><div style="display:flex;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div></div>
+<div class="tab-bar"><div class="tab on">⛽ 주유</div><div class="tab">🔋 충전</div></div>
+<div class="chip-row"><div class="chip on">가격순</div><div class="chip">5Km</div><div class="chip">휘발유</div><div class="chip">현위치</div></div>
+<div class="summary"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="summary-label">주변 평균 휘발유</div><div class="summary-price">1,823<span class="summary-unit">원/L</span></div></div><div style="text-align:right"><div style="color:#059669;font-size:10px;font-weight:600">▼ 12원</div><div style="color:#94A3B8;font-size:9px">전주 대비</div></div></div></div>
+<div class="card top"><div class="card-left"><div class="card-icon">G</div><div><div class="card-name">지알씨</div><div class="card-sub">1.2Km · 알뜰</div></div></div><div><div class="card-price best">1,796<span class="card-unit">원</span></div><div style="color:#059669;font-size:9px;font-weight:600;text-align:right">최저가</div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">H</div><div><div class="card-name">수내동</div><div class="card-sub">1.8Km · 현대</div></div></div><div><div class="card-price">1,797<span class="card-unit">원</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">G</div><div><div class="card-name">이매동</div><div class="card-sub">2.3Km · GS</div></div></div><div><div class="card-price">1,797<span class="card-unit">원</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon">S</div><div><div class="card-name">서현</div><div class="card-sub">3.1Km · S-OIL</div></div></div><div><div class="card-price">1,798<span class="card-unit">원</span></div></div></div>
+<div class="bottomnav"><div class="navitem on"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg><div>홈</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><div>지도</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><div>즐겨찾기</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/></svg><div>설정</div></div></div>
+</div>
+</div>
+</div>
+
+<div class="step-badge ev">STEP 4</div>
+<div class="section-title">메인 — 🔋 충전 탭</div>
+<div class="section-sub">충전 탭은 실시간 상태가 핵심. 이용가능/충전중/점검중 배지, 충전 속도(kW), 운영기관, 가격(원/kWh) 표시. 요약 카드는 주변 충전소 수 + 가용률.</div>
+<div class="screen-row">
+<div class="screen-wrap">
+<div class="screen-label ev">충전 탭 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="d-header"><div class="d-title">충전도우미</div><div style="display:flex;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div></div>
+<div class="tab-bar"><div class="tab">⛽ 주유</div><div class="tab ev-on">🔋 충전</div></div>
+<div class="chip-row"><div class="chip ev">거리순</div><div class="chip">3Km</div><div class="chip">DC콤보</div><div class="chip">이용가능</div></div>
+<div class="summary ev"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="summary-label">주변 충전소</div><div class="summary-price">14<span class="summary-unit">개 · 이용가능 9개</span></div></div><div style="text-align:right"><div style="color:#34D399;font-size:10px;font-weight:600">64%</div><div style="color:#475569;font-size:9px">가용률</div></div></div></div>
+<div class="card ev-top"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">분당 이마트 <span class="badge-s avail">이용가능</span></div><div class="card-sub">0.8Km · 환경부 · DC 50kW</div></div></div><div><div class="card-price ev-best">292<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">서현역 공영 <span class="badge-s avail">이용가능</span></div><div class="card-sub">1.1Km · GS차지비 · DC 100kW</div></div></div><div><div class="card-price">310<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">분당 롯데마트 <span class="badge-s busy">충전중 1/2</span></div><div class="card-sub">1.4Km · 해피차저 · DC 200kW</div></div></div><div><div class="card-price">347<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">수내동 주차장 <span class="badge-s off">점검중</span></div><div class="card-sub">1.6Km · 파워큐브 · AC 7kW</div></div></div><div><div class="card-price" style="color:#64748B">220<span class="card-unit">원/kWh</span></div></div></div>
+<div class="bottomnav"><div class="navitem on"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg><div>홈</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><div>지도</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><div>즐겨찾기</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/></svg><div>설정</div></div></div>
+</div>
+</div>
+<div class="screen-wrap">
+<div class="screen-label ev">충전 탭 · LIGHT</div>
+<div class="phone light">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div class="d-header"><div class="d-title">충전도우미</div><div style="display:flex;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div></div>
+<div class="tab-bar"><div class="tab">⛽ 주유</div><div class="tab ev-on">🔋 충전</div></div>
+<div class="chip-row"><div class="chip ev">거리순</div><div class="chip">3Km</div><div class="chip">DC콤보</div><div class="chip">이용가능</div></div>
+<div class="summary ev"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="summary-label">주변 충전소</div><div class="summary-price">14<span class="summary-unit">개 · 이용가능 9개</span></div></div><div style="text-align:right"><div style="color:#059669;font-size:10px;font-weight:600">64%</div><div style="color:#94A3B8;font-size:9px">가용률</div></div></div></div>
+<div class="card ev-top"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">분당 이마트 <span class="badge-s avail">이용가능</span></div><div class="card-sub">0.8Km · 환경부 · DC 50kW</div></div></div><div><div class="card-price ev-best">292<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">서현역 공영 <span class="badge-s avail">이용가능</span></div><div class="card-sub">1.1Km · GS차지비 · DC 100kW</div></div></div><div><div class="card-price">310<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">분당 롯데마트 <span class="badge-s busy">충전중 1/2</span></div><div class="card-sub">1.4Km · 해피차저 · DC 200kW</div></div></div><div><div class="card-price">347<span class="card-unit">원/kWh</span></div></div></div>
+<div class="card"><div class="card-left"><div class="card-icon ev">E</div><div><div class="card-name">수내동 주차장 <span class="badge-s off">점검중</span></div><div class="card-sub">1.6Km · 파워큐브 · AC 7kW</div></div></div><div><div class="card-price" style="color:#94A3B8">220<span class="card-unit">원/kWh</span></div></div></div>
+<div class="bottomnav"><div class="navitem on"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg><div>홈</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><div>지도</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><div>즐겨찾기</div></div><div class="navitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/></svg><div>설정</div></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- DETAIL + FILTER -->
+<div class="page">
+<div class="step-badge">STEP 5</div>
+<div class="section-title">주유소 상세 / 충전소 상세 / EV 필터</div>
+<div class="section-sub">주유소 상세와 EV 충전소 상세는 완전히 다른 UI. 충전소는 실시간 충전기 현황 카드가 핵심. 필터도 각 탭별로 항목이 다름.</div>
+<div class="screen-row">
+<div class="screen-wrap">
+<div class="screen-label gas">주유소 상세 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div style="padding:10px 14px;display:flex;align-items:center;gap:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span style="color:#F1F5F9;font-size:14px;font-weight:600">주유소 상세</span></div>
+<div style="border-radius:12px;padding:14px;margin:0 14px 8px;background:#161B26">
+<div style="display:flex;justify-content:space-between"><div><div style="color:#F1F5F9;font-size:16px;font-weight:700">지알씨 주유소</div><div style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:600;margin-top:3px;background:rgba(59,130,246,0.12);color:#60A5FA">알뜰주유소</div></div><svg width="20" height="20" viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+<div style="color:#3B82F6;font-size:24px;font-weight:700;margin-top:8px">1,796<span style="font-size:12px;color:#64748B;font-weight:400"> 원/L</span></div>
+</div>
+<div style="padding:0 14px">
+<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>주소</span><span style="color:#E2E8F0;font-weight:600;font-size:9px">성남시 분당구 수내동 12-3</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>영업시간</span><span style="color:#E2E8F0;font-weight:600">06:00 ~ 24:00</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>셀프</span><span style="color:#34D399;font-weight:600">가능</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>세차</span><span style="color:#34D399;font-weight:600">가능</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;color:#94A3B8"><span>업데이트</span><span style="color:#E2E8F0;font-weight:600">2분 전</span></div>
+</div>
+<div style="display:flex;gap:6px;margin:8px 14px 14px"><div style="flex:1;padding:9px;border-radius:9px;background:#2563EB;color:#fff;text-align:center;font-size:11px;font-weight:600">길찾기</div><div style="flex:1;padding:9px;border-radius:9px;background:rgba(255,255,255,0.04);color:#94A3B8;text-align:center;font-size:11px;border:0.5px solid rgba(255,255,255,0.08)">전화하기</div></div>
+</div>
+</div>
+
+<div class="screen-wrap">
+<div class="screen-label ev">충전소 상세 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div style="padding:10px 14px;display:flex;align-items:center;gap:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span style="color:#F1F5F9;font-size:14px;font-weight:600">충전소 상세</span></div>
+<div style="border-radius:12px;padding:14px;margin:0 14px 8px;background:#0A2E1F">
+<div style="display:flex;justify-content:space-between"><div><div style="color:#F1F5F9;font-size:16px;font-weight:700">분당 이마트 충전소</div><div style="display:flex;gap:4px;margin-top:4px"><span class="badge-s avail" style="font-size:9px">이용가능</span><span class="badge-s fast" style="font-size:9px">DC 급속</span></div></div><svg width="20" height="20" viewBox="0 0 24 24" fill="#10B981"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
+<div style="color:#10B981;font-size:24px;font-weight:700;margin-top:8px">292<span style="font-size:12px;color:#64748B;font-weight:400"> 원/kWh</span></div>
+</div>
+<div style="padding:0 14px;margin-bottom:6px">
+<div style="color:#60A5FA;font-size:10px;font-weight:600;margin-bottom:6px">충전기 현황</div>
+<div style="display:flex;gap:6px;margin-bottom:8px">
+<div style="flex:1;background:rgba(16,185,129,0.08);border:0.5px solid rgba(16,185,129,0.2);border-radius:8px;padding:7px;text-align:center"><div style="color:#34D399;font-size:14px;font-weight:700">2</div><div style="color:#64748B;font-size:8px">이용가능</div></div>
+<div style="flex:1;background:rgba(245,158,11,0.08);border:0.5px solid rgba(245,158,11,0.2);border-radius:8px;padding:7px;text-align:center"><div style="color:#F59E0B;font-size:14px;font-weight:700">1</div><div style="color:#64748B;font-size:8px">충전중</div></div>
+<div style="flex:1;background:rgba(239,68,68,0.08);border:0.5px solid rgba(239,68,68,0.2);border-radius:8px;padding:7px;text-align:center"><div style="color:#EF4444;font-size:14px;font-weight:700">0</div><div style="color:#64748B;font-size:8px">고장</div></div>
+</div>
+</div>
+<div style="padding:0 14px">
+<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>운영기관</span><span style="color:#E2E8F0;font-weight:600">환경부</span></div>
+<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>충전타입</span><span style="color:#E2E8F0;font-weight:600">DC콤보 · 50kW</span></div>
+<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;color:#94A3B8;border-bottom:0.5px solid rgba(255,255,255,0.04)"><span>이용시간</span><span style="color:#E2E8F0;font-weight:600">24시간</span></div>
+<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:10px;color:#94A3B8"><span>주차요금</span><span style="color:#34D399;font-weight:600">무료</span></div>
+</div>
+<div style="display:flex;gap:6px;margin:8px 14px 14px"><div style="flex:1;padding:9px;border-radius:9px;background:#10B981;color:#fff;text-align:center;font-size:11px;font-weight:600">길찾기</div><div style="flex:1;padding:9px;border-radius:9px;background:rgba(255,255,255,0.04);color:#94A3B8;text-align:center;font-size:11px;border:0.5px solid rgba(255,255,255,0.08)">전화하기</div></div>
+</div>
+</div>
+
+<div class="screen-wrap">
+<div class="screen-label ev">EV 필터 · DARK</div>
+<div class="phone dark">
+<div class="statusbar"><span>9:41</span><span>···</span></div>
+<div style="padding:10px 14px;display:flex;justify-content:space-between"><span style="color:#F1F5F9;font-size:14px;font-weight:600">충전소 필터</span><span style="color:#10B981;font-size:12px;font-weight:500">초기화</span></div>
+<div class="sc">
+<div class="filter-section"><div class="filter-label">검색 반경</div><div class="filter-grid"><div class="filter-chip ev-on">3Km</div><div class="filter-chip">5Km</div><div class="filter-chip">10Km</div></div></div>
+<div class="filter-section"><div class="filter-label">충전기 타입</div><div class="filter-grid"><div class="filter-chip ev-on">DC콤보</div><div class="filter-chip">DC차데모</div><div class="filter-chip ev-on">AC완속</div><div class="filter-chip">AC3상</div></div></div>
+<div class="filter-section"><div class="filter-label">충전 속도</div><div class="filter-grid"><div class="filter-chip ev-on">전체</div><div class="filter-chip">급속(50kW+)</div><div class="filter-chip">초급속(100kW+)</div></div></div>
+<div class="filter-section"><div class="filter-label">상태</div><div class="filter-grid"><div class="filter-chip ev-on">이용가능만</div><div class="filter-chip">전체보기</div></div></div>
+<div class="filter-section"><div class="filter-label">정렬</div><div class="filter-grid"><div class="filter-chip ev-on">거리순</div><div class="filter-chip">가격순</div></div></div>
+<div class="filter-section"><div class="filter-label">운영기관</div><div class="filter-grid"><div class="filter-chip ev-on">전체</div><div class="filter-chip">환경부</div><div class="filter-chip">해피차저</div><div class="filter-chip">GS차지비</div><div class="filter-chip">파워큐브</div><div class="filter-chip">에버온</div></div></div>
+<div style="background:#10B981;color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:600;margin-top:10px">적용하기</div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- DESIGN TOKENS -->
+<div class="page">
+<div class="section-title">디자인 토큰 — v2.0 (주유 Blue + 충전 Green)</div>
+<div class="section-sub">주유 탭과 충전 탭을 컬러로 명확히 구분. 사용자가 현재 어떤 모드인지 직관적으로 인지.</div>
+
+<div style="font-size:18px;font-weight:700;color:#0F172A;margin:32px 0 16px">🎨 컬러 팔레트 — Dark Mode</div>
+<div class="color-grid">
+<div class="color-swatch"><div class="swatch" style="background:#0C0E13"></div><div class="info"><div class="name">배경 Primary</div><div class="hex">#0C0E13</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#3B82F6"></div><div class="info"><div class="name">주유 Accent</div><div class="hex">#3B82F6</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#10B981"></div><div class="info"><div class="name">충전 Accent</div><div class="hex">#10B981</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#F1F5F9"></div><div class="info"><div class="name">텍스트 Primary</div><div class="hex">#F1F5F9</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#94A3B8"></div><div class="info"><div class="name">텍스트 Secondary</div><div class="hex">#94A3B8</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#34D399"></div><div class="info"><div class="name">이용가능 Badge</div><div class="hex">#34D399</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#F59E0B"></div><div class="info"><div class="name">충전중 Badge</div><div class="hex">#F59E0B</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#EF4444"></div><div class="info"><div class="name">고장/점검 Badge</div><div class="hex">#EF4444</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#1E293B"></div><div class="info"><div class="name">카드 아이콘 BG</div><div class="hex">#1E293B</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#064E3B"></div><div class="info"><div class="name">EV 카드 아이콘</div><div class="hex">#064E3B</div></div></div>
+</div>
+
+<div style="font-size:18px;font-weight:700;color:#0F172A;margin:32px 0 16px">☀️ 컬러 팔레트 — Light Mode</div>
+<div class="color-grid">
+<div class="color-swatch"><div class="swatch" style="background:#F8FAFB"></div><div class="info"><div class="name">배경 Primary</div><div class="hex">#F8FAFB</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#2563EB"></div><div class="info"><div class="name">주유 Accent</div><div class="hex">#2563EB</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#059669"></div><div class="info"><div class="name">충전 Accent</div><div class="hex">#059669</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#0F172A"></div><div class="info"><div class="name">텍스트 Primary</div><div class="hex">#0F172A</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#64748B"></div><div class="info"><div class="name">텍스트 Secondary</div><div class="hex">#64748B</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#D1FAE5;border:1px solid #A7F3D0"></div><div class="info"><div class="name">이용가능 Badge</div><div class="hex">#D1FAE5</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#FEF3C7;border:1px solid #FDE68A"></div><div class="info"><div class="name">충전중 Badge</div><div class="hex">#FEF3C7</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#FEE2E2;border:1px solid #FECACA"></div><div class="info"><div class="name">고장/점검 Badge</div><div class="hex">#FEE2E2</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#ECFDF5;border:1px solid #A7F3D0"></div><div class="info"><div class="name">EV Active Card</div><div class="hex">#ECFDF5</div></div></div>
+<div class="color-swatch"><div class="swatch" style="background:#EFF6FF;border:1px solid #BFDBFE"></div><div class="info"><div class="name">Gas Active Card</div><div class="hex">#EFF6FF</div></div></div>
+</div>
+
+<div style="font-size:18px;font-weight:700;color:#0F172A;margin:32px 0 16px">📐 탭 컬러 코드 시스템</div>
+<table class="spec-table">
+<tr><th>요소</th><th>⛽ 주유 탭</th><th>🔋 충전 탭</th></tr>
+<tr><td>탭 활성 배경</td><td><span class="code">#3B82F6</span> / <span class="code">#2563EB</span></td><td><span class="code">#10B981</span> / <span class="code">#059669</span></td></tr>
+<tr><td>요약카드 그라디언트</td><td>Blue 계열</td><td>Green 계열</td></tr>
+<tr><td>최저가/1위 카드</td><td>Blue 보더</td><td>Green 보더</td></tr>
+<tr><td>필터 칩 (활성)</td><td>Blue fill</td><td>Green fill</td></tr>
+<tr><td>액션 버튼 (Primary)</td><td><span class="code">#2563EB</span></td><td><span class="code">#10B981</span> / <span class="code">#059669</span></td></tr>
+<tr><td>카드 아이콘 배경</td><td><span class="code">#1E293B</span> / <span class="code">#F1F5F9</span></td><td><span class="code">#064E3B</span> / <span class="code">#ECFDF5</span></td></tr>
+</table>
+
+<div style="font-size:18px;font-weight:700;color:#0F172A;margin:32px 0 16px">🏷️ EV 충전기 상태 배지 시스템</div>
+<table class="spec-table">
+<tr><th>상태</th><th>배지 텍스트</th><th>Dark 컬러</th><th>Light 컬러</th></tr>
+<tr><td>이용가능</td><td>이용가능</td><td>text <span class="code">#10B981</span> bg <span class="code">green 15%</span></td><td>text <span class="code">#059669</span> bg <span class="code">#D1FAE5</span></td></tr>
+<tr><td>충전중</td><td>충전중 n/m</td><td>text <span class="code">#F59E0B</span> bg <span class="code">amber 15%</span></td><td>text <span class="code">#D97706</span> bg <span class="code">#FEF3C7</span></td></tr>
+<tr><td>고장/점검</td><td>점검중</td><td>text <span class="code">#EF4444</span> bg <span class="code">red 15%</span></td><td>text <span class="code">#DC2626</span> bg <span class="code">#FEE2E2</span></td></tr>
+<tr><td>급속</td><td>DC 급속</td><td>text <span class="code">#60A5FA</span> bg <span class="code">blue 12%</span></td><td>text <span class="code">#2563EB</span> bg <span class="code">#DBEAFE</span></td></tr>
+</table>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!-- ios/Runner/Info.plist 에 추가할 항목들 -->
+
+<!-- 위치 권한 문구 (필수 - App Store 심사) -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>주변 주유소와 전기차 충전소를 찾고 거리 정보를 제공하기 위해 위치 정보가 필요합니다.</string>
+
+<key>NSLocationAlwaysUsageDescription</key>
+<string>주변 주유소와 전기차 충전소를 찾고 거리 정보를 제공하기 위해 위치 정보가 필요합니다.</string>
+
+<!-- 카카오맵 URL Scheme -->
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>kakaomap</string>
+    <string>nmap</string>
+    <string>tmap</string>
+</array>
+
+<!-- 카카오 SDK -->
+<key>KAKAO_APP_KEY</key>
+<string>YOUR_KAKAO_APP_KEY</string>
+
+<!-- 앱 이름 -->
+<key>CFBundleDisplayName</key>
+<string>주유/충전 도우미</string>
+
+<key>CFBundleName</key>
+<string>ChargeHelper</string>
