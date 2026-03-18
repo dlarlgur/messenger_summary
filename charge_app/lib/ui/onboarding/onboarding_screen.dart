@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
+import '../../data/services/alert_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -19,10 +21,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   List<String> _chargerTypes = ['01'];
   int _radius = 5000;
 
-  // 차종에 따라 스텝 수가 달라짐
-  // gas:  0(차종) → 1(유종)   → 2(반경)           = 3스텝
-  // ev:   0(차종) → 1(충전기) → 2(반경)           = 3스텝
-  // both: 0(차종) → 1(유종)   → 2(충전기) → 3(반경) = 4스텝
+  // 차종에 따라 스텝 수가 달라짐 (마지막은 항상 알림 권한)
+  // gas:  0(차종) → 1(유종) → 2(알림)              = 3스텝
+  // ev:   0(차종) → 1(충전기) → 2(알림)            = 3스텝
+  // both: 0(차종) → 1(유종) → 2(충전기) → 3(알림) = 4스텝
   int get _totalSteps => _vehicleType == VehicleType.both ? 4 : 3;
 
   bool get _isBoth => _vehicleType == VehicleType.both;
@@ -32,11 +34,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   _StepKind get _currentKind {
     switch (_vehicleType) {
       case VehicleType.gas:
-        return [_StepKind.vehicle, _StepKind.fuel, _StepKind.radius][_step];
+        return [_StepKind.vehicle, _StepKind.fuel, _StepKind.notification][_step];
       case VehicleType.ev:
-        return [_StepKind.vehicle, _StepKind.charger, _StepKind.radius][_step];
+        return [_StepKind.vehicle, _StepKind.charger, _StepKind.notification][_step];
       case VehicleType.both:
-        return [_StepKind.vehicle, _StepKind.fuel, _StepKind.charger, _StepKind.radius][_step];
+        return [_StepKind.vehicle, _StepKind.fuel, _StepKind.charger, _StepKind.notification][_step];
     }
   }
 
@@ -53,13 +55,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  void _finish() {
+  void _finish() async {
+    // 알림 권한 요청
+    await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+    AlertService().init();
+
     final notifier = ref.read(settingsProvider.notifier);
     notifier.setVehicleType(_vehicleType);
     notifier.setFuelType(_fuelType);
     notifier.setChargerTypes(_chargerTypes);
     notifier.setRadius(_radius);
     notifier.completeOnboarding();
+
+    // 온보딩에서 선택한 커넥터 타입을 EV 필터에도 반영
+    if (_vehicleType == VehicleType.ev || _vehicleType == VehicleType.both) {
+      ref.read(evFilterProvider.notifier).update(
+        ref.read(evFilterProvider).copyWith(chargerTypes: List<String>.from(_chargerTypes)),
+      );
+    }
+    // 온보딩에서 선택한 유종을 Gas 필터에도 반영
+    if (_vehicleType == VehicleType.gas || _vehicleType == VehicleType.both) {
+      ref.read(gasFilterProvider.notifier).update(
+        ref.read(gasFilterProvider).copyWith(fuelTypes: [_fuelType.code]),
+      );
+    }
+
     context.go('/home');
   }
 
@@ -68,7 +88,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case _StepKind.vehicle: return '어떤 차를\n운전하시나요?';
       case _StepKind.fuel:    return '주로 넣는 기름은\n무엇인가요?';
       case _StepKind.charger: return '충전기 타입을\n선택해주세요';
-      case _StepKind.radius:  return '검색 반경을\n설정해주세요';
+      case _StepKind.notification: return '가격 알림을\n받아보세요';
     }
   }
 
@@ -77,15 +97,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case _StepKind.vehicle: return '선택에 맞춰 맞춤 화면을 보여드려요';
       case _StepKind.fuel:    return '설정에서 변경할 수 있어요';
       case _StepKind.charger: return '복수 선택 가능 · 설정에서 변경 가능';
-      case _StepKind.radius:  return '현재 위치 기준으로 검색합니다';
+      case _StepKind.notification: return '즐겨찾는 주유소 가격이 내리면 알려드려요';
     }
   }
 
   String get _stepLabel {
     final kindLabel = switch (_currentKind) {
-      _StepKind.fuel    => ' · 내연기관',
-      _StepKind.charger => ' · 전기차',
-      _              => '',
+      _StepKind.fuel         => ' · 내연기관',
+      _StepKind.charger      => ' · 전기차',
+      _StepKind.notification => ' · 알림',
+      _                      => '',
     };
     return '${_step + 1} / $_totalSteps$kindLabel';
   }
@@ -136,7 +157,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isLast ? AppColors.gasBlueDark : _accentColor,
                   ),
-                  child: Text(isLast ? '시작하기' : '다음'),
+                  child: Text(isLast ? '알림 허용하고 시작하기' : '다음'),
                 ),
               ),
               const SizedBox(height: 20),
@@ -149,10 +170,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildStepContent() {
     switch (_currentKind) {
-      case _StepKind.vehicle: return _vehicleStep();
-      case _StepKind.fuel:    return _fuelStep();
-      case _StepKind.charger: return _chargerStep();
-      case _StepKind.radius:  return _radiusStep();
+      case _StepKind.vehicle:      return _vehicleStep();
+      case _StepKind.fuel:         return _fuelStep();
+      case _StepKind.charger:      return _chargerStep();
+      case _StepKind.notification: return _notificationStep();
     }
   }
 
@@ -211,13 +232,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step: 충전기 타입 (복수 선택) ───
   Widget _chargerStep() {
+    // 실제 환경부 API 코드: 01=DC차데모, 02=AC완속, 03=DC콤보, 04=AC3상, 09=NACS, SC=슈퍼차저
     final types = [
-      ('01', 'DC콤보'),
-      ('02', 'DC차데모'),
-      ('06', 'AC3상'),
-      ('04', '완속'),
-      ('07', '수퍼차저'),
-      ('08', '데스티네이션'),
+      ('03', 'DC콤보'),
+      ('01', 'DC차데모'),
+      ('04', 'AC3상'),
+      ('02', 'AC완속'),
+      ('SC', '슈퍼차저'),
       ('09', 'NACS'),
     ];
 
@@ -239,33 +260,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             children: [
               Text(t.$2, style: Theme.of(context).textTheme.titleMedium),
               _checkCircle(isSelected),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ─── Step: 반경 ───
-  Widget _radiusStep() {
-    return Column(
-      children: AppConstants.radiusOptions.map((r) {
-        final label = r >= 1000 ? '${(r / 1000).toInt()}Km' : '${r}m';
-        final isRecommended = r == 5000;
-        return _optionCard(
-          isSelected: _radius == r,
-          onTap: () => setState(() => _radius = r),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                Text(label, style: Theme.of(context).textTheme.titleMedium),
-                if (isRecommended) ...[
-                  const SizedBox(width: 8),
-                  Text('(추천)', style: Theme.of(context).textTheme.labelSmall),
-                ],
-              ]),
-              _radioCircle(_radius == r),
             ],
           ),
         );
@@ -325,6 +319,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  // ─── Step: 알림 권한 ───
+  Widget _notificationStep() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final items = [
+      ('⛽', '주유 가격 인하 알림', '즐겨찾기 주유소 가격이 내리면 알려드려요'),
+      ('🔕', '광고 없음', '불필요한 마케팅 알림은 보내지 않아요'),
+      ('⚙️', '언제든 해제 가능', '설정에서 알림을 켜고 끌 수 있어요'),
+    ];
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(
+            color: AppColors.gasBlue.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.notifications_rounded, size: 40, color: AppColors.gasBlue),
+        ),
+        const SizedBox(height: 28),
+        ...items.map((item) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? AppColors.darkCardBorder : const Color(0xFFDDE3EC), width: 1),
+          ),
+          child: Row(
+            children: [
+              Text(item.$1, style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 14),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.$2, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(item.$3, style: TextStyle(fontSize: 12,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                ],
+              )),
+            ],
+          ),
+        )),
+      ],
+    );
+  }
+
   // 복수 선택 체크박스 스타일
   Widget _checkCircle(bool isSelected) {
     return Container(
@@ -344,4 +387,4 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-enum _StepKind { vehicle, fuel, charger, radius }
+enum _StepKind { vehicle, fuel, charger, notification }

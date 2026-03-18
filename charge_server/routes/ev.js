@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const evApi = require('../services/evApi');
+const { lookupPrice } = require('../services/evPriceService');
 const { cacheMiddleware } = require('../middleware/cache');
 
 /**
@@ -30,6 +31,7 @@ router.get('/around', async (req, res) => {
     if (isGrouped) {
       result = stations.map(s => {
         const chargers = s.chargers;
+        const price = lookupPrice(s.busiId, chargers);
         return {
           statId: s.statId,
           name: s.statNm,
@@ -43,7 +45,10 @@ router.get('/around', async (req, res) => {
           distance: s.distance,
           kind: s.kind,
           kindDetail: s.kindDetail,
-          unitPrice: chargers.find(c => c.unitPrice)?.unitPrice ?? null,
+          unitPriceFast: price.fast,
+          unitPriceSlow: price.slow,
+          unitPriceFastMember: price.fastMember,
+          unitPriceSlowMember: price.slowMember,
           chargers,
           totalCount: chargers.length,
           availableCount: chargers.filter(c => c.stat === 2).length,
@@ -61,6 +66,7 @@ router.get('/around', async (req, res) => {
             address: s.addr,
             lat: parseFloat(s.lat),
             lng: parseFloat(s.lng),
+            busiId: s.busiId,
             operator: s.busiNm,
             phone: s.busiCall ?? null,
             useTime: s.useTime || '24시간',
@@ -77,15 +83,21 @@ router.get('/around', async (req, res) => {
           output: parseInt(s.output || '7'),
           stat: parseInt(s.stat || '9'),
           statUpdDt: s.statUpdDt,
-          unitPrice: s.unitPrice ? parseInt(s.unitPrice) : null,
         });
-        if (!grouped[key].unitPrice && s.unitPrice) {
-          grouped[key].unitPrice = parseInt(s.unitPrice);
-        }
       });
       result = Object.values(grouped).map(station => {
-        const total = station.chargers.length;
-        return { ...station, totalCount: total, availableCount: station.chargers.filter(c => c.stat === 2).length, chargingCount: station.chargers.filter(c => c.stat === 3).length };
+        const chargers = station.chargers;
+        const price = lookupPrice(station.busiId, chargers);
+        return {
+          ...station,
+          unitPriceFast: price.fast,
+          unitPriceSlow: price.slow,
+          unitPriceFastMember: price.fastMember,
+          unitPriceSlowMember: price.slowMember,
+          totalCount: chargers.length,
+          availableCount: chargers.filter(c => c.stat === 2).length,
+          chargingCount: chargers.filter(c => c.stat === 3).length,
+        };
       });
     }
 
@@ -105,7 +117,16 @@ router.get('/:id', cacheMiddleware(60), async (req, res) => {
     const detail = await evApi.getStationDetail(req.params.id);
     if (!detail) return res.status(404).json({ error: '충전소를 찾을 수 없습니다' });
 
-    res.json({ data: detail });
+    const price = lookupPrice(detail.busiId, detail.chargers);
+    res.json({
+      data: {
+        ...detail,
+        unitPriceFast: price.fast,
+        unitPriceSlow: price.slow,
+        unitPriceFastMember: price.fastMember,
+        unitPriceSlowMember: price.slowMember,
+      },
+    });
   } catch (err) {
     console.error('[EV /:id]', err.message);
     res.status(500).json({ error: '충전소 상세 조회 실패' });

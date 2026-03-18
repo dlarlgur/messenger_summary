@@ -123,8 +123,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> with SingleTi
             labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             tabs: [
               Tab(text: '전체 (${favorites.length})'),
-              Tab(text: '⛽ (${gasList.length})'),
-              Tab(text: '🔋 (${evList.length})'),
+              Tab(text: '주유소 (${gasList.length})'),
+              Tab(text: '충전소 (${evList.length})'),
             ],
           ),
         ),

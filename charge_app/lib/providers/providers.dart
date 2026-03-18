@@ -136,6 +136,27 @@ final locationProvider = FutureProvider<({double lat, double lng})?>((ref) async
   return (lat: pos.latitude, lng: pos.longitude);
 });
 
+/// 실시간 위치 스트림 — 30m 이상 이동 시 업데이트
+final locationStreamProvider = StreamProvider<({double lat, double lng})>((ref) {
+  return LocationService().getPositionStream().map((pos) => (lat: pos.latitude, lng: pos.longitude));
+});
+
+// chgerType 복합 타입을 단일 커넥터 코드로 확장
+// 05: DC차데모+AC3상, 06: DC차데모+DC콤보, 07: DC차데모+AC3상+DC콤보
+Set<String> _expandChargerType(String type) {
+  switch (type) {
+    case '05': return {'01', '04'};
+    case '06': return {'01', '03'};
+    case '07': return {'01', '03', '04'};
+    default: return {type};
+  }
+}
+
+bool _chargerMatchesFilter(String chargerType, List<String> filterTypes) {
+  final supported = _expandChargerType(chargerType);
+  return filterTypes.any((t) => supported.contains(t));
+}
+
 // ─── Gas Stations Provider ───
 final gasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   final location = await ref.watch(locationProvider.future);
@@ -184,31 +205,57 @@ final evStationsProvider = FutureProvider<List<EvStation>>((ref) async {
 
   final filter = ref.watch(evFilterProvider);
 
-  final data = await ApiService().getEvStationsAround(
-    lat: location.lat,
-    lng: location.lng,
-    radius: filter.radius,
-  );
+  // EV + Tesla 동시 조회
+  final results = await Future.wait([
+    ApiService().getEvStationsAround(lat: location.lat, lng: location.lng, radius: filter.radius),
+    ApiService().getTeslaStationsAround(lat: location.lat, lng: location.lng, radius: filter.radius),
+  ]);
 
-  var stations = data.map((json) => EvStation.fromJson(json)).toList();
+  var stations = [
+    ...results[0].map((json) => EvStation.fromJson(json)),
+    ...results[1].map((json) => EvStation.fromJson(json)),
+  ];
 
   if (filter.availableOnly) {
-    stations = stations.where((s) => s.hasAvailable).toList();
+    stations = stations.where((s) => s.hasAvailable || s.isTesla).toList();
   }
   if (filter.chargerTypes.isNotEmpty) {
     stations = stations.where((s) =>
-      s.chargers.any((c) => filter.chargerTypes.contains(c.type))).toList();
+      s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
   }
   if (filter.operators.isNotEmpty) {
-    stations = stations.where((s) => filter.operators.any((op) => s.operator.contains(op))).toList();
+    final includeOther = filter.operators.contains('__other__');
+    final mainOps = filter.operators.where((o) => o != '__other__').toList();
+    stations = stations.where((s) {
+      if (mainOps.any((op) => s.operator.contains(op))) return true;
+      if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
+          .any((op) => s.operator.contains(op))) return true;
+      return false;
+    }).toList();
   }
   if (filter.kinds.isNotEmpty) {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
   }
-  if (filter.highwayDir.isNotEmpty) {
-    stations = stations.where((s) =>
-      s.kind != 'C0' || s.name.contains(filter.highwayDir)).toList();
+
+  int cmpPrice(int? a, int? b) {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return a.compareTo(b);
   }
+
+  if (filter.sort == 2) {
+    stations.sort((a, b) => cmpPrice(
+      a.unitPriceFast ?? a.unitPriceSlow,
+      b.unitPriceFast ?? b.unitPriceSlow,
+    ));
+  } else if (filter.sort == 3) {
+    stations.sort((a, b) => cmpPrice(
+      a.unitPriceFastMember ?? a.unitPriceSlowMember,
+      b.unitPriceFastMember ?? b.unitPriceSlowMember,
+    ));
+  }
+  // sort == 1: 거리순 (서버에서 이미 정렬됨)
 
   return stations;
 });
@@ -223,16 +270,19 @@ final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
 
 // ─── 지도 전용 Provider ───
 final mapCenterProvider = StateProvider<({double lat, double lng})?>((_) => null);
+/// 지도에서 사용할 반경(m). 줌에 따라 '이 지역 검색' 시 설정됨.
+final mapRadiusProvider = StateProvider<int>((_) => 5000);
 
 final mapGasStationsProvider = FutureProvider<List<GasStation>>((ref) async {
   final center = ref.watch(mapCenterProvider);
   if (center == null) return [];
   final filter = ref.watch(gasFilterProvider);
+  final radius = ref.watch(mapRadiusProvider);
 
   final results = await Future.wait(
     filter.fuelTypes.map((ft) => ApiService().getGasStationsAround(
       lat: center.lat, lng: center.lng,
-      radius: filter.radius, fuelType: ft, sort: 2,
+      radius: radius, fuelType: ft, sort: 2,
     )),
   );
 
@@ -257,28 +307,37 @@ final mapEvStationsProvider = FutureProvider<List<EvStation>>((ref) async {
   final center = ref.watch(mapCenterProvider);
   if (center == null) return [];
   final filter = ref.watch(evFilterProvider);
-  final data = await ApiService().getEvStationsAround(
-    lat: center.lat, lng: center.lng, radius: filter.radius,
-  );
+  final radius = ref.watch(mapRadiusProvider);
 
-  var stations = data.map((json) => EvStation.fromJson(json)).toList();
+  final results = await Future.wait([
+    ApiService().getEvStationsAround(lat: center.lat, lng: center.lng, radius: radius),
+    ApiService().getTeslaStationsAround(lat: center.lat, lng: center.lng, radius: radius),
+  ]);
+
+  var stations = [
+    ...results[0].map((json) => EvStation.fromJson(json)),
+    ...results[1].map((json) => EvStation.fromJson(json)),
+  ];
 
   if (filter.availableOnly) {
-    stations = stations.where((s) => s.hasAvailable).toList();
+    stations = stations.where((s) => s.hasAvailable || s.isTesla).toList();
   }
   if (filter.chargerTypes.isNotEmpty) {
     stations = stations.where((s) =>
-      s.chargers.any((c) => filter.chargerTypes.contains(c.type))).toList();
+      s.chargers.any((c) => _chargerMatchesFilter(c.type, filter.chargerTypes))).toList();
   }
   if (filter.operators.isNotEmpty) {
-    stations = stations.where((s) => filter.operators.any((op) => s.operator.contains(op))).toList();
+    final includeOther = filter.operators.contains('__other__');
+    final mainOps = filter.operators.where((o) => o != '__other__').toList();
+    stations = stations.where((s) {
+      if (mainOps.any((op) => s.operator.contains(op))) return true;
+      if (includeOther && !['환경부','GS차지비','파워큐브','에버온','SK일렉링크','채비','Tesla']
+          .any((op) => s.operator.contains(op))) return true;
+      return false;
+    }).toList();
   }
   if (filter.kinds.isNotEmpty) {
     stations = stations.where((s) => filter.kinds.contains(s.kind)).toList();
-  }
-  if (filter.highwayDir.isNotEmpty) {
-    stations = stations.where((s) =>
-      s.kind != 'C0' || s.name.contains(filter.highwayDir)).toList();
   }
 
   return stations;
@@ -297,9 +356,13 @@ class GasFilterNotifier extends StateNotifier<GasFilterOptions> {
   }
 
   void _load() {
+    final savedRadius = _box.get(AppConstants.keyGasFilterRadius, defaultValue: 5000) as int;
+    // 저장된 반경이 유효하지 않으면 기본값(5000)으로 리셋
+    final validRadius = AppConstants.radiusOptions.contains(savedRadius) ? savedRadius : 5000;
+    
     state = GasFilterOptions(
       sort: _box.get(AppConstants.keyGasFilterSort, defaultValue: 1),
-      radius: _box.get(AppConstants.keyGasFilterRadius, defaultValue: 5000),
+      radius: validRadius,
       fuelTypes: List<String>.from(_box.get(AppConstants.keyGasFilterFuelTypes, defaultValue: ['B027'])),
       brands: List<String>.from(_box.get(AppConstants.keyGasFilterBrands, defaultValue: [])),
     );
@@ -334,7 +397,6 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
       availableOnly: _box.get(AppConstants.keyEvFilterAvailableOnly, defaultValue: false),
       operators: List<String>.from(_box.get(AppConstants.keyEvFilterOperators, defaultValue: [])),
       kinds: List<String>.from(_box.get(AppConstants.keyEvFilterKinds, defaultValue: [])),
-      highwayDir: _box.get(AppConstants.keyEvFilterHighwayDir, defaultValue: ''),
     );
   }
 
@@ -346,6 +408,5 @@ class EvFilterNotifier extends StateNotifier<EvFilterOptions> {
     _box.put(AppConstants.keyEvFilterAvailableOnly, options.availableOnly);
     _box.put(AppConstants.keyEvFilterOperators, options.operators);
     _box.put(AppConstants.keyEvFilterKinds, options.kinds);
-    _box.put(AppConstants.keyEvFilterHighwayDir, options.highwayDir);
   }
 }

@@ -50,7 +50,8 @@ router.get('/around', cacheMiddleware(300), async (req, res) => {
 
     res.json({ data: result, count: result.length });
   } catch (err) {
-    console.error('[GAS /around]', err.message);
+    console.error('[GAS /around] 에러:', err.message || err);
+    if (err.stack) console.error(err.stack);
     res.status(500).json({ error: '주유소 검색 실패' });
   }
 });
@@ -61,10 +62,21 @@ router.get('/around', cacheMiddleware(300), async (req, res) => {
  */
 router.get('/:id', cacheMiddleware(600), async (req, res) => {
   try {
-    const detail = await opinet.getStationDetail(req.params.id);
-    if (!detail) return res.status(404).json({ error: '주유소를 찾을 수 없습니다' });
+    const result = await opinet.getStationDetail(req.params.id);
+    if (!result) return res.status(404).json({ error: '주유소를 찾을 수 없습니다' });
 
+    const detail = result.base;
     const wgs = katecToWgs84(parseFloat(detail.GIS_X_COOR), parseFloat(detail.GIS_Y_COOR));
+
+    // 유종별 가격 맵 & 판매 유종 목록
+    const prices = {};
+    const oilPrices = detail.OIL_PRICE || [];
+    for (const oil of oilPrices) {
+      const code = oil.PRODCD;
+      const price = parseFloat(oil.PRICE);
+      if (code && price > 0) prices[code] = price;
+    }
+    const availableFuelTypes = Object.keys(prices);
 
     res.json({
       data: {
@@ -80,10 +92,13 @@ router.get('/:id', cacheMiddleware(600), async (req, res) => {
         isSelf: detail.SELF_DIV_CD === 'Y',
         hasCarWash: detail.CAR_WASH_YN === 'Y',
         hasMaintenance: detail.MAINT_YN === 'Y',
+        prices,               // { B027: 1500, D047: 1400, ... }
+        availableFuelTypes,   // ['B027', 'D047', ...]
       },
     });
   } catch (err) {
-    console.error('[GAS /:id]', err.message);
+    console.error('[GAS /:id] 에러:', err.message || err);
+    if (err.stack) console.error(err.stack);
     res.status(500).json({ error: '주유소 상세 조회 실패' });
   }
 });

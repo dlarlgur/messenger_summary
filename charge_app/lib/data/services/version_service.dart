@@ -25,6 +25,22 @@ class VersionService {
     receiveTimeout: const Duration(seconds: 10),
   ));
 
+  /// 서버에서 최신 버전 문자열만 반환 (설정 화면 표시용)
+  static Future<String> fetchLatestVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final platform = Platform.isAndroid ? 'ANDROID' : 'IOS';
+      final res = await _dio.get(ApiConstants.appVersion, queryParameters: {
+        'app': info.packageName,
+        'platform': platform,
+      });
+      return (res.data['data']['latest_version'] as String?) ?? info.version;
+    } catch (_) {
+      final info = await PackageInfo.fromPlatform();
+      return info.version;
+    }
+  }
+
   static Future<VersionCheckResult?> check() async {
     try {
       final info = await PackageInfo.fromPlatform();

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../core/utils/navigation_util.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/models.dart';
 import '../../data/services/api_service.dart';
+import '../../data/services/location_service.dart';
 import '../../providers/providers.dart';
 import '../filter/ev_filter_sheet.dart';
 import '../filter/gas_filter_sheet.dart';
@@ -27,6 +29,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _showSearchHere = false;
   bool _mapReady = false;
   int _markersGeneration = 0;
+  final Map<String, NMarker> _markerRefs = {};
+  double? _lastMinGasPrice;
+  bool _isLocating = false;
+  bool _isAtMyLocation = false;
+  bool _suppressCameraChange = false;
 
   // 검색
   bool _isSearchMode = false;
@@ -74,34 +81,70 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   void _moveToMyLocation() async {
-    final loc = await ref.read(locationProvider.future);
-    if (loc == null) return;
-    _mapController?.updateCamera(NCameraUpdate.withParams(
-      target: NLatLng(loc.lat, loc.lng), zoom: 14,
-    ));
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final streamed = ref.read(locationStreamProvider).valueOrNull;
+      ({double lat, double lng})? loc = streamed;
+      if (loc == null) {
+        final pos = await LocationService().getFreshPosition();
+        if (pos == null) return;
+        loc = (lat: pos.latitude, lng: pos.longitude);
+      }
+      final target = NLatLng(loc.lat, loc.lng);
+      _suppressCameraChange = true;
+      _mapController?.updateCamera(NCameraUpdate.withParams(target: target, zoom: 14));
+      final overlay = _mapController?.getLocationOverlay();
+      overlay?.setIsVisible(true);
+      overlay?.setPosition(target);
+      if (mounted) setState(() { _isAtMyLocation = true; _showSearchHere = false; });
+      // 애니메이션 완료 후 플래그 해제 (애니메이션 중 onCameraChange 여러 번 발동)
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _suppressCameraChange = false;
+      });
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
-  double _radiusToZoom(int radius) {
-    if (radius <= 1000) return 15;
-    if (radius <= 2000) return 14;
-    if (radius <= 3000) return 13;
-    if (radius <= 5000) return 12;
-    if (radius <= 10000) return 11;
-    if (radius <= 15000) return 10.5;
-    return 10;
+  /// 줌 레벨 → 대략적인 반경(m). 지도 초기화 시 bounds가 없을 때만 사용.
+  static int _zoomToRadius(double zoom) {
+    if (zoom >= 15) return 1000;
+    if (zoom >= 14) return 2000;
+    if (zoom >= 13) return 3000;
+    if (zoom >= 12) return 5000;
+    if (zoom >= 11) return 10000;
+    if (zoom >= 10.5) return 15000;
+    if (zoom >= 10) return 20000;
+    if (zoom >= 9) return 30000;
+    return 50000;
   }
 
-  int _activeRadius() {
-    if (_showEv) return ref.read(evFilterProvider).radius;
-    return ref.read(gasFilterProvider).radius;
+  /// 실제 지도 보이는 영역에서 중심~가장자리 거리(m) — 가로/세로 중 짧은 쪽 기준.
+  /// 세로 화면에서 대각선을 쓰면 화면 밖 스테이션까지 포함되므로 짧은 축 사용.
+  static int _boundsToRadius(NLatLngBounds bounds, NLatLng center) {
+    const maxRadius = 50000;
+    const earthR = 6371000.0;
+    final ne = bounds.northEast;
+    final latRad = center.latitude * math.pi / 180;
+    // 수직 반경 (중심 → 북쪽 가장자리)
+    final vertDist = earthR * ((ne.latitude - center.latitude) * math.pi / 180).abs();
+    // 수평 반경 (중심 → 동쪽 가장자리)
+    final horizDist = earthR * ((ne.longitude - center.longitude) * math.pi / 180).abs() * math.cos(latRad);
+    final dist = math.min(vertDist, horizDist);
+    return dist.clamp(1000, maxRadius).toInt();
   }
 
   void _searchAtCurrentCenter() async {
     final controller = _mapController;
     if (controller == null) return;
     final pos = await controller.getCameraPosition();
+    final bounds = await controller.getContentBounds();
+    final radius = bounds != null
+        ? _boundsToRadius(bounds, pos.target)
+        : _zoomToRadius(pos.zoom);
     ref.read(mapCenterProvider.notifier).state = (lat: pos.target.latitude, lng: pos.target.longitude);
-    _mapController?.updateCamera(NCameraUpdate.withParams(zoom: _radiusToZoom(_activeRadius())));
+    ref.read(mapRadiusProvider.notifier).state = radius;
     setState(() { _showSearchHere = false; _selectedStation = null; });
     _updateMarkers();
   }
@@ -131,7 +174,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final lng = (place['lng'] as num).toDouble();
     _mapController?.updateCamera(NCameraUpdate.withParams(
       target: NLatLng(lat, lng),
-      zoom: _radiusToZoom(_activeRadius()),
+      zoom: 14,
     ));
     ref.read(mapCenterProvider.notifier).state = (lat: lat, lng: lng);
     setState(() {
@@ -199,18 +242,30 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final vehicleType = ref.read(settingsProvider).vehicleType;
+    final vehicleType = ref.watch(settingsProvider).vehicleType;
 
     ref.listen(mapGasStationsProvider, (_, __) => _updateMarkers());
     ref.listen(mapEvStationsProvider, (_, __) => _updateMarkers());
-    ref.listen(gasFilterProvider, (prev, next) {
-      if (prev?.radius != next.radius) {
-        _mapController?.updateCamera(NCameraUpdate.withParams(zoom: _radiusToZoom(next.radius)));
-      }
+    // 실시간 위치 스트림 → 파란 점 업데이트
+    ref.listen(locationStreamProvider, (_, next) {
+      next.whenData((loc) {
+        final overlay = _mapController?.getLocationOverlay();
+        overlay?.setIsVisible(true);
+        overlay?.setPosition(NLatLng(loc.lat, loc.lng));
+      });
     });
-    ref.listen(evFilterProvider, (prev, next) {
-      if (prev?.radius != next.radius) {
-        _mapController?.updateCamera(NCameraUpdate.withParams(zoom: _radiusToZoom(next.radius)));
+    ref.listen(settingsProvider, (prev, next) {
+      if (prev?.vehicleType != next.vehicleType) {
+        setState(() {
+          if (next.vehicleType == VehicleType.gas) {
+            _showGas = true; _showEv = false;
+          } else if (next.vehicleType == VehicleType.ev) {
+            _showGas = false; _showEv = true;
+          } else {
+            _showGas = true; _showEv = true;
+          }
+        });
+        _updateMarkers();
       }
     });
 
@@ -230,11 +285,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             onMapReady: (controller) {
               _mapController = controller;
+              const defaultZoom = 14.0;
+              ref.read(mapRadiusProvider.notifier).state = _zoomToRadius(defaultZoom);
               ref.read(locationProvider.future).then((loc) {
                 if (loc != null) {
                   controller.updateCamera(NCameraUpdate.withParams(
                     target: NLatLng(loc.lat, loc.lng),
-                    zoom: _radiusToZoom(_activeRadius()),
+                    zoom: defaultZoom,
                   ));
                   ref.read(mapCenterProvider.notifier).state = (lat: loc.lat, lng: loc.lng);
                   final overlay = controller.getLocationOverlay();
@@ -247,16 +304,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               _updateMarkers();
             },
             onCameraChange: (_, __) {
-              if (_mapReady && !_showSearchHere && !_isSearchMode) {
-                setState(() => _showSearchHere = true);
+              if (_suppressCameraChange) return;
+              if (_mapReady && !_isSearchMode) {
+                setState(() {
+                  _showSearchHere = true;
+                  _isAtMyLocation = false;
+                });
               }
             },
             onMapTapped: (_, __) {
               if (_isSearchMode) {
                 setState(() { _isSearchMode = false; _searchResults = []; _searchController.clear(); });
               } else if (_selectedStation != null) {
+                final prev = _selectedStation;
                 setState(() => _selectedStation = null);
-                _updateMarkers();
+                _restoreMarkerIcon(prev, _lastMinGasPrice);
               }
             },
           ),
@@ -292,15 +354,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             bottom: MediaQuery.of(context).padding.bottom + (_selectedStation != null ? 200 : 24),
             child: GestureDetector(
               onTap: _moveToMyLocation,
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkBg : Colors.white,
+                  color: (_isLocating || _isAtMyLocation)
+                      ? AppColors.evGreen
+                      : (isDark ? AppColors.darkBg : Colors.white),
                   shape: BoxShape.circle,
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))],
                 ),
-                child: Icon(Icons.my_location_rounded, size: 22,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                child: _isLocating
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: Center(
+                          child: SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                        ),
+                      )
+                    : Icon(Icons.my_location_rounded, size: 22,
+                        color: (_isAtMyLocation)
+                            ? Colors.white
+                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
               ),
             ),
           ),
@@ -569,31 +644,72 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
+  /// 거리순 정렬된 목록에서 [maxCount]개를 균등 간격으로 추출.
+  /// 넓은 반경 조회 시 중심 밀집 현상 없이 전 영역에 고르게 표시.
+  static List<T> _spreadSample<T>(List<T> sorted, int maxCount) {
+    if (sorted.length <= maxCount) return sorted;
+    final step = sorted.length / maxCount;
+    return List.generate(maxCount, (i) => sorted[(i * step).floor()]);
+  }
+
+  static const _kSelectedColor = Color(0xFFF59E0B); // amber: 선택된 마커
+
   // ─── 마커 업데이트 ───
   Future<void> _updateMarkers() async {
     final controller = _mapController;
     if (controller == null) return;
 
     final gen = ++_markersGeneration;
+    _markerRefs.clear();
     await controller.clearOverlays(type: NOverlayType.marker);
     if (gen != _markersGeneration) return;
 
-    final gasStations = (ref.read(mapGasStationsProvider).valueOrNull ?? []).take(100).toList();
-    final evStations = (ref.read(mapEvStationsProvider).valueOrNull ?? []).take(100).toList();
+    final gasStations = _spreadSample(ref.read(mapGasStationsProvider).valueOrNull ?? [], 150);
+    final evStations = _spreadSample(ref.read(mapEvStationsProvider).valueOrNull ?? [], 150);
+
+    // 필터 변경 등으로 선택된 스테이션이 결과에서 사라지면 선택 해제
+    if (_selectedStation != null) {
+      final stillVisible = (_selectedStation is GasStation &&
+              gasStations.any((s) => s.id == (_selectedStation as GasStation).id)) ||
+          (_selectedStation is EvStation &&
+              evStations.any((s) => s.statId == (_selectedStation as EvStation).statId));
+      if (!stillVisible && mounted) setState(() => _selectedStation = null);
+    }
+
+    double? minGasPrice;
+    if (_showGas && gasStations.isNotEmpty) {
+      minGasPrice = gasStations.map((s) => s.price).reduce((a, b) => a < b ? a : b);
+    }
+    _lastMinGasPrice = minGasPrice;
 
     if (_showGas) {
       for (final s in gasStations) {
         if (gen != _markersGeneration) return;
-        final isSelected = _selectedStation == s;
-        final color = isSelected ? const Color(0xFFE53E3E) : AppColors.gasBlue;
+        final isCheapest = minGasPrice != null && s.price == minGasPrice;
+        final isSelected = _selectedStation != null &&
+            _selectedStation is GasStation &&
+            (_selectedStation as GasStation).id == s.id;
+        Color color;
+        if (isSelected) {
+          color = _kSelectedColor;
+        } else if (isCheapest) {
+          color = const Color(0xFFEF4444);
+        } else {
+          color = AppColors.gasBlue;
+        }
+        final label = s.priceText;
+        final markerId = 'gas_${s.id}';
         final marker = NMarker(
-          id: 'gas_${s.id}',
+          id: markerId,
           position: NLatLng(s.lat, s.lng),
-          icon: await _badgeIcon(s.priceText, color, isSelected),
+          icon: await _badgeIcon(label, color, isSelected || isCheapest),
         );
-        marker.setOnTapListener((_) {
+        _markerRefs[markerId] = marker;
+        marker.setOnTapListener((_) async {
+          final prev = _selectedStation;
           setState(() { _selectedStation = s; _isEvSelected = false; });
-          _updateMarkers();
+          await _restoreMarkerIcon(prev, _lastMinGasPrice);
+          await _highlightMarker(markerId, _kSelectedColor, label, true);
         });
         await controller.addOverlay(marker);
       }
@@ -602,21 +718,55 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_showEv) {
       for (final s in evStations) {
         if (gen != _markersGeneration) return;
-        final isSelected = _selectedStation == s;
+        final isSelected = _selectedStation != null &&
+            _selectedStation is EvStation &&
+            (_selectedStation as EvStation).statId == s.statId;
         final color = isSelected
-            ? const Color(0xFFE53E3E)
-            : (s.hasAvailable ? AppColors.evGreen : const Color(0xFF94A3B8));
+            ? _kSelectedColor
+            : (s.isTesla ? AppColors.evGreen : (s.hasAvailable ? AppColors.evGreen : const Color(0xFF94A3B8)));
+        final markerLabel = s.isTesla ? 'Tesla' : '${s.chargingCount}/${s.totalCount}';
+        final markerId = 'ev_${s.statId}';
         final marker = NMarker(
-          id: 'ev_${s.statId}',
+          id: markerId,
           position: NLatLng(s.lat, s.lng),
-          icon: await _badgeIcon('${s.chargingCount}/${s.totalCount}', color, isSelected),
+          icon: await _badgeIcon(markerLabel, color, isSelected),
         );
-        marker.setOnTapListener((_) {
+        _markerRefs[markerId] = marker;
+        marker.setOnTapListener((_) async {
+          final prev = _selectedStation;
           setState(() { _selectedStation = s; _isEvSelected = true; });
-          _updateMarkers();
+          await _restoreMarkerIcon(prev, _lastMinGasPrice);
+          await _highlightMarker(markerId, _kSelectedColor, '${s.chargingCount}/${s.totalCount}', true);
         });
         await controller.addOverlay(marker);
       }
+    }
+  }
+
+  /// 특정 마커를 강조색으로 변경 (선택 시).
+  Future<void> _highlightMarker(String markerId, Color color, String label, bool isSelected) async {
+    final marker = _markerRefs[markerId];
+    if (marker == null) return;
+    marker.setIcon(await _badgeIcon(label, color, isSelected));
+  }
+
+  /// 이전에 선택된 스테이션 마커를 원래 아이콘으로 복원 (전체 redraw 없이).
+  Future<void> _restoreMarkerIcon(dynamic prev, double? minGasPrice) async {
+    if (prev == null) return;
+    if (prev is GasStation) {
+      final markerId = 'gas_${prev.id}';
+      final marker = _markerRefs[markerId];
+      if (marker == null) return;
+      final isCheapest = minGasPrice != null && prev.price == minGasPrice;
+      final color = isCheapest ? const Color(0xFFEF4444) : AppColors.gasBlue;
+      final label = prev.priceText;
+      marker.setIcon(await _badgeIcon(label, color, isCheapest));
+    } else if (prev is EvStation) {
+      final markerId = 'ev_${prev.statId}';
+      final marker = _markerRefs[markerId];
+      if (marker == null) return;
+      final color = (prev.isTesla || prev.hasAvailable) ? AppColors.evGreen : const Color(0xFF94A3B8);
+      marker.setIcon(await _badgeIcon(prev.isTesla ? 'Tesla' : '${prev.chargingCount}/${prev.totalCount}', color, false));
     }
   }
 
@@ -636,7 +786,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         trailingColor: AppColors.gasBlue,
         onDetail: () => context.push('/gas/${s.id}'),
         onNavigate: () => _openNavigation(s.lat, s.lng, s.name),
-        onDismiss: () { setState(() => _selectedStation = null); _updateMarkers(); },
+        onDismiss: () async {
+          final prev = _selectedStation;
+          setState(() => _selectedStation = null);
+          await _restoreMarkerIcon(prev, _lastMinGasPrice);
+        },
       );
     } else if (_selectedStation is EvStation) {
       final s = _selectedStation as EvStation;
@@ -646,10 +800,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         subtitle: '${s.distanceText} · ${s.operator} · ${s.chargerTypeText}',
         trailingText: s.maxPowerText ?? '',
         trailingColor: AppColors.evGreen,
+        priceText: s.priceNonMemberText,
+        priceMemberText: s.priceMemberText,
         hasAvailable: s.hasAvailable,
         onDetail: () => context.push('/ev/${s.statId}', extra: s),
         onNavigate: () => _openNavigation(s.lat, s.lng, s.name),
-        onDismiss: () { setState(() => _selectedStation = null); _updateMarkers(); },
+        onDismiss: () async {
+          final prev = _selectedStation;
+          setState(() => _selectedStation = null);
+          await _restoreMarkerIcon(prev, _lastMinGasPrice);
+        },
       );
     }
     return const SizedBox();
@@ -659,15 +819,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     required bool isDark, required bool isEv,
     required String name, required String subtitle,
     required String trailingText, required Color trailingColor,
+    String? priceText,
+    String? priceMemberText,
     bool hasAvailable = true,
     required VoidCallback onDetail,
     required VoidCallback onNavigate,
     required VoidCallback onDismiss,
   }) {
     final accentColor = isEv ? AppColors.evGreen : AppColors.gasBlue;
-    return GestureDetector(
-      onTap: onDismiss,
-      child: Container(
+    return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkBg : Colors.white,
@@ -678,8 +838,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Center(child: Container(width: 36, height: 4,
-                decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)))),
+            Row(
+              children: [
+                const Spacer(),
+                Center(child: Container(width: 36, height: 4,
+                    decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)))),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: onDismiss,
+                      child: Icon(Icons.close_rounded, size: 20,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -730,7 +905,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ],
                   ),
                 ),
-                Text(trailingText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: trailingColor)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(trailingText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: trailingColor)),
+                    if (priceText != null)
+                      Text(priceText,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                    if (priceMemberText != null)
+                      Text(priceMemberText,
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500,
+                              color: AppColors.evGreen)),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -758,7 +946,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 }

@@ -103,18 +103,22 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(s.name, style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 4),
-                          Text(s.operator, style: TextStyle(fontSize: 12,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                           const SizedBox(height: 6),
-                          Wrap(spacing: 6, children: [
-                            _badge(s.hasAvailable ? '이용가능' : '이용불가',
-                                s.hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline,
-                                isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg),
-                            if (s.chargers.any((c) => c.isFast))
-                              _badge('DC 급속', AppColors.statusFast,
-                                  isDark ? AppColors.darkBadgeFastBg : AppColors.lightBadgeFastBg),
-                          ]),
+                          Row(
+                            children: [
+                              _badge(s.hasAvailable ? '이용가능' : '이용불가',
+                                  s.hasAvailable ? AppColors.statusAvailable : AppColors.statusOffline,
+                                  isDark ? AppColors.darkBadgeAvailBg : AppColors.lightBadgeAvailBg),
+                              const SizedBox(width: 6),
+                              Text(s.operator, style: TextStyle(fontSize: 12,
+                                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                              if (s.chargers.any((c) => c.isFast)) ...[
+                                const SizedBox(width: 6),
+                                _badge('DC 급속', AppColors.statusFast,
+                                    isDark ? AppColors.darkBadgeFastBg : AppColors.lightBadgeFastBg),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -129,23 +133,18 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700,
                           color: isDark ? AppColors.evGreen : AppColors.evGreenDark),
                     ),
-                    if (s.effectiveUnitPrice != null) ...[
-                      const SizedBox(width: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '${s.effectiveUnitPrice}원/kWh',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
+
+          // 충전 요금 카드
+          if (s.hasPriceInfo) ...[
+            _buildPriceCard(s, isDark),
+            const SizedBox(height: 16),
+          ],
 
           // 충전기 현황 카드
           Row(
@@ -175,6 +174,10 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
                 color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
             const SizedBox(height: 10),
             ...s.chargers.map((charger) => _chargerTile(charger, isDark)),
+            const SizedBox(height: 8),
+            Text('충전기 상태는 실시간과 다를 수 있습니다',
+              style: TextStyle(fontSize: 11,
+                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
             const SizedBox(height: 16),
           ],
 
@@ -218,6 +221,78 @@ class _EvDetailScreenState extends ConsumerState<EvDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPriceCard(EvStation s, bool isDark) {
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final cardBg = isDark ? AppColors.darkCard : AppColors.lightCard;
+    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+
+    Widget priceCol(String label, int? price, Color accent) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(label,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: mutedColor)),
+            const SizedBox(height: 6),
+            price != null
+              ? Text('$price원',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: accent,
+                    letterSpacing: -0.3))
+              : Text('-', style: TextStyle(fontSize: 16, color: mutedColor, fontWeight: FontWeight.w500)),
+            Text('원/kWh',
+              style: TextStyle(fontSize: 9, color: mutedColor, fontWeight: FontWeight.w400)),
+          ],
+        ),
+      );
+    }
+
+    Widget priceRow(String tier, Color tierColor, int? fast, int? slow) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 0.8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: tierColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(tier,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tierColor)),
+            ),
+            const SizedBox(width: 12),
+            priceCol('급속', fast, AppColors.statusFast),
+            Container(width: 1, height: 36, color: borderColor),
+            priceCol('완속', slow, AppColors.evGreen),
+          ],
+        ),
+      );
+    }
+
+    final hasMember = s.unitPriceFastMember != null || s.unitPriceSlowMember != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('충전 요금',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+            color: isDark ? const Color(0xFF60A5FA) : AppColors.gasBlueDark)),
+        const SizedBox(height: 10),
+        priceRow('비회원', isDark ? Colors.white60 : Colors.black54,
+          s.unitPriceFast, s.unitPriceSlow),
+        if (hasMember) ...[
+          const SizedBox(height: 8),
+          priceRow('회원', AppColors.evGreen,
+            s.unitPriceFastMember, s.unitPriceSlowMember),
+        ],
+      ],
     );
   }
 

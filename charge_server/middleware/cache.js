@@ -60,7 +60,7 @@ async function geoAdd(key, members) {
 async function geoSearch(key, lng, lat, radiusM) {
   if (!redisClient?.isReady) return null;
   try {
-    const count = Math.min(Math.max(Math.ceil(radiusM / 5), 1000), 5000);
+    const count = Math.min(Math.max(Math.ceil(radiusM / 5), 1000), 20000);
     return await redisClient.geoSearch(
       key,
       { longitude: lng, latitude: lat },
@@ -99,6 +99,11 @@ async function del(key) {
   await redisClient.del(key);
 }
 
+async function rename(src, dst) {
+  if (!redisClient?.isReady) return;
+  await redisClient.rename(src, dst);
+}
+
 async function keyExists(key) {
   if (!redisClient?.isReady) return false;
   return (await redisClient.exists(key)) > 0;
@@ -124,4 +129,4 @@ function cacheMiddleware(ttl) {
   };
 }
 
-module.exports = { cacheMiddleware, getCache, setCache, geoAdd, geoSearch, hSetBulk, hmGet, expire, del, keyExists };
+module.exports = { cacheMiddleware, getCache, setCache, geoAdd, geoSearch, hSetBulk, hmGet, expire, del, rename, keyExists };

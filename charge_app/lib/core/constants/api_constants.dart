@@ -6,6 +6,9 @@ class ApiConstants {
   // static const baseUrl = 'http://10.254.110.57:1024/api'; // 실기기 (로컬)
   // static const baseUrl = 'http://10.0.2.2:1024/api'; // Android 에뮬레이터
 
+  // ─── 버전 ───
+  static const appVersion = '/version';
+
   // ─── 주유소 (Gas) ───
   static const gasAround = '/stations/gas/around';
   static const gasDetail = '/stations/gas'; // + /:id
@@ -14,6 +17,10 @@ class ApiConstants {
   // ─── 충전소 (EV) ───
   static const evAround = '/stations/ev/around';
   static const evDetail = '/stations/ev'; // + /:id
+
+  // ─── 테슬라 (OCM) ───
+  static const teslaAround = '/stations/tesla/around';
+  static const teslaDetail = '/stations/tesla'; // + /:uuid
 
   // ─── 검색 ───
   static const searchPlaces = '/search/places';
@@ -53,8 +60,8 @@ class AppConstants {
   static const defaultFuelType = 'B027'; // 휘발유
   static const defaultSort = 1; // 가격순
 
-  // 반경 옵션 (미터)
-  static const radiusOptions = [3000, 5000, 10000, 20000];
+  // 반경 옵션 (미터) - 오피넷 API는 최대 5km까지만 지원
+  static const radiusOptions = [1000, 3000, 5000];
 
   // Splash 표시 시간
   static const splashDuration = Duration(milliseconds: 1500);

@@ -1,3 +1,15 @@
+// ASCII/전각 괄호 안 한글(법인형태 등)을 유니코드 원문자로 치환
+// 예: (주) → ㈜, (유) → ㈲  이유: 괄호는 라틴 폰트, 한글은 CJK 폰트가 혼합돼 굵기가 달라 보임
+const _legalEntityMap = {
+  '주': '㈜', '유': '㈲', '합': '㈳', '사': '㈷',
+  '재': '㈶', '의': '㈷', '농': '㉩',
+};
+
+String _normalizeName(String name) => name.replaceAllMapped(
+  RegExp(r'[（(]([가-힣]+)[）)]'),
+  (m) => _legalEntityMap[m[1]] ?? m[0]!,
+);
+
 // ─── 주유소 모델 ───
 class GasStation {
   final String id;
@@ -33,7 +45,7 @@ class GasStation {
   factory GasStation.fromJson(Map<String, dynamic> json) {
     return GasStation(
       id: json['UNI_ID'] ?? json['id'] ?? '',
-      name: json['OS_NM'] ?? json['name'] ?? '',
+      name: _normalizeName(json['OS_NM'] ?? json['name'] ?? ''),
       brand: json['POLL_DIV_CD'] ?? json['brand'] ?? '',
       address: json['NEW_ADR'] ?? json['address'] ?? '',
       price: (json['PRICE'] ?? json['price'] ?? 0).toDouble(),
@@ -95,9 +107,14 @@ class EvStation {
   final bool parkingFree;
   final List<Charger> chargers;
   final double? distance;
-  final int? unitPrice;
+  final int? unitPriceFast;       // 급속 비회원
+  final int? unitPriceSlow;       // 완속 비회원
+  final int? unitPriceFastMember; // 급속 회원
+  final int? unitPriceSlowMember; // 완속 회원
   final String? kind;
   final String? kindDetail;
+  final bool isTesla;
+  final String? stationType; // 'SC': 슈퍼차저, 'DT': 데스티네이션
 
   EvStation({
     required this.statId,
@@ -111,9 +128,14 @@ class EvStation {
     this.parkingFree = false,
     this.chargers = const [],
     this.distance,
-    this.unitPrice,
+    this.unitPriceFast,
+    this.unitPriceSlow,
+    this.unitPriceFastMember,
+    this.unitPriceSlowMember,
     this.kind,
     this.kindDetail,
+    this.isTesla = false,
+    this.stationType,
   });
 
   factory EvStation.fromJson(Map<String, dynamic> json) {
@@ -133,9 +155,14 @@ class EvStation {
       parkingFree: json['parkingFree'] == 'Y' || json['parkingFree'] == true,
       chargers: chargerList,
       distance: json['distance']?.toDouble(),
-      unitPrice: json['unitPrice'] != null ? (json['unitPrice'] as num).toInt() : null,
+      unitPriceFast: json['unitPriceFast'] != null ? (json['unitPriceFast'] as num).toInt() : null,
+      unitPriceSlow: json['unitPriceSlow'] != null ? (json['unitPriceSlow'] as num).toInt() : null,
+      unitPriceFastMember: json['unitPriceFastMember'] != null ? (json['unitPriceFastMember'] as num).toInt() : null,
+      unitPriceSlowMember: json['unitPriceSlowMember'] != null ? (json['unitPriceSlowMember'] as num).toInt() : null,
       kind: json['kind'],
       kindDetail: json['kindDetail'],
+      isTesla: json['isTesla'] == true,
+      stationType: json['stationType'],
     );
   }
 
@@ -146,14 +173,23 @@ class EvStation {
 
   bool get hasAvailable => availableCount > 0;
 
-  // unitPrice: 상세 API는 스테이션 레벨로 제공, 목록 API는 charger 레벨에서 추출
-  int? get effectiveUnitPrice {
-    if (unitPrice != null) return unitPrice;
-    for (final c in chargers) {
-      if (c.unitPrice != null) return c.unitPrice;
-    }
+  /// 비회원 요금 텍스트
+  String? get priceNonMemberText {
+    if (unitPriceFast != null && unitPriceSlow != null) return '비회원  급속 ${unitPriceFast} · 완속 ${unitPriceSlow}원';
+    if (unitPriceFast != null) return '비회원  급속 ${unitPriceFast}원/kWh';
+    if (unitPriceSlow != null) return '비회원  완속 ${unitPriceSlow}원/kWh';
     return null;
   }
+
+  /// 회원 요금 텍스트
+  String? get priceMemberText {
+    if (unitPriceFastMember != null && unitPriceSlowMember != null) return '회원     급속 ${unitPriceFastMember} · 완속 ${unitPriceSlowMember}원';
+    if (unitPriceFastMember != null) return '회원     급속 ${unitPriceFastMember}원/kWh';
+    if (unitPriceSlowMember != null) return '회원     완속 ${unitPriceSlowMember}원/kWh';
+    return null;
+  }
+
+  bool get hasPriceInfo => unitPriceFast != null || unitPriceSlow != null;
 
   String get distanceText {
     if (distance == null) return '';
@@ -224,6 +260,8 @@ class Charger {
       case '07': return 'DC차데모+AC3상+DC콤보';
       case '08': return '수소';
       case '09': return 'NACS';
+      case 'SC': return '슈퍼차저';
+      case 'DT': return '데스티네이션';
       default: return '기타';
     }
   }
@@ -325,28 +363,25 @@ class GasFilterOptions {
 }
 
 class EvFilterOptions {
-  final int sort; // 1: 거리순, 2: 가격순
+  final int sort; // 1: 거리순, 2: 비회원가격순, 3: 회원가격순
   final int radius;
   final List<String> chargerTypes; // 빈 리스트 = 전체
   final bool availableOnly;
   final List<String> operators;
   final List<String> kinds; // 빈 리스트 = 전체 (A0~J0)
-  final String highwayDir; // '' = 전체, '상행', '하행'
 
   const EvFilterOptions({
     this.sort = 1,
-    this.radius = 3000,
+    this.radius = 5000,
     this.chargerTypes = const [],
     this.availableOnly = false,
     this.operators = const [],
     this.kinds = const [],
-    this.highwayDir = '',
   });
 
   EvFilterOptions copyWith({
     int? sort, int? radius, List<String>? chargerTypes,
     bool? availableOnly, List<String>? operators, List<String>? kinds,
-    String? highwayDir,
   }) {
     return EvFilterOptions(
       sort: sort ?? this.sort,
@@ -355,7 +390,6 @@ class EvFilterOptions {
       availableOnly: availableOnly ?? this.availableOnly,
       operators: operators ?? this.operators,
       kinds: kinds ?? this.kinds,
-      highwayDir: highwayDir ?? this.highwayDir,
     );
   }
 }

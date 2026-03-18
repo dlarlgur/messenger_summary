@@ -64,6 +64,27 @@ class ApiService {
     return Map<String, dynamic>.from(res.data['data'] ?? {});
   }
 
+  // ─── 테슬라 (OCM) ───
+  Future<List<Map<String, dynamic>>> getTeslaStationsAround({
+    required double lat,
+    required double lng,
+    int radius = 5000,
+  }) async {
+    try {
+      final res = await _dio.get(ApiConstants.teslaAround, queryParameters: {
+        'lat': lat, 'lng': lng, 'radius': radius,
+      });
+      return List<Map<String, dynamic>>.from(res.data['data'] ?? []);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> getTeslaStationDetail(String uuid) async {
+    final res = await _dio.get('${ApiConstants.teslaDetail}/$uuid');
+    return Map<String, dynamic>.from(res.data['data'] ?? {});
+  }
+
   // ─── 장소 검색 ───
   Future<List<Map<String, dynamic>>> searchPlaces(String query, {double? lat, double? lng}) async {
     final params = <String, dynamic>{'query': query};

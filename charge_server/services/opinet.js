@@ -39,11 +39,14 @@ async function getAroundStations({ x, y, radius = 5000, prodcd = 'B027', sort = 
 }
 
 /**
- * 주유소 상세 정보
+ * 주유소 상세 정보 (유종별 전체 목록 반환)
  */
 async function getStationDetail(uniId) {
   const data = await callOpinet('detailById.do', { id: uniId });
-  return data?.RESULT?.OIL?.[0] || null;
+  const oils = data?.RESULT?.OIL;
+  if (!oils || oils.length === 0) return null;
+  // 첫 번째 항목을 기본 정보로, 나머지 항목에서 유종별 가격 추출
+  return { base: oils[0], all: oils };
 }
 
 /**

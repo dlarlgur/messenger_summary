@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../data/services/version_service.dart';
+import '../../data/services/alert_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
+import '../widgets/shared_widgets.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -50,6 +54,10 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 16),
+          _sectionHeader(context, '알림'),
+          _AlertSettingTile(isDark: isDark),
+
+          const SizedBox(height: 16),
           _sectionHeader(context, '앱 설정'),
           _settingTile(context, isDark,
             icon: Icons.dark_mode_rounded,
@@ -60,21 +68,15 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
           _sectionHeader(context, '정보'),
-          _settingTile(context, isDark, icon: Icons.info_outline_rounded, title: '앱 버전', value: '1.0.0'),
+          FutureBuilder<String>(
+            future: VersionService.fetchLatestVersion(),
+            builder: (context, snap) => _settingTile(context, isDark,
+                icon: Icons.info_outline_rounded, title: '앱 버전', value: snap.data ?? '...'),
+          ),
           _settingTile(context, isDark, icon: Icons.description_outlined, title: '이용약관', onTap: () {}),
           _settingTile(context, isDark, icon: Icons.shield_outlined, title: '개인정보 처리방침', onTap: () {}),
 
           const SizedBox(height: 24),
-          Center(
-            child: Text('${AppConstants.appName} · ${AppConstants.packageName}',
-              style: Theme.of(context).textTheme.labelSmall),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text('데이터 제공: 오피넷(한국석유공사) · 한국환경공단',
-              style: Theme.of(context).textTheme.labelSmall),
-          ),
-          const SizedBox(height: 40),
         ],
       ),
     );
@@ -216,5 +218,205 @@ class SettingsScreen extends ConsumerWidget {
         const SizedBox(height: 16),
       ]),
     ));
+  }
+}
+
+class _AlertSettingTile extends StatefulWidget {
+  final bool isDark;
+  const _AlertSettingTile({required this.isDark});
+  @override
+  State<_AlertSettingTile> createState() => _AlertSettingTileState();
+}
+
+class _AlertSettingTileState extends State<_AlertSettingTile> {
+  late bool _enabled;
+  late List<String> _ids;
+  late int _alertHour;
+  late int _alertMinute;
+  bool _expanded = false;
+  bool _toggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = AlertService().alertsEnabled;
+    _ids = AlertService().subscribedStationIds;
+    _alertHour = AlertService().alertHour;
+    _alertMinute = AlertService().alertMinute;
+  }
+
+  Future<void> _pickAlertTime() async {
+    final picked = await showDrumTimePicker(
+      context,
+      initial: TimeOfDay(hour: _alertHour, minute: _alertMinute),
+    );
+    if (picked == null || !mounted) return;
+    await AlertService().setAlertTime(picked.hour, picked.minute);
+    setState(() {
+      _alertHour = picked.hour;
+      _alertMinute = picked.minute;
+    });
+  }
+
+  String get _alertTimeText =>
+      '${_alertHour.toString().padLeft(2, '0')}:${_alertMinute.toString().padLeft(2, '0')}';
+
+  Future<void> _toggleEnabled(bool value) async {
+    if (value) {
+      final status = await Permission.notification.status;
+      if (status.isPermanentlyDenied) {
+        // 이미 영구 거부 → 설정으로 안내
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('알림 권한 필요'),
+            content: const Text('기기 설정에서 알림을 허용해주세요.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+              TextButton(
+                onPressed: () { Navigator.pop(ctx); openAppSettings(); },
+                child: const Text('설정 열기', style: TextStyle(color: AppColors.gasBlue)),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+      if (!status.isGranted) {
+        // 권한 요청 → 네이티브 다이얼로그 바로 표시
+        final result = await Permission.notification.request();
+        if (!result.isGranted) return; // 거부하면 토글 변경 안 함
+      }
+    }
+    setState(() => _toggling = true);
+    await AlertService().setAlertsEnabled(value);
+    setState(() {
+      _enabled = value;
+      _toggling = false;
+    });
+  }
+
+  Future<void> _unsubscribe(String id) async {
+    await AlertService().unsubscribe(id);
+    setState(() => _ids.remove(id));
+    // 더 이상 구독 없으면 접기
+    if (_ids.isEmpty) setState(() => _expanded = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Column(
+      children: [
+        // ── 헤더 행 ──
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          leading: Icon(
+            _enabled ? Icons.notifications_rounded : Icons.notifications_off_rounded,
+            size: 22,
+            color: _enabled ? AppColors.gasBlue : secondaryColor,
+          ),
+          title: Text('가격 알림', style: Theme.of(context).textTheme.titleSmall),
+          subtitle: Text(
+            _enabled
+                ? '${_ids.isEmpty ? '알림 주유소 없음' : '${_ids.length}곳 설정됨'} · 매일 $_alertTimeText 발송'
+                : '알림 꺼짐',
+            style: TextStyle(fontSize: 12, color: mutedColor),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 알림 시각 설정 버튼 (켜진 상태일 때만)
+              if (_enabled)
+                GestureDetector(
+                  onTap: _pickAlertTime,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.gasBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _alertTimeText,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.gasBlue),
+                    ),
+                  ),
+                ),
+              // 드롭다운 화살표 (구독 있을 때만)
+              if (_ids.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: mutedColor),
+                    ),
+                  ),
+                ),
+              // 전체 on/off 스위치
+              _toggling
+                  ? const SizedBox(
+                      width: 36, height: 20,
+                      child: Center(child: SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))))
+                  : Transform.scale(
+                      scale: 0.85,
+                      child: Switch(
+                        value: _enabled,
+                        onChanged: _toggleEnabled,
+                        activeColor: AppColors.gasBlue,
+                      ),
+                    ),
+            ],
+          ),
+          onTap: _ids.isNotEmpty ? () => setState(() => _expanded = !_expanded) : null,
+        ),
+
+        // ── 드롭다운: 구독 주유소 리스트 ──
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          child: _expanded
+              ? Container(
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0x0AFFFFFF) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Column(
+                    children: _ids.map((id) {
+                      final name = AlertService().stationName(id);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                        leading: Icon(Icons.local_gas_station_rounded,
+                            size: 18, color: AppColors.gasBlue),
+                        title: Text(name,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.redAccent, size: 20),
+                          onPressed: () => _unsubscribe(id),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
   }
 }
