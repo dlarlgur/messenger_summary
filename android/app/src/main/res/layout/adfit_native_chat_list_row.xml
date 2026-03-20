@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 채팅방 _buildChatRoomTile 과 동일 리듬: 좌 48dp 미디어·아이콘, 중앙 제목+본문, AdFit 필수 뷰 포함 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <View
+        android:id="@+id/adfit_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="#FAFAFA" />
+
+    <com.kakao.adfit.ads.na.AdFitNativeAdView
+        android:id="@+id/containerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="invisible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp">
+
+                <ImageView
+                    android:id="@+id/profileIconView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_ad_icon"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop"
+                    tools:src="@mipmap/ic_launcher" />
+
+                <com.kakao.adfit.ads.na.AdFitMediaView
+                    android:id="@+id/mediaView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/titleTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#DE000000"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="광고 제목" />
+
+                <!-- SDK 바인딩용 — 채팅 타일에는 미표시 -->
+                <TextView
+                    android:id="@+id/profileNameTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/bodyTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:lineSpacingMultiplier="1.05"
+                    android:maxLines="2"
+                    android:textColor="#FF757575"
+                    android:textSize="14sp"
+                    tools:text="홍보문구 두 줄까지 표시됩니다." />
+
+                <!-- Flutter 우측 열과 겹치지 않도록 CTA는 SDK 바인딩만 (레이아웃에 영향 최소) -->
+                <Button
+                    android:id="@+id/callToActionButton"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="1dp"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:textSize="1sp"
+                    android:visibility="invisible"
+                    tools:text="CTA" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.kakao.adfit.ads.na.AdFitNativeAdView>
+</FrameLayout>

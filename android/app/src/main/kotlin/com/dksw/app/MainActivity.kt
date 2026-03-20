@@ -18,7 +18,7 @@ import com.google.android.play.core.integrity.IntegrityManagerFactory
 import com.google.android.play.core.integrity.IntegrityTokenRequest
 import com.google.android.play.core.integrity.IntegrityTokenResponse
 import androidx.core.view.WindowCompat
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -27,14 +27,19 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
 import java.util.UUID
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     companion object {
         const val TAG = "MainActivity"
         const val METHOD_CHANNEL = "com.dksw.app/notification"
         const val MAIN_METHOD_CHANNEL = "com.dksw.app/main"
         const val EVENT_CHANNEL = "com.dksw.app/notification_stream"
         const val PLAY_INTEGRITY_CHANNEL = "com.dksw.app/play_integrity"
+        const val ADFIT_CHANNEL = "com.dksw.app/adfit"
+        const val ADFIT_BANNER_VIEW_TYPE = "com.dksw.app/adfit_banner"
+        const val ADFIT_NATIVE_LIST_VIEW_TYPE = "com.dksw.app/adfit_native_chat_list"
     }
+
+    private var adFitPopupBridge: AdFitPopupBridge? = null
 
     /**
      * TextureView 렌더링 모드 사용
@@ -115,14 +120,39 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // 네이티브 광고 팩토리 등록
-        // 채팅방 목록 사이 광고 (흰색 배경)
+        // Kakao AdFit 배너 (PlatformView)
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            ADFIT_BANNER_VIEW_TYPE,
+            AdFitBannerPlatformViewFactory(this),
+        )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            ADFIT_NATIVE_LIST_VIEW_TYPE,
+            AdFitNativeListPlatformViewFactory(this),
+        )
+
+        adFitPopupBridge = AdFitPopupBridge(this).also { it.registerFragmentListener() }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ADFIT_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "showExitPopupAd" -> {
+                    val clientId = call.argument<String>("clientId") ?: ""
+                    adFitPopupBridge?.showExitPopup(clientId, result) ?: result.error("NO_BRIDGE", null, null)
+                }
+                "showTransitionPopupAd" -> {
+                    val clientId = call.argument<String>("clientId") ?: ""
+                    adFitPopupBridge?.showTransitionPopup(clientId, result) ?: result.error("NO_BRIDGE", null, null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // AdMob NativeAd 팩토리 (Flutter google_mobile_ads). iOS·폴백용.
+        // Android 무료 플랜은 Dart에서 AdFit 배너 위주라 NativeAd를 만들지 않을 수 있으나, 플러그인 등록은 유지.
         GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
             "chatListNativeAd",
             NativeAdChatItemFactory(applicationContext)
         )
-        // 상단 고정 광고 (연한 회색 배경)
         GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
             "topNativeAd",
@@ -761,6 +791,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        adFitPopupBridge?.destroy()
+        adFitPopupBridge = null
         super.onDestroy()
         unregisterNotificationReceiver()
     }

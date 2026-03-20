@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Kakao AdFit SDK
+        maven(url = "https://devrepo.kakao.com/nexus/content/groups/public/")
     }
 }
 

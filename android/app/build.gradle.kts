@@ -70,4 +70,9 @@ dependencies {
     // Edge-to-edge 지원 (Android 15 / SDK 35 대응)
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.0")
+
+    // Kakao AdFit (공식 ads-base — WebView URL 직접 로드는 지원되지 않음)
+    val adfitVersion = "3.21.17"
+    implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
+    implementation("com.kakao.adfit:ads-base:$adfitVersion")
 }

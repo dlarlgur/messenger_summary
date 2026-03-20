@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -21,6 +22,7 @@ import '../services/messenger_registry.dart';
 import '../services/ad_service.dart';
 import 'summary_history_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
+import '../services/adfit_native.dart';
 
 /// 텍스트 세그먼트 정보
 class _TextSegment {
@@ -1917,10 +1919,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('❌ 화면 나갈 때 읽음 처리 실패: $e');
     });
 
-    // 광고 표시 시도 (4번에 1번, 유료 플랜은 건너뜀)
+    // 광고 표시 시도 (4번에 1번, 4분 쿨다운, 유료 플랜은 건너뜀)
     bool adShown = false;
+    final adService = AdService();
+    // 목록보다 먼저 진입 시 AdService.initialize보다 앞설 수 있음 — Android AdFit 전용 플래그 맞춤
+    if (!kIsWeb && Platform.isAndroid && AdService.useAdFitOnlyOnAndroid) {
+      adService.switchChatDetailAdToAdFit();
+    }
     try {
-      adShown = await AdService().showChatDetailAd(
+      adShown = await adService.showChatDetailAd(
         onAdDismissed: () {
           _isNavigatingBack = false;
           if (mounted) Navigator.pop(context);
@@ -1930,12 +1937,20 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('❌ 채팅방 전면 광고 예외: $e');
     }
 
+    // AdMob 대신 Kakao AdFit SDK — 앱 전환 팝업 (네이티브)
+    if (adShown && adService.useAdFitForChatDetail && mounted) {
+      await AdFitNative.showTransitionPopupAd(AdService.adFitPageFlashCode);
+      _isNavigatingBack = false;
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
     // 광고가 표시되지 않으면 바로 뒤로 (플래그 리셋 후 pop)
     if (!adShown) {
       _isNavigatingBack = false;
       if (mounted) Navigator.pop(context);
     }
-    // 광고가 표시됐지만 콜백이 오지 않는 경우 대비: 5초 후 강제 pop
+    // AdMob 광고가 표시됐지만 콜백이 오지 않는 경우 대비: 5초 후 강제 pop
     else {
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted && _isNavigatingBack) {
@@ -4622,8 +4637,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     if (!adService.isRewardedAdReady) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('광고를 준비 중입니다. 잠시 후 다시 시도해주세요.'),
+          SnackBar(
+            content: Text(AdService.msgRewardAdUnavailable),
             backgroundColor: Colors.orange,
           ),
         );
@@ -4636,10 +4651,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     final adDone = Completer<void>();
 
     final success = await adService.showRewardedAd(
-      onRewarded: () {
-        debugPrint('🎁 리워드 획득 - 서버 등록 시작');
+      onRewarded: (rewardSource) {
+        debugPrint('🎁 리워드 획득 - 서버 등록 시작 (source=$rewardSource)');
         rewardEarned = true;
-        rewardRegistrationFuture = llmService.registerAdReward();
+        rewardRegistrationFuture = llmService.registerAdReward(source: rewardSource);
       },
       onAdClosed: () {
         debugPrint('📺 광고 닫힘');
@@ -4655,8 +4670,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (!adDone.isCompleted) adDone.complete();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
+          SnackBar(
+            content: Text(AdService.msgRewardAdUnavailable),
             backgroundColor: Colors.orange,
           ),
         );
@@ -4673,13 +4688,25 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     if (!rewardEarned) {
       debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '광고 시청이 완료되지 않아 무료 요약 횟수가 추가되지 않았습니다.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
     if (!mounted) return;
 
     debugPrint('✅ 리워드 획득 확인 - 요약 신청 실행');
-    final future = rewardRegistrationFuture ?? llmService.registerAdReward();
+    final future = rewardRegistrationFuture ??
+        llmService.registerAdReward(
+            source: LlmService.rewardSourceAdMobRewarded);
     _requestSummaryAfterReward(future);
   }
 

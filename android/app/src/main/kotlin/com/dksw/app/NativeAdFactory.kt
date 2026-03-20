@@ -51,7 +51,7 @@ class NativeAdChatItemFactory(private val context: Context) : NativeAdFactory {
         // CTA 버튼 (알아보기 등)
         val cta = nativeAd.callToAction
         if (cta.isNullOrEmpty()) {
-            ctaView.visibility = View.INVISIBLE
+            ctaView.visibility = View.GONE
         } else {
             ctaView.text = cta
             ctaView.visibility = View.VISIBLE

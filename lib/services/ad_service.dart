@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
+import 'adfit_native.dart';
 import 'auth_service.dart';
+import 'llm_service.dart';
 import 'plan_service.dart';
 
-/// AdMob 광고 관리 서비스
+/// 광고 서비스 (무료 플랜: Android는 Kakao AdFit 위주, AdMob은 iOS·폴백용으로 코드 유지)
 class AdService {
   static final AdService _instance = AdService._internal();
   factory AdService() => _instance;
@@ -20,9 +24,43 @@ class AdService {
   static const String _rewardSummaryChargeId = 'ca-app-pub-8640148276009977/7938136398';
   static const String _chatDetailExitAdId = 'ca-app-pub-8640148276009977/4943784306';
 
+  // 애드핏 — **운영** 광고 단위 (대시보드 광고 유형과 일치해야 노출)
+  static const String _adFitTopBannerCode = 'DAN-JNV7dXONQNhXO6RW'; // 배너
+  static const String _adFitChatListBannerCode = 'DAN-W4WDVrCgPvchmiDQ'; // 네이티브(목록)
+  static const String _adFitAppExitCode = 'DAN-wo6sjdtX0Cg10Mwu'; // 앱 종료 팝업
+  static const String _adFitPageFlashCode = 'DAN-IPgxRfjgzURGJQu3'; // 앱 전환 팝업
+  static const String _adFitRewardSummaryCode = 'DAN-qYNWhkhSCtdZ7uA8'; // 요약 리워드 대체
+
   // 네이티브 광고 팩토리 ID (Android NativeAdFactory에 등록된 이름)
   static const String nativeAdFactoryId = 'chatListNativeAd';      // 목록 사이 (흰색)
   static const String nativeTopAdFactoryId = 'topNativeAd';        // 상단 고정 (연한 회색)
+
+  /// `true`: 뒤로가기 앱 종료 시 **AdMob 전면을 쓰지 않고** Kakao AdFit 종료 팝업만 사용.
+  static const bool skipAdMobExitInterstitial = true;
+
+  /// Android 무료 플랜: 상단·목록 **AdMob 네이티브**, 채팅 나가기 **AdMob 전면** 로드 자체를 하지 않고 AdFit만 사용.
+  /// (iOS는 AdFit 배너 미연동이라 AdMob 네이티브 유지)
+  static const bool useAdFitOnlyOnAndroid = true;
+
+  /// `true`: AdMob 리워드만 쓰고 싶을 때 (아래 폴백도 끔).
+  static const bool useAdFitRewardInsteadOfAdMob = false;
+
+  /// AdMob 리워드가 로드 안 됐을 때 Android에서 **AdFit 앱 전환 팝업**으로 대체, **닫힘(ok)** 이면 리워드와 동일 처리.
+  static const bool useAdFitRewardWhenAdMobUnavailable = true;
+
+  /// AdMob 리워드·한도 UI 없을 때 표시 (계정 정지 등)
+  static const String msgRewardAdUnavailable =
+      '현재 광고가 준비되지 않았습니다.\n(AdMob 이용 제한 등으로 잠시 표시가 어려울 수 있습니다.)';
+
+  /// Android에서 배너·전면을 AdFit만 쓰는 모드 여부 (내부용)
+  bool get _androidAdFitOnly =>
+      useAdFitOnlyOnAndroid && !kIsWeb && Platform.isAndroid;
+  
+  // 애드핏 광고 사용 여부 (AdMob 로드 실패 시 true)
+  bool _useAdFitForTop = false;
+  bool _useAdFitForList = false;
+  bool _useAdFitForExit = false;
+  bool _useAdFitForChatDetail = false;
 
   // SharedPreferences 키
   static const String _keyRewardDate = 'ad_reward_date';
@@ -65,34 +103,68 @@ class AdService {
     return planType == 'free';
   }
 
+  /// 앱 종료/무료 광고 흐름 여부 (외부에서 동기 전제 깨지지 않게 조회)
+  Future<bool> isFreeTierForExitAd() => _isFreeTier();
+
   /// 초기화
   Future<void> initialize() async {
     if (_isInitialized) return;
     try {
-      // 테스트 기기 등록 (개발/QA용 - 출시 시 제거하거나 유지해도 무방)
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(
-          testDeviceIds: ['4D21F3C8E43D4577D2C5BA909BBCDEC8'],
-        ),
-      );
-      await MobileAds.instance.initialize();
+      // Android + AdFit 전용: 무료 플랜에서 AdMob을 전혀 쓰지 않으면 SDK 초기화 생략
+      final freeTierEarly = await _isFreeTier();
+      final skipMobileAdsEntirelyOnAndroid = _androidAdFitOnly &&
+          freeTierEarly &&
+          useAdFitRewardInsteadOfAdMob &&
+          skipAdMobExitInterstitial;
+
+      if (!skipMobileAdsEntirelyOnAndroid) {
+        // 테스트 기기 등록 (개발/QA용)
+        await MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(
+            testDeviceIds: ['4D21F3C8E43D4577D2C5BA909BBCDEC8'],
+          ),
+        );
+        await MobileAds.instance.initialize();
+        debugPrint('✅ AdMob SDK 초기화 완료');
+      } else {
+        debugPrint('⏭️ Android AdFit 전용(무료) — MobileAds.initialize 생략');
+      }
       _isInitialized = true;
-      debugPrint('✅ AdMob 초기화 완료');
 
       // Free 티어만 광고 로드
-      final freeTier = await _isFreeTier();
+      final freeTier = freeTierEarly;
       if (!freeTier) {
         debugPrint('✅ 유료 플랜 - 광고 로드 건너뜀');
         return;
       }
-      // 전면 광고 미리 로드
-      _loadExitInterstitialAd();
-      // 채팅방 나갈 때 전면 광고 미리 로드
-      _loadChatDetailInterstitialAd();
-      // 리워드 광고 미리 로드 (deviceIdHash SSV 설정 포함)
-      await _loadRewardedAd();
+
+      // Android: 목록/상단/채팅 전면을 처음부터 AdFit으로 (AdMob 네이티브·전면 로드 안 함)
+      if (_androidAdFitOnly) {
+        switchTopAdToAdFit();
+        switchListAdToAdFit();
+        switchChatDetailAdToAdFit();
+        debugPrint('✅ Android — 상단·목록·채팅 전면 AdMob 로드 생략, AdFit 사용');
+      }
+
+      // AdMob 앱 종료 전면 (비활성 권장 — AdFit 종료 팝업)
+      if (!skipAdMobExitInterstitial) {
+        _loadExitInterstitialAd();
+      }
+
+      // AdMob 채팅방 나가기 전면
+      if (!_androidAdFitOnly) {
+        _loadChatDetailInterstitialAd();
+      }
+
+      // 리워드: AdFit 전면 모드면 AdMob 리워드 로드 생략
+      if (useAdFitRewardInsteadOfAdMob && !kIsWeb && Platform.isAndroid) {
+        rewardedAdReadyNotifier.value = true;
+        debugPrint('✅ 리워드: AdFit 전환 팝업 모드 — AdMob 리워드 로드 생략');
+      } else {
+        await _loadRewardedAd();
+      }
     } catch (e) {
-      debugPrint('❌ AdMob 초기화 실패: $e');
+      debugPrint('❌ 광고(AdMob) 초기화 실패: $e');
     }
   }
 
@@ -104,9 +176,47 @@ class AdService {
   /// 채팅방 목록 네이티브 광고 ID
   static String get nativeChatListId => _nativeChatListId;
 
-  // ─── 전면 광고 (앱 종료 시) ─────────────────────────
+  /// 애드핏 광고 코드 (fallback용)
+  static String get adFitTopBannerCode => _adFitTopBannerCode;
+  static String get adFitChatListBannerCode => _adFitChatListBannerCode;
+  static String get adFitAppExitCode => _adFitAppExitCode;
+  static String get adFitPageFlashCode => _adFitPageFlashCode;
+  static String get adFitRewardSummaryCode => _adFitRewardSummaryCode;
 
-  /// 전면 광고 로드
+  /// 애드핏 사용 여부 확인
+  bool get useAdFitForTop => _useAdFitForTop;
+  bool get useAdFitForList => _useAdFitForList;
+  bool get useAdFitForExit => _useAdFitForExit;
+  bool get useAdFitForChatDetail => _useAdFitForChatDetail;
+
+  /// 상단 광고를 애드핏으로 전환
+  void switchTopAdToAdFit() {
+    _useAdFitForTop = true;
+    debugPrint('🔄 상단 광고를 애드핏으로 전환');
+  }
+
+  /// 리스트 광고를 애드핏으로 전환
+  void switchListAdToAdFit() {
+    _useAdFitForList = true;
+    debugPrint('🔄 리스트 광고를 애드핏으로 전환');
+  }
+
+  /// 앱 종료 광고를 애드핏으로 전환
+  void switchExitAdToAdFit() {
+    _useAdFitForExit = true;
+    debugPrint('🔄 앱 종료 광고를 애드핏으로 전환');
+  }
+
+  /// 채팅방 나갈 때 광고를 애드핏으로 전환
+  void switchChatDetailAdToAdFit() {
+    _useAdFitForChatDetail = true;
+    debugPrint('🔄 채팅방 나갈 때 광고를 애드핏으로 전환');
+  }
+
+  // ─── 전면 광고 (앱 종료 시) ─────────────────────────
+  // AdMob 종료 전면: [skipAdMobExitInterstitial]==true 이면 호출되지 않음 → Kakao AdFit 종료 팝업만 사용.
+
+  /// AdMob 전면 광고 로드 (앱 종료) — 비활성 시 미사용
   void _loadExitInterstitialAd() {
     InterstitialAd.load(
       adUnitId: _exitAdFullId,
@@ -138,6 +248,7 @@ class AdService {
         onAdFailedToLoad: (error) {
           debugPrint('❌ 전면 광고 로드 실패: ${error.message}');
           _isExitAdLoaded = false;
+          // 종료 시점에 showExitAd에서 AdMob 없으면 AdFit 시도 (플래그만 유지)
         },
       ),
     );
@@ -145,48 +256,57 @@ class AdService {
 
   /// 전면 광고 표시 (앱 종료 시)
   /// 반환: true면 광고가 표시됨 (종료를 잠시 대기)
+  /// AdMob 실패 시 애드핏 웹뷰 전면 광고 표시 (onAdDismissed는 외부에서 호출)
   Future<bool> showExitAd({VoidCallback? onAdDismissed}) async {
     if (!await _isFreeTier()) {
       debugPrint('✅ 유료 플랜 - 종료 광고 건너뜀');
       return false;
     }
-    if (!_isExitAdLoaded || _exitInterstitialAd == null) {
-      debugPrint('⚠️ 전면 광고 미준비 - 바로 종료');
-      return false;
+
+    // AdMob 종료 전면 (선택). skipAdMobExitInterstitial 이면 항상 아래 AdFit만 사용.
+    if (!skipAdMobExitInterstitial &&
+        _isExitAdLoaded &&
+        _exitInterstitialAd != null) {
+      _useAdFitForExit = false;
+      // 광고 표시 시작 플래그 (부분 로딩 감지: 이 플래그가 남아있으면 onDismissed 미호출)
+      _exitAdCurrentlyShowing = true;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyExitAdShowing, true);
+
+      _exitInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          debugPrint('전면 광고 닫힘 → 앱 종료 진행');
+          _exitAdCurrentlyShowing = false;
+          unawaited(prefs.remove(_keyExitAdShowing));
+          ad.dispose();
+          _exitInterstitialAd = null;
+          _isExitAdLoaded = false;
+          onAdDismissed?.call();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          debugPrint('❌ 전면 광고 표시 실패: ${error.message}');
+          _exitAdCurrentlyShowing = false;
+          unawaited(prefs.remove(_keyExitAdShowing));
+          ad.dispose();
+          _exitInterstitialAd = null;
+          _isExitAdLoaded = false;
+          onAdDismissed?.call();
+          // 실패 시에만 재로드 (앱은 종료되지 않음)
+          _loadExitInterstitialAd();
+        },
+      );
+
+      await _exitInterstitialAd!.show();
+      return true;
     }
 
-    // 광고 표시 시작 플래그 (부분 로딩 감지: 이 플래그가 남아있으면 onDismissed 미호출)
-    _exitAdCurrentlyShowing = true;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyExitAdShowing, true);
-
-    _exitInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        debugPrint('전면 광고 닫힘 → 앱 종료 진행');
-        _exitAdCurrentlyShowing = false;
-        unawaited(prefs.remove(_keyExitAdShowing));
-        ad.dispose();
-        _exitInterstitialAd = null;
-        _isExitAdLoaded = false;
-        // ✅ 수정: SystemNavigator.pop() 이후 광고 재로드 금지
-        // 앱이 종료되는 시점에 AdMob SDK가 새 요청을 시작하면
-        // Dart VM이 완전히 죽지 않아 다음 실행 시 검은 화면 발생
-        onAdDismissed?.call();
-      },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        debugPrint('❌ 전면 광고 표시 실패: ${error.message}');
-        _exitAdCurrentlyShowing = false;
-        unawaited(prefs.remove(_keyExitAdShowing));
-        ad.dispose();
-        _exitInterstitialAd = null;
-        _isExitAdLoaded = false;
-        onAdDismissed?.call();
-        // 실패 시에만 재로드 (앱은 종료되지 않음)
-        _loadExitInterstitialAd();
-      },
+    // AdFit 앱 종료 팝업 (네이티브)
+    switchExitAdToAdFit();
+    debugPrint(
+      skipAdMobExitInterstitial
+          ? '🔄 앱 종료: AdMob 전면 생략 설정 → AdFit 종료 팝업만 시도'
+          : '🔄 AdMob 종료 전면 미준비 → AdFit 앱 종료 팝업 시도',
     );
-
-    await _exitInterstitialAd!.show();
     return true;
   }
 
@@ -204,12 +324,15 @@ class AdService {
     _exitInterstitialAd?.dispose();
     _exitInterstitialAd = null;
     _isExitAdLoaded = false;
-    _loadExitInterstitialAd();
+    if (!skipAdMobExitInterstitial) {
+      _loadExitInterstitialAd();
+    }
   }
 
   // ─── 전면 광고 (채팅방 나갈 때, 4번에 1번) ─────────
+  // Android [useAdFitOnlyOnAndroid]: AdMob 전면 로드 없음 → Kakao AdFit 전환 팝업.
 
-  /// 채팅방 나갈 때 전면 광고 로드
+  /// AdMob 채팅방 이탈 전면 로드 — Android AdFit 전용 모드에서는 호출하지 않음
   void _loadChatDetailInterstitialAd() {
     InterstitialAd.load(
       adUnitId: _chatDetailExitAdId,
@@ -223,6 +346,8 @@ class AdService {
         onAdFailedToLoad: (error) {
           debugPrint('❌ 채팅방 나갈 때 전면 광고 로드 실패: ${error.message}');
           _isChatDetailAdLoaded = false;
+          // AdMob 로드 실패 시 애드핏으로 전환
+          switchChatDetailAdToAdFit();
           // 30초 후 재시도 (fill rate가 낮을 때 대비)
           Future.delayed(const Duration(seconds: 30), _loadChatDetailInterstitialAd);
         },
@@ -230,8 +355,9 @@ class AdService {
     );
   }
 
-  /// 채팅방 나갈 때 전면 광고 표시 (4번에 1번)
+  /// 채팅방 나갈 때 전면 광고 표시 (4번에 1번, 4분 쿨다운)
   /// 반환: true면 광고 표시됨 (광고 닫힐 때까지 대기 후 [onAdDismissed] 호출)
+  /// AdMob 실패 시 애드핏 웹뷰 전면 광고 표시 (onAdDismissed는 외부에서 호출)
   Future<bool> showChatDetailAd({VoidCallback? onAdDismissed}) async {
     if (!await _isFreeTier()) {
       debugPrint('✅ 유료 플랜 - 채팅방 나갈 때 광고 건너뜀');
@@ -249,7 +375,7 @@ class AdService {
       return false;
     }
 
-    // 마지막 광고 표시 후 쿨다운 체크 (AdMob 설정과 동일하게 코드에서도 적용)
+    // 마지막 광고 표시 후 쿨다운 체크 (4분)
     final lastAdTime = prefs.getInt(_keyChatDetailLastAdTime) ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
     final elapsedMinutes = (now - lastAdTime) / 60000;
@@ -258,40 +384,50 @@ class AdService {
       return false;
     }
 
-    if (!_isChatDetailAdLoaded || _chatDetailInterstitialAd == null) {
-      debugPrint('⚠️ 채팅방 전면 광고 미준비 - 건너뜀');
-      _loadChatDetailInterstitialAd();
-      return false;
+    // 광고 표시 시각 기록 (쿨다운 계산용 - AdMob/애드핏 공통)
+    await prefs.setInt(_keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
+
+    // AdMob 광고가 준비되어 있으면 AdMob 표시
+    if (_isChatDetailAdLoaded && _chatDetailInterstitialAd != null && !_useAdFitForChatDetail) {
+      _chatDetailInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          debugPrint('채팅방 전면 광고 닫힘');
+          ad.dispose();
+          _chatDetailInterstitialAd = null;
+          _isChatDetailAdLoaded = false;
+          // Flutter Surface 복원 후 첫 프레임이 실제로 그려진 시점에 pop 실행
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            onAdDismissed?.call();
+            // pop 완료 후 다음 광고 로드
+            Future.delayed(const Duration(milliseconds: 300), _loadChatDetailInterstitialAd);
+          });
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          debugPrint('❌ 채팅방 전면 광고 표시 실패: ${error.message}');
+          ad.dispose();
+          _chatDetailInterstitialAd = null;
+          _isChatDetailAdLoaded = false;
+          onAdDismissed?.call();
+          _loadChatDetailInterstitialAd();
+        },
+      );
+
+      await _chatDetailInterstitialAd!.show();
+      return true;
     }
 
-    _chatDetailInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        debugPrint('채팅방 전면 광고 닫힘');
-        ad.dispose();
-        _chatDetailInterstitialAd = null;
-        _isChatDetailAdLoaded = false;
-        // Flutter Surface 복원 후 첫 프레임이 실제로 그려진 시점에 pop 실행
-        // 고정 딜레이(300ms) 대신 프레임 콜백을 사용하여 블랙화면 방지
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          onAdDismissed?.call();
-          // pop 완료 후 다음 광고 로드 (Surface 복원과 네트워크 요청 경합 방지)
-          Future.delayed(const Duration(milliseconds: 300), _loadChatDetailInterstitialAd);
-        });
-      },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        debugPrint('❌ 채팅방 전면 광고 표시 실패: ${error.message}');
-        ad.dispose();
-        _chatDetailInterstitialAd = null;
-        _isChatDetailAdLoaded = false;
-        onAdDismissed?.call();
-        _loadChatDetailInterstitialAd();
-      },
-    );
+    // AdMob 실패 또는 애드핏 사용 설정된 경우
+    // 애드핏 웹뷰 전면 광고는 UI에서 직접 표시
+    if (_useAdFitForChatDetail || (!_isChatDetailAdLoaded && _chatDetailInterstitialAd == null)) {
+      debugPrint('🔄 애드핏 채팅방 나갈 때 광고 사용 (AdMob 대신)');
+      return true; // UI에서 애드핏 광고 표시하도록 true 반환
+    }
 
-    // 광고 표시 시각 기록 (쿨다운 계산용)
-    await prefs.setInt(_keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
-    await _chatDetailInterstitialAd!.show();
-    return true;
+    debugPrint('⚠️ 채팅방 전면 광고 미준비 - 건너뜀');
+    if (!_androidAdFitOnly) {
+      _loadChatDetailInterstitialAd();
+    }
+    return false;
   }
 
   // ─── 리워드 광고 (무료 요약 충전) ──────────────────
@@ -335,8 +471,23 @@ class AdService {
             }
           }
         },
-        onAdFailedToLoad: (error) {
-          debugPrint('❌ 리워드 광고 로드 실패: ${error.message}');
+        onAdFailedToLoad: (LoadAdError error) {
+          final msg = error.message;
+          final publisherMissing = msg.contains('Publisher data not found') ||
+              msg.contains('publisher') && msg.contains('not found');
+          // Android는 AdFit 전환 팝업으로 대체 가능 — AdMob 미등록/오류 시 에러 로그만 소음이 됨
+          if (!kIsWeb &&
+              Platform.isAndroid &&
+              useAdFitRewardWhenAdMobUnavailable &&
+              _androidAdFitOnly &&
+              (publisherMissing || error.code == 3 /* NO_FILL */)) {
+            debugPrint(
+              'ℹ️ AdMob 리워드 미로드(AdMob 콘솔·앱 등록 확인): $msg — '
+              'Android에서는 AdFit 앱 전환 팝업으로 요약 충전을 대체합니다.',
+            );
+          } else {
+            debugPrint('❌ 리워드 광고 로드 실패: $msg');
+          }
           _isRewardedAdLoaded = false;
           rewardedAdReadyNotifier.value = false;
           // 30초 후 재시도 (채팅방 전면광고와 동일한 재시도 패턴)
@@ -346,8 +497,18 @@ class AdService {
     );
   }
 
-  /// 리워드 광고 준비 상태
-  bool get isRewardedAdReady => _isRewardedAdLoaded && _rewardedAd != null;
+  /// 리워드 광고 준비 상태 (AdMob 준비됨 또는 Android에서 AdFit 폴백 가능)
+  bool get isRewardedAdReady {
+    final admob = _isRewardedAdLoaded && _rewardedAd != null;
+    if (useAdFitRewardInsteadOfAdMob && !kIsWeb && Platform.isAndroid) {
+      return true;
+    }
+    if (admob) return true;
+    if (useAdFitRewardWhenAdMobUnavailable && !kIsWeb && Platform.isAndroid) {
+      return true;
+    }
+    return false;
+  }
 
   /// 오늘 리워드 광고 시청 횟수
   Future<int> getTodayRewardCount() async {
@@ -367,18 +528,16 @@ class AdService {
 
   /// 리워드 광고 표시
   /// 성공 시 free_summary_count 1 증가
+  ///
+  /// [onRewarded] 인자: 서버 `registerAdReward(source: ...)` 에 넘길 출처 문자열
+  /// ([LlmService.rewardSourceAdMobRewarded] / [LlmService.rewardSourceAdFitTransition]).
   Future<bool> showRewardedAd({
-    required VoidCallback onRewarded,
+    required void Function(String rewardSource) onRewarded,
     VoidCallback? onFailed,
     VoidCallback? onAdClosed,
   }) async {
     if (!await _isFreeTier()) {
       debugPrint('✅ 유료 플랜 - 리워드 광고 건너뜀');
-      onFailed?.call();
-      return false;
-    }
-    if (!_isRewardedAdLoaded || _rewardedAd == null) {
-      debugPrint('⚠️ 리워드 광고 미준비');
       onFailed?.call();
       return false;
     }
@@ -391,7 +550,65 @@ class AdService {
       return false;
     }
 
-    bool rewardEarnedInAd = false; // 광고 강제종료 시 로컬 카운트 차감 방지용
+    // AdFit 전용 모드: 리워드 전부 AdFit 앱 전환 팝업
+    if (useAdFitRewardInsteadOfAdMob && !kIsWeb && Platform.isAndroid) {
+      return _showAdFitRewardInPlaceOfAdMob(
+        onRewarded: onRewarded,
+        onFailed: onFailed,
+        onAdClosed: onAdClosed,
+      );
+    }
+
+    // AdMob 리워드 우선
+    if (_isRewardedAdLoaded && _rewardedAd != null) {
+      return _showAdMobRewardedInternal(
+        onRewarded: onRewarded,
+        onFailed: onFailed,
+        onAdClosed: onAdClosed,
+      );
+    }
+
+    // AdMob 없음 → AdFit 앱 전환 팝업 (닫힘=리워드)
+    if (useAdFitRewardWhenAdMobUnavailable && !kIsWeb && Platform.isAndroid) {
+      debugPrint('🔄 AdMob 리워드 미로드 → AdFit 요약 리워드 팝업(${_adFitRewardSummaryCode})');
+      return _showAdFitRewardInPlaceOfAdMob(
+        onRewarded: onRewarded,
+        onFailed: onFailed,
+        onAdClosed: onAdClosed,
+      );
+    }
+
+    debugPrint('⚠️ 리워드 광고 미준비');
+    onFailed?.call();
+    return false;
+  }
+
+  /// AdFit 앱 전환 팝업: 사용자가 닫으면(ok) AdMob 리워드와 동일하게 1회 충전·서버 등록 콜백
+  Future<bool> _showAdFitRewardInPlaceOfAdMob({
+    required void Function(String rewardSource) onRewarded,
+    VoidCallback? onFailed,
+    VoidCallback? onAdClosed,
+  }) async {
+    final result =
+        await AdFitNative.showTransitionPopupAd(_adFitRewardSummaryCode);
+    final ok = result != null && result['ok'] == true;
+    if (ok) {
+      onRewarded(LlmService.rewardSourceAdFitTransition);
+      await _incrementTodayRewardCount();
+      onAdClosed?.call();
+      return true;
+    }
+    debugPrint('⚠️ AdFit 요약 리워드 팝업 실패/취소: $result');
+    onFailed?.call();
+    return false;
+  }
+
+  Future<bool> _showAdMobRewardedInternal({
+    required void Function(String rewardSource) onRewarded,
+    VoidCallback? onFailed,
+    VoidCallback? onAdClosed,
+  }) async {
+    bool rewardEarnedInAd = false;
 
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
@@ -400,9 +617,7 @@ class AdService {
         _rewardedAd = null;
         _isRewardedAdLoaded = false;
         rewardedAdReadyNotifier.value = false;
-        _loadRewardedAd(); // 다음 광고 미리 로드 (SSV 포함)
-        // 실광고/매체에서는 onUserEarnedReward가 onAdDismissed *이후*에 호출되는 경우가 있음.
-        // 닫힌 직후에 rewardEarnedInAd를 보면 아직 false일 수 있으므로, 짧은 지연 후 다시 확인.
+        _loadRewardedAd();
         Future.delayed(const Duration(milliseconds: 600), () {
           if (rewardEarnedInAd) {
             unawaited(_incrementTodayRewardCount());
@@ -417,7 +632,7 @@ class AdService {
         _isRewardedAdLoaded = false;
         rewardedAdReadyNotifier.value = false;
         onFailed?.call();
-        _loadRewardedAd(); // 다음 광고 미리 로드 (SSV 포함)
+        _loadRewardedAd();
       },
     );
 
@@ -425,9 +640,7 @@ class AdService {
       onUserEarnedReward: (ad, reward) {
         debugPrint('🎁 리워드 획득: ${reward.type} x ${reward.amount}');
         rewardEarnedInAd = true;
-        // 로컬 카운트는 광고가 정상 닫힌 후 차감 (onAdDismissedFullScreenContent)
-        // 서버 리워드 등록만 여기서 수행
-        onRewarded();
+        onRewarded(LlmService.rewardSourceAdMobRewarded);
       },
     );
 
@@ -478,14 +691,24 @@ class AdService {
     if (!freeTier) return;
 
     debugPrint('🔄 무료 플랜 전환 감지 - 광고 재로드');
-    if (!_isExitAdLoaded && _exitInterstitialAd == null) {
+    if (!skipAdMobExitInterstitial &&
+        !_isExitAdLoaded &&
+        _exitInterstitialAd == null) {
       _loadExitInterstitialAd();
     }
-    if (!_isChatDetailAdLoaded && _chatDetailInterstitialAd == null) {
+    if (!_androidAdFitOnly &&
+        !_isChatDetailAdLoaded &&
+        _chatDetailInterstitialAd == null) {
       _loadChatDetailInterstitialAd();
     }
-    if (!_isRewardedAdLoaded && _rewardedAd == null) {
+    final skipAdMobReward =
+        useAdFitRewardInsteadOfAdMob && !kIsWeb && Platform.isAndroid;
+    if (!skipAdMobReward &&
+        !_isRewardedAdLoaded &&
+        _rewardedAd == null) {
       await _loadRewardedAd();
+    } else if (skipAdMobReward) {
+      rewardedAdReadyNotifier.value = true;
     }
   }
 

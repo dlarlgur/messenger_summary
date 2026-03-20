@@ -59,16 +59,25 @@ class LlmService {
     }
   }
 
+  /// 직접 리워드 API 스키마 (서버와 맞춤). 기본은 AdMob 리워드 시청 분기.
+  static const String rewardSourceAdMobRewarded = 'admob_rewarded';
+  static const String rewardSourceAdFitTransition = 'adfit_app_transition';
+
   /// 광고 시청 리워드 서버 등록
   ///
-  /// Flutter SDK는 onUserEarnedReward에서 transactionId를 노출하지 않으므로
-  /// SSV 대신 JWT 인증으로 서버에 직접 리워드를 등록합니다.
+  /// JWT 인증으로 `/api/v1/reward/direct` 호출 — 기존 AdMob·AdFit 동일 엔드포인트,
+  /// [source]로 출처만 구분 (서버에서 한도·감사 로그에 반영).
+  ///
+  /// [source]: [rewardSourceAdMobRewarded], [rewardSourceAdFitTransition] 등.
   ///
   /// Returns: true = 등록 성공, false = 실패 (한도 초과 포함)
-  Future<bool> registerAdReward() async {
+  Future<bool> registerAdReward({String source = rewardSourceAdMobRewarded}) async {
     try {
-      final response = await _dio.post('/api/v1/reward/direct');
-      debugPrint('✅ 리워드 서버 등록 성공: ${response.data}');
+      final response = await _dio.post(
+        '/api/v1/reward/direct',
+        data: <String, dynamic>{'source': source},
+      );
+      debugPrint('✅ 리워드 서버 등록 성공 (source=$source): ${response.data}');
       return true;
     } on DioException catch (e) {
       if (e.response?.statusCode == 409) {

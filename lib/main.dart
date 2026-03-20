@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +24,50 @@ import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
 import 'screens/subscription_screen.dart';
 import 'widgets/update_dialog.dart';
+import 'services/adfit_native.dart';
+
+/// AdFit 앱 종료 팝업 실패 시 알림 문구 보조 (로그/no_ad 등 구분)
+String _adFitExitFailureDetail(Map<String, dynamic>? r) {
+  if (r == null) return '상세: 응답 없음';
+  final reason = r['reason']?.toString() ?? '';
+  final code = r['errorCode'];
+  final codeStr = code != null ? ' (오류코드: $code)' : '';
+  switch (reason) {
+    case 'no_ad':
+      return '원인: 노출 가능한 광고 없음(NO_AD)$codeStr\n'
+          '→ 콘솔에서 이 단위가 "앱 종료" 유형인지, 소재·심사·타겟팅을 확인하세요.';
+    case 'http_failed':
+      if (code == 202 || code?.toString() == '202') {
+        return '원인: AdFit HTTP 오류(202)$codeStr\n'
+            '→ 인터넷(VPN·기업망·DNS)을 확인하고 잠시 후 다시 시도해 주세요. '
+            '같은 증상이 계속되면 AdFit 점검 공지나 1:1 문의를 확인해 주세요.';
+      }
+      return '원인: 네트워크·서버 오류$codeStr\n'
+          '→ 연결 상태를 확인한 뒤 다시 시도해 주세요.';
+    case 'blocked_by_policy':
+      return '원인: 요청 정책에 의해 차단(노출 간격 등)$codeStr';
+    case 'landscape':
+      return '원인: 가로 모드에서는 종료 팝업 광고를 지원하지 않습니다.';
+    case 'load_not_started':
+      return '원인: 로드가 시작되지 않음$codeStr';
+    case 'activity_invalid':
+      return '원인: 액티비티 상태 오류';
+    case 'popup_already_showing':
+      return '원인: 이미 다른 팝업이 표시 중입니다.';
+    case 'loading':
+      return '원인: 이전 광고 요청이 진행 중입니다.';
+    case 'show_failed':
+      return '원인: 광고 표시 실패(네이티브 예외)$codeStr';
+    case 'platform_exception':
+      return '원인: ${r['message'] ?? '플랫폼 예외'}';
+    case 'empty_client_id':
+      return '원인: 광고 단위 ID가 비어 있습니다.';
+    default:
+      return reason.isEmpty
+          ? '상세: 사유 불명$codeStr'
+          : '상세: $reason$codeStr';
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1064,14 +1111,73 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        // 전면 광고 표시 후 앱 종료
         final adService = AdService();
+
+        final isFree = await adService.isFreeTierForExitAd();
+        if (!isFree) {
+          if (context.mounted) SystemNavigator.pop();
+          return;
+        }
+
+        // Android: AdMob 종료 전면 생략 시 — AdFit **앱 종료** 팝업을 직접 호출 (useAdFitForExit 플래그 의존 제거)
+        if (AdService.skipAdMobExitInterstitial &&
+            !kIsWeb &&
+            Platform.isAndroid) {
+          debugPrint(
+            '🔄 앱 종료: AdFit showExitPopupAd (앱 종료형 단위 ID=${AdService.adFitAppExitCode})',
+          );
+          final r = await AdFitNative.showExitPopupAd(AdService.adFitAppExitCode);
+          debugPrint('🔄 AdFit 종료 팝업 결과: $r');
+
+          final cancelled = r?['reason'] == 'cancelled';
+          if (cancelled) return;
+
+          final ok = r != null && r['ok'] == true;
+          if (!ok && context.mounted) {
+            final detail = _adFitExitFailureDetail(r);
+            final exitAnyway = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('알림'),
+                content: Text(
+                  '지금은 종료 광고를 불러올 수 없습니다.\n'
+                  '(AdFit 콘솔에서 "앱 종료" 유형 광고 단위·소재를 확인해 주세요.)\n\n'
+                  '$detail\n\n'
+                  '앱을 종료할까요?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('종료'),
+                  ),
+                ],
+              ),
+            );
+            if (exitAnyway == true && context.mounted) {
+              SystemNavigator.pop();
+            }
+            return;
+          }
+          if (context.mounted) SystemNavigator.pop();
+          return;
+        }
+
+        // iOS 등: AdFit 앱 종료 미지원 → 바로 종료
+        if (AdService.skipAdMobExitInterstitial) {
+          if (context.mounted) SystemNavigator.pop();
+          return;
+        }
+
         final adShown = await adService.showExitAd(
           onAdDismissed: () {
             SystemNavigator.pop();
           },
         );
-        if (!adShown) {
+        if (!adShown && context.mounted) {
           SystemNavigator.pop();
         }
       },

@@ -6,11 +6,19 @@
       "Bash(mvn:*)",
       "Bash(JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn compile:*)",
       "Read(//usr/local/opt/**)",
-      "Read(//Library/Java/JavaVirtualMachines/**)"
+      "Read(//Library/Java/JavaVirtualMachines/**)",
+      "Bash(flutter --version)",
+      "Read(//opt/**)",
+      "Bash(/dev/null -name flutter_embedding_dependencies.gradle -o -name local.properties)",
+      "Read(//usr/local/share/flutter/packages/flutter_tools/gradle/src/main/groovy/**)",
+      "Read(//usr/local/share/flutter/**)",
+      "Bash(curl -s https://dksw4.com/app-ads.txt)",
+      "Bash(ls /Users/ghim/my_business/chat_llm/assets/images/logo* /Users/ghim/my_business/chat_llm/assets/images/icon*)"
     ],
     "additionalDirectories": [
       "/Users/ghim/my_business/aipf/src/main/java/com/dksw/aipf/service",
-      "/Users/ghim/my_business/aipf/src/main/java/com/dksw/aipf/controller"
+      "/Users/ghim/my_business/aipf/src/main/java/com/dksw/aipf/controller",
+      "/Users/ghim/my_business/chat_llm"
     ]
   }
 }

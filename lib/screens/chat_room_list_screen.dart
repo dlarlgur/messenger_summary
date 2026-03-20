@@ -19,6 +19,8 @@ import '../services/messenger_settings_service.dart';
 import '../services/app_version_service.dart';
 import '../services/ad_service.dart';
 import '../widgets/update_dialog.dart';
+import '../widgets/adfit_banner_widget.dart';
+import '../widgets/adfit_native_list_ad_widget.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
 import 'notification_list_screen.dart';
@@ -56,6 +58,7 @@ class ChatRoomListScreen extends StatefulWidget {
 }
 
 class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBindingObserver {
+
   final LocalDbService _localDb = LocalDbService();
   final ProfileImageService _profileService = ProfileImageService();
   final PlanService _planService = PlanService();
@@ -345,8 +348,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 실제 NativeAd 객체 생성 및 로드 (중복 호출 방지 포함)
   void _startNativeAdLoad() {
+    final adService = AdService();
+    // AdService.initialize()보다 목록이 먼저 뜰 수 있음 — Android AdFit 전용이면 AdMob 네이티브 시도 전에 플래그 동기화
+    if (!kIsWeb && Platform.isAndroid && AdService.useAdFitOnlyOnAndroid) {
+      adService.switchTopAdToAdFit();
+      adService.switchListAdToAdFit();
+    }
+
     // 상단 광고 - 이미 존재하면 재생성 금지
-    if (_topNativeAd == null) {
+    if (_topNativeAd == null && !adService.useAdFitForTop) {
       _topNativeAd = NativeAd(
         adUnitId: AdService.nativeTopFixedId,
         factoryId: AdService.nativeTopAdFactoryId,
@@ -366,20 +376,34 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             if (_topNativeAd == ad) {
               ad.dispose();
               _topNativeAd = null;
-              if (mounted) setState(() => _isTopNativeLoaded = false);
+              // AdMob 실패 시 애드핏으로 전환
+              adService.switchTopAdToAdFit();
+              if (mounted) {
+                setState(() {
+                  _isTopNativeLoaded = false;
+                  _showTopAdSlot = true; // 애드핏 광고 표시
+                });
+              }
             }
           },
         ),
         request: const AdRequest(),
       );
       unawaited(_topNativeAd!.load());
+    } else if (adService.useAdFitForTop) {
+      // 이미 애드핏으로 전환된 경우 슬롯 표시
+      if (mounted) {
+        setState(() {
+          _showTopAdSlot = true;
+        });
+      }
     }
 
     // 채팅방 목록 광고 (탭별)
     final messengers = MessengerSettingsService().getEnabledMessengers();
     for (final messenger in messengers) {
       final pkg = messenger.packageName;
-      if (_listNativeAds.containsKey(pkg)) continue;
+      if (_listNativeAds.containsKey(pkg) || adService.useAdFitForList) continue;
 
       final ad = NativeAd(
         adUnitId: AdService.nativeChatListId,
@@ -397,6 +421,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             if (_listNativeAds[pkg] == ad) {
               ad.dispose();
               _listNativeAds.remove(pkg);
+              // AdMob 실패 시 애드핏으로 전환
+              adService.switchListAdToAdFit();
               if (mounted) setState(() => _listNativeAdLoaded[pkg] = false);
             }
           },
@@ -405,6 +431,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       );
       _listNativeAds[pkg] = ad;
       unawaited(ad.load());
+    }
+
+    // AdFit 목록 모드일 때 위 루프가 전부 skip될 수 있음 → 슬롯(3번째 아래) UI 갱신
+    if (adService.useAdFitForList && mounted) {
+      setState(() {});
     }
   }
 
@@ -1591,12 +1622,25 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         children: [
           // 패키지별 탭 필터
           _buildPackageTabs(),
-          // 상단 고정 네이티브 광고 (PageView 밖에 배치 - AdWidget 중복 에러 방지)
-          // ✅ 광고 로드 완료 후에만 표시 (미리 공간 예약 안 함)
-          if (_showTopAdSlot && _isTopNativeLoaded && _topNativeAd != null)
-            SizedBox(
-              height: 116,
-              child: AdWidget(ad: _topNativeAd!),
+          // 상단 고정 광고 (AdMob 또는 애드핏)
+          if (_showTopAdSlot)
+            Builder(
+              builder: (context) {
+                final adService = AdService();
+                // AdMob 광고가 로드되었으면 AdMob 표시
+                if (_isTopNativeLoaded && _topNativeAd != null && !adService.useAdFitForTop) {
+                  return SizedBox(
+                    height: 116,
+                    child: AdWidget(ad: _topNativeAd!),
+                  );
+                }
+                // AdMob 실패 시 애드핏 — 채팅 목록과 같은 좌우 여백·구분선
+                if (adService.useAdFitForTop) {
+                  return _buildTopAdFitChatListChrome();
+                }
+                // 로딩 중
+                return const SizedBox.shrink();
+              },
             ),
           // 채팅방 목록 (PageView로 탭 전환 - 손가락 따라 화면 이동)
           Expanded(
@@ -1680,17 +1724,113 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     );
   }
 
+  /// 광고 슬롯 우측 열 (채팅방 타일의 시간·배지 줄과 동일 간격)
+  Widget _buildAdTrailingColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'ⓘ',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey[400],
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2196F3).withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '광고',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 상단 AdFit 배너 — 카톡 목록 상단 광고와 비슷한 세로 여유 (제목+부제 2줄 클리핑 방지)
+  /// 표준 320×50만 쓰면 멀티라인 소재가 잘림 → 320×100급 슬롯 높이 + 패딩
+  static const double _kTopAdFitBannerDp = 100;
+
+  Widget _buildTopAdFitChatListChrome() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: AdFitBannerWidget(
+                adCode: AdService.adFitTopBannerCode,
+                height: _kTopAdFitBannerDp,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildAdTrailingColumn(),
+        ],
+      ),
+    );
+  }
+
+  /// 목록 중간 AdFit: 채팅방 타일과 동일한 셀 크롬
+  Widget _buildMidListAdFitChrome(String? packageName) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: AdFitNativeListAdWidget(
+              key: ValueKey<String>('adfit_native_list_${packageName ?? 'all'}'),
+              adCode: AdService.adFitChatListBannerCode,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildAdTrailingColumn(),
+        ],
+      ),
+    );
+  }
+
   /// 채팅방 목록 + 리스트 네이티브 광고 빌드
   /// AdWidget은 ListView.builder 안에서 재사용 시 에러 발생
   /// → CustomScrollView + Sliver로 고정 위치에 삽입
   Widget _buildChatListWithAd(NotificationSettingsService notificationService, {String? packageName}) {
     final rooms = packageName != null ? _getFilteredRoomsForPackage(packageName) : _getFilteredRooms();
+    final adService = AdService();
+    
     // 탭별 별도 NativeAd 인스턴스 사용 (AdWidget은 한 위젯 트리에 하나만 가능)
     final ad = packageName != null ? _listNativeAds[packageName] : null;
     final isLoaded = packageName != null ? (_listNativeAdLoaded[packageName] == true) : false;
     final isCached = packageName != null ? _listAdCachedMessengers.contains(packageName) : false;
     final hasListAd = isLoaded && ad != null && rooms.length >= 3;
-    final showAdPlaceholder = (isLoaded || isCached) && rooms.length >= 3;
+    final useAdFit = adService.useAdFitForList;
+    final showAdPlaceholder = ((isLoaded || isCached) && rooms.length >= 3) || (useAdFit && rooms.length >= 3);
     
     // 광고 삽입 위치: 3번째 아이템(index 2) 뒤
     final adPosition = showAdPlaceholder ? 2 : rooms.length;
@@ -1713,20 +1853,47 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      cacheExtent: 280,
       slivers: [
         buildRoomSliver(roomsBefore),
-        // 채팅방 사이 광고 (AdWidget 재사용 에러 방지)
+        // 채팅방 사이 광고 (AdMob 또는 애드핏)
         if (showAdPlaceholder)
           SliverToBoxAdapter(
-            child: SizedBox(
-              width: double.infinity,
-              height: 68,
-              child: hasListAd && ad != null
-                  ? AdWidget(ad: ad)
-                  : Container(color: Colors.grey[100]), // ✅ 밝은 회색 배경으로 영역만 표시
+            child: Builder(
+              builder: (context) {
+                if (hasListAd && ad != null && !useAdFit) {
+                  // 네이티브 XML: 제목 1줄 + 본문 최대 2줄 → 채팅 타일 높이에 맞춤
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 96,
+                    child: AdWidget(ad: ad),
+                  );
+                }
+                if (useAdFit) {
+                  return _buildMidListAdFitChrome(packageName);
+                }
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+                    ),
+                  ),
+                  height: 96,
+                  child: Container(color: Colors.grey[100]),
+                );
+              },
             ),
           ),
         buildRoomSliver(roomsAfter),
+        // 스크롤 끝에서 마지막 타일이 화면 밑으로 더 보이도록
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: (MediaQuery.paddingOf(context).bottom) + 36,
+          ),
+        ),
       ],
     );
   }

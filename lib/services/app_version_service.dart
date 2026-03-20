@@ -38,16 +38,38 @@ class VersionCheckResult {
   });
 
   factory VersionCheckResult.fromJson(Map<String, dynamic> json) {
+    final updateRequired = _bool(json['updateRequired']) ??
+        _bool(json['update_required']) ??
+        false;
+    final updateTypeRaw = json['updateType'] ?? json['update_type'];
+    final latestVersionCode = _int(json['latestVersionCode']) ??
+        _int(json['latest_version_code']);
     return VersionCheckResult(
-      updateRequired: json['updateRequired'] ?? false,
-      updateType: _parseUpdateType(json['updateType']),
-      latestVersion: json['latestVersion'],
-      latestVersionCode: json['latestVersionCode'],
-      minVersion: json['minVersion'],
-      storeUrl: json['storeUrl'],
-      releaseNote: json['releaseNote'],
-      errorMessage: json['message'],
+      updateRequired: updateRequired,
+      updateType: _parseUpdateType(updateTypeRaw?.toString()),
+      latestVersion: json['latestVersion']?.toString() ??
+          json['latest_version']?.toString(),
+      latestVersionCode: latestVersionCode,
+      minVersion:
+          json['minVersion']?.toString() ?? json['min_version']?.toString(),
+      storeUrl: json['storeUrl']?.toString() ?? json['store_url']?.toString(),
+      releaseNote:
+          json['releaseNote']?.toString() ?? json['release_note']?.toString(),
+      errorMessage: json['message']?.toString(),
     );
+  }
+
+  static bool? _bool(dynamic v) {
+    if (v is bool) return v;
+    if (v is String) return v.toLowerCase() == 'true';
+    return null;
+  }
+
+  static int? _int(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 
   static UpdateType _parseUpdateType(String? type) {
