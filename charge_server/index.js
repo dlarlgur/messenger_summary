@@ -14,10 +14,15 @@ const searchRoutes = require('./routes/search');
 const versionRoutes = require('./routes/version');
 const teslaRoutes = require('./routes/tesla');
 const alertRoutes = require('./routes/alerts');
-const { getChargersByZcode, buildGeoIndex } = require('./services/evApi');
+const geminiRoutes = require('./routes/gemini');
+const refuelRoutes = require('./routes/refuel');
+const geocodeRoutes = require('./routes/geocode');
+const routeDirectionsRoutes = require('./routes/routeDirections');
+const { getChargersByZcode, buildGeoIndex, setWarmingUp, refreshAllStatusCaches } = require('./services/evApi');
 const { fetchAndStorePrices } = require('./services/evPriceService');
 const { runMinuteBatch } = require('./services/alertService');
 const { initAlertTables } = require('./db');
+const { initHighwayStations, refreshHighwayPrices } = require('./services/highwayStationsService');
 
 const ALL_ZCODES = ['11','21','27','28','29','30','31','36','41','42','43','44','45','46','47','48','49'];
 
@@ -40,19 +45,29 @@ async function warmEvCache(force = false) {
   }
 
   console.log('[CACHE] EV 충전소 전국 데이터 프리로드 시작...');
+  setWarmingUp(true);
   const allChargers = [];
-  for (const zcode of ALL_ZCODES) {
-    try {
-      const result = await getChargersByZcode(zcode);
-      allChargers.push(...result);
-      console.log(`[CACHE] zcode ${zcode} 완료 (${result.length}건, 누적 ${allChargers.length}건)`);
-    } catch (e) {
-      console.error(`[CACHE] zcode ${zcode} 실패:`, e.message);
+  try {
+    for (const zcode of ALL_ZCODES) {
+      try {
+        const result = await getChargersByZcode(zcode);
+        // result가 매우 큰 경우 스프레드(allChargers.push(...result))는
+        // V8 스택/인자 한도에 걸려 RangeError(Maximum call stack size exceeded)로 이어질 수 있음.
+        // 청크/반복 push로 안전하게 누적한다.
+        for (let i = 0; i < result.length; i++) {
+          allChargers.push(result[i]);
+        }
+        console.log(`[CACHE] zcode ${zcode} 완료 (${result.length}건, 누적 ${allChargers.length}건)`);
+      } catch (e) {
+        console.error(`[CACHE] zcode ${zcode} 실패:`, e.message);
+      }
     }
-  }
-  console.log(`[CACHE] 전국 EV 데이터 프리로드 완료 (총 ${allChargers.length}건)`);
-  if (allChargers.length > 0) {
-    await buildGeoIndex(allChargers);
+    console.log(`[CACHE] 전국 EV 데이터 프리로드 완료 (총 ${allChargers.length}건)`);
+    if (allChargers.length > 0) {
+      await buildGeoIndex(allChargers);
+    }
+  } finally {
+    setWarmingUp(false);
   }
 }
 
@@ -186,9 +201,13 @@ app.use('/api/stations/gas', gasRoutes);
 app.use('/api/stations/ev', evRoutes);
 app.use('/api/prices', priceRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/route', routeDirectionsRoutes);
 app.use('/api/version', versionRoutes);
 app.use('/api/stations/tesla', teslaRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/gemini', geminiRoutes);
+app.use('/api/v1/refuel', refuelRoutes);
+app.use('/api/geocode', geocodeRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -212,13 +231,50 @@ app.listen(PORT, () => {
   console.log(`   ENV: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   OPINET KEY: ${process.env.OPINET_API_KEY ? '✅' : '❌ .env 설정 필요'}`);
   console.log(`   EV KEY: ${process.env.EV_API_KEY ? '✅' : '❌ .env 설정 필요'}`);
+  console.log(`   GEMINI KEY: ${process.env.GEMINI_API_KEY ? '✅' : '❌ .env 설정 필요'}`);
   console.log(`   NAVER MAP KEY: ${process.env.NAVER_MAP_CLIENT_ID ? '✅' : '⚠️ 검색기능 비활성'}\n`);
+
+  // 고속도로 주유소 목록 초기화 (Redis 영구 캐시, 없으면 한국도로공사 API 수집)
+  setTimeout(() => initHighwayStations(), 2000);
+
+  // 고속도로 주유소 유가 일별 갱신 (OPINET, 25시간 캐시)
+  // 목록 초기화 후 30초 대기 → 첫 유가 수집, 이후 24시간마다 반복
+  setTimeout(() => {
+    refreshHighwayPrices().catch(e => console.error('[highwayPrices] 갱신 오류:', e.message));
+    setInterval(() => {
+      refreshHighwayPrices().catch(e => console.error('[highwayPrices] 갱신 오류:', e.message));
+    }, 24 * 60 * 60 * 1000);
+  }, 32000);
 
   // 서버 시작 후 백그라운드로 전국 EV 데이터 프리로드
   setTimeout(() => warmEvCache(), 3000);
 
-  // 6시간마다 환경부 API에서 신선한 데이터로 전체 재구축
-  setInterval(() => warmEvCache(true), 6 * 60 * 60 * 1000);
+  // 매일 새벽 3시에 전국 EV 충전소 목록 재로드 (신규/폐업 충전소 반영)
+  // 실시간 충전 상태는 scheduleStatusRefresh가 별도로 갱신
+  function scheduleDailyEvReload() {
+    // KST 기준 새벽 3시 계산 (UTC+9)
+    const nowUtc = Date.now();
+    const nowKst = new Date(nowUtc + 9 * 60 * 60 * 1000); // KST 현재시각
+    const next3amKst = new Date(nowKst);
+    next3amKst.setUTCHours(3, 0, 0, 0); // KST 00:00 기준으로 3시 설정
+    if (next3amKst <= nowKst) next3amKst.setUTCDate(next3amKst.getUTCDate() + 1); // 이미 지났으면 내일 KST 3시
+    const msUntil3am = next3amKst - nowKst;
+    setTimeout(() => {
+      warmEvCache(true).catch(e => console.error('[EV Cache] 새벽 재로드 오류:', e.message));
+      setInterval(() => warmEvCache(true).catch(e => console.error('[EV Cache] 재로드 오류:', e.message)),
+        24 * 60 * 60 * 1000); // 이후 24시간마다
+    }, msUntil3am);
+    console.log(`[EV Cache] 다음 전체 재로드: 새벽 3시 KST (${Math.round(msUntil3am / 60000)}분 후)`);
+  }
+  scheduleDailyEvReload();
+
+  // 완료 후 2분 대기 → 재실행 (겹침 방지, 429 방지)
+  // 실제 주기: 처리시간(~8분) + 대기(2분) = ~10분
+  async function scheduleStatusRefresh() {
+    await refreshAllStatusCaches().catch(e => console.error('[EV Status] 배치 오류:', e.message));
+    setTimeout(scheduleStatusRefresh, 2 * 60 * 1000);
+  }
+  setTimeout(scheduleStatusRefresh, 30 * 1000); // 서버 시작 30초 후 첫 갱신
 
   // 운영사별 충전 단가 로드 (chargeinfo.ksga.org)
   setTimeout(() => fetchAndStorePrices(), 5000);
