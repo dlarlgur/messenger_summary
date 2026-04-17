@@ -1245,7 +1245,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           width: 8,
           outlineWidth: 0,
           patternImage: patternImg,
-          patternInterval: 50,
+          patternInterval: 30,
         ));
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
