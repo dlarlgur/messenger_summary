@@ -1193,12 +1193,12 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     if (coords.length < 2 || _mapController == null || !mounted) return;
 
     final arrowIcon = await NOverlayImage.fromWidget(
-      widget: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 18),
-      size: const Size(18, 18),
+      widget: const Icon(Icons.expand_less_rounded, color: Colors.white, size: 22),
+      size: const Size(22, 22),
       context: context,
     );
 
-    const double intervalM = 2500; // 2.5km 간격
+    const double intervalM = 300; // 300m 간격 (네이버 스타일)
     double acc = 0;
     int idx = 0;
 
@@ -1280,9 +1280,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         multiPaths.add(NMultipartPath(
           coords: coords,
           color: color,
-          outlineColor: Colors.white.withValues(alpha: 0.85),
+          outlineColor: Colors.transparent,
           passedColor: color.withValues(alpha: 0.28),
-          passedOutlineColor: Colors.white.withValues(alpha: 0.3),
+          passedOutlineColor: Colors.transparent,
         ));
       }
 
@@ -1290,8 +1290,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         await _mapController!.addOverlay(NMultipartPathOverlay(
           id: 'result_route_traffic',
           paths: multiPaths,
-          width: 7,
-          outlineWidth: 1.5,
+          width: 8,
+          outlineWidth: 0,
         ));
         await _addRouteArrows(allCoordsForArrows);
       } else {
@@ -1310,9 +1310,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         id: 'result_route',
         coords: coords,
         color: _congestionColor(1),
-        width: 7,
-        outlineColor: Colors.white,
-        outlineWidth: 1.5,
+        width: 8,
+        outlineColor: Colors.transparent,
+        outlineWidth: 0,
       ));
       await _addRouteArrows(coordsRaw);
     }
