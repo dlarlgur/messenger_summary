@@ -1230,9 +1230,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     final arrowIcon = await NOverlayImage.fromWidget(
       widget: CustomPaint(
         painter: _RouteArrowPainter(),
-        size: const Size(12, 16),
+        size: const Size(7, 9),
       ),
-      size: const Size(12, 16),
+      size: const Size(7, 9),
       context: context,
     );
 
