@@ -1198,7 +1198,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       context: context,
     );
 
-    const double intervalM = 800; // 800m 간격
+    const double intervalM = 300; // 300m 간격 — 줌아웃 시 isHideCollidedMarkers 로 자동 숨김
     double acc = 0;
     int idx = 0;
 
@@ -1218,6 +1218,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           angle: bearing,
           anchor: const NPoint(0.5, 0.5),
           alpha: 0.85,
+          isHideCollidedMarkers: true, // 줌아웃 시 겹치면 자동 숨김
+          isHideCollidedSymbols: true,
         ));
         acc = 0;
       }
