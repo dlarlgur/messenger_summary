@@ -1085,11 +1085,36 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     return r * 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
   }
 
+  /// Chaikin 코너 커팅 — 꺾인 좌표열을 부드러운 곡선으로 다듬음
+  /// iterations=2 이면 원본 대비 ~4배 포인트 생성, 과도한 증폭 방지를 위해 2 고정
+  static List<NLatLng> _smoothPath(List<NLatLng> coords, {int iterations = 2}) {
+    var pts = coords;
+    for (int iter = 0; iter < iterations; iter++) {
+      if (pts.length < 3) break;
+      final smooth = <NLatLng>[pts.first];
+      for (int i = 0; i < pts.length - 1; i++) {
+        final a = pts[i];
+        final b = pts[i + 1];
+        smooth.add(NLatLng(
+          a.latitude * 0.75 + b.latitude * 0.25,
+          a.longitude * 0.75 + b.longitude * 0.25,
+        ));
+        smooth.add(NLatLng(
+          a.latitude * 0.25 + b.latitude * 0.75,
+          a.longitude * 0.25 + b.longitude * 0.75,
+        ));
+      }
+      smooth.add(pts.last);
+      pts = smooth;
+    }
+    return pts;
+  }
+
   /// 경로 점 간격이 큰 구간을 선형 보간으로 촘촘히 채워 표시를 부드럽게 한다.
   /// (좌표 자체를 바꾸는 게 아니라, 지도 렌더용 좌표만 보간)
   static List<NLatLng> _densifyPath(
     List<NLatLng> coords, {
-    double maxStepM = 45,
+    double maxStepM = 40,
   }) {
     if (coords.length < 2) return coords;
     final out = <NLatLng>[coords.first];
@@ -1138,6 +1163,68 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   }
 
   // ── 분석 결과 지도에 그리기 ──
+  // ── 경로 방향 화살표 헬퍼 ──────────────────────────────────────────────────────
+
+  /// 두 좌표 사이의 방위각 (0°=북, 시계방향)
+  double _calcBearing(double lat1, double lng1, double lat2, double lng2) {
+    final l1 = lat1 * pi / 180;
+    final l2 = lat2 * pi / 180;
+    final dl = (lng2 - lng1) * pi / 180;
+    final y = sin(dl) * cos(l2);
+    final x = cos(l1) * sin(l2) - sin(l1) * cos(l2) * cos(dl);
+    return (atan2(y, x) * 180 / pi + 360) % 360;
+  }
+
+  /// 두 NLatLng 사이 거리 (m)
+  double _segDistM(NLatLng a, NLatLng b) {
+    const R = 6371000.0;
+    final lat1 = a.latitude * pi / 180;
+    final lat2 = b.latitude * pi / 180;
+    final dLat = lat2 - lat1;
+    final dLng = (b.longitude - a.longitude) * pi / 180;
+    final h = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
+    return 2 * R * atan2(sqrt(h), sqrt(1 - h));
+  }
+
+  /// 경로 위에 방위각 회전 화살표 마커를 일정 간격으로 배치
+  /// patternImage 는 방향을 따르지 않으므로 NMarker.heading 으로 대체
+  Future<void> _addRouteArrows(List<NLatLng> coords) async {
+    if (coords.length < 2 || _mapController == null || !mounted) return;
+
+    final arrowIcon = await NOverlayImage.fromWidget(
+      widget: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 18),
+      size: const Size(18, 18),
+      context: context,
+    );
+
+    const double intervalM = 2500; // 2.5km 간격
+    double acc = 0;
+    int idx = 0;
+
+    for (int i = 1; i < coords.length; i++) {
+      final prev = coords[i - 1];
+      final curr = coords[i];
+      acc += _segDistM(prev, curr);
+      if (acc >= intervalM) {
+        final bearing = _calcBearing(
+          prev.latitude, prev.longitude, curr.latitude, curr.longitude,
+        );
+        if (!mounted) return;
+        await _mapController!.addOverlay(NMarker(
+          id: 'route_arrow_${idx++}',
+          position: curr,
+          icon: arrowIcon,
+          heading: bearing,
+          anchor: const NPoint(0.5, 0.5),
+          alpha: 0.85,
+          zIndex: 1,
+        ));
+        acc = 0;
+      }
+    }
+  }
+
   Future<void> _drawResultOnMap({
     required List<Map<String, dynamic>> pathPoints,
     List<Map<String, dynamic>>? pathSegments, // 교통 구간 데이터
@@ -1170,16 +1257,10 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     await _mapController!.clearOverlays(type: NOverlayType.marker);
 
     // ── 경로 라인 ──
-    // patternImage: 흰 쉐브론(>) 아이콘을 일정 간격으로 경로 위에 반복 표시
-    final patternImg = await NOverlayImage.fromWidget(
-      widget: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 14),
-      size: const Size(14, 14),
-      context: context,
-    );
-
     if (pathSegments != null && pathSegments.isNotEmpty) {
-      // ① NMultipartPathOverlay: 네이버 도로 폴리라인 그대로(출발 GPS를 끼워 넣지 않음 — 블록 가로지르는 직선 방지)
+      // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
       final multiPaths = <NMultipartPath>[];
+      final allCoordsForArrows = <NLatLng>[];
 
       for (int si = 0; si < pathSegments.length; si++) {
         final seg = pathSegments[si];
@@ -1193,7 +1274,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ))
             .toList();
         if (coordsRaw.length < 2) continue;
-        final coords = _densifyPath(coordsRaw);
+        allCoordsForArrows.addAll(coordsRaw);
+        final coords = _densifyPath(_smoothPath(coordsRaw));
         final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
@@ -1211,22 +1293,20 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           paths: multiPaths,
           width: 7,
           outlineWidth: 1.5,
-          patternImage: patternImg,
-          patternInterval: 55,   // 약 55px 간격으로 > > > 반복
         ));
+        await _addRouteArrows(allCoordsForArrows);
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
     } else if (pathPoints.length >= 2) {
       debugPrint('[AI_MAP_SEGMENTS] path_segments 없음/비어있음 -> 단색 경로로 폴백');
-      // 교통 세그먼트 없음: 네이버 '원활' 구간과 동일한 초록 단색
       final coordsRaw = pathPoints
           .map((p) => NLatLng(
                 (p['lat'] as num).toDouble(),
                 (p['lng'] as num).toDouble(),
               ))
           .toList();
-      final coords = _densifyPath(coordsRaw);
+      final coords = _densifyPath(_smoothPath(coordsRaw));
       await _mapController!.addOverlay(NPathOverlay(
         id: 'result_route',
         coords: coords,
@@ -1234,9 +1314,8 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         width: 7,
         outlineColor: Colors.white,
         outlineWidth: 1.5,
-        patternImage: patternImg,
-        patternInterval: 55,
       ));
+      await _addRouteArrows(coordsRaw);
     }
 
     // 출발 핀: 길찾기 요청과 동일한 좌표(현재 위치 또는 사용자가 고른 출발지). 도로 스냅 없음.
