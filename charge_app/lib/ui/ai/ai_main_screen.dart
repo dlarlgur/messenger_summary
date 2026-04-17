@@ -1198,7 +1198,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       context: context,
     );
 
-    const double intervalM = 300; // 300m 간격 (네이버 스타일)
+    const double intervalM = 800; // 800m 간격
     double acc = 0;
     int idx = 0;
 
