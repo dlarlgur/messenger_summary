@@ -1218,7 +1218,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           angle: bearing,
           anchor: const NPoint(0.5, 0.5),
           alpha: 0.85,
-          zIndex: 1,
         ));
         acc = 0;
       }
