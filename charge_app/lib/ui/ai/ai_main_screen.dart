@@ -116,6 +116,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   List<NLatLng> _arrowCoords = [];
   final List<String> _arrowMarkerIds = [];
   double _lastArrowIntervalBucket = -1;
+  bool _isRedrawingArrows = false;
 
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
@@ -481,23 +482,30 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  // ── 줌 레벨 → 화살표 간격 ──
+  // ── 줌 레벨 → 화살표 간격 (double.infinity = 숨김) ──
   double _zoomToArrowInterval(double zoom) {
     if (zoom >= 15) return 300;
     if (zoom >= 13) return 700;
-    if (zoom >= 11) return 1500;
-    return 3500;
+    if (zoom >= 11) return 1800;
+    return double.infinity; // zoom < 11: 화살표 숨김
   }
 
   Future<void> _redrawArrowsForZoom(double intervalM) async {
-    if (_mapController == null) return;
-    for (final id in List<String>.from(_arrowMarkerIds)) {
-      try {
-        await _mapController!.deleteOverlay(NOverlayInfo(type: NOverlayType.marker, id: id));
-      } catch (_) {}
+    if (_mapController == null || _isRedrawingArrows) return;
+    _isRedrawingArrows = true;
+    try {
+      for (final id in List<String>.from(_arrowMarkerIds)) {
+        try {
+          await _mapController!.deleteOverlay(NOverlayInfo(type: NOverlayType.marker, id: id));
+        } catch (_) {}
+      }
+      _arrowMarkerIds.clear();
+      if (intervalM.isFinite) {
+        await _addRouteArrows(_arrowCoords, intervalM: intervalM);
+      }
+    } finally {
+      _isRedrawingArrows = false;
     }
-    _arrowMarkerIds.clear();
-    await _addRouteArrows(_arrowCoords, intervalM: intervalM);
   }
 
   // ── 카메라 정지 → 피커 모드에서 역지오코딩 + 화살표 줌 적응형 ──
@@ -1337,7 +1345,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         _arrowCoords = allCoordsForArrows;
         final initInterval1 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
         _lastArrowIntervalBucket = initInterval1;
-        await _addRouteArrows(allCoordsForArrows, intervalM: initInterval1);
+        if (initInterval1.isFinite) await _addRouteArrows(allCoordsForArrows, intervalM: initInterval1);
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
@@ -1362,7 +1370,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
       _arrowCoords = smoothed;
       final initInterval2 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
       _lastArrowIntervalBucket = initInterval2;
-      await _addRouteArrows(smoothed, intervalM: initInterval2);
+      if (initInterval2.isFinite) await _addRouteArrows(smoothed, intervalM: initInterval2);
     }
 
     // 출발 핀: 길찾기 요청과 동일한 좌표(현재 위치 또는 사용자가 고른 출발지). 도로 스냅 없음.
