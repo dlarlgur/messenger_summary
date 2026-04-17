@@ -112,12 +112,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   String _evChargerType = 'FAST'; // FAST | SLOW
   bool _evHighwayOnly = false;   // 고속도로 충전소만
 
-  // ── 경로 화살표 (줌 적응형) ──
-  List<NLatLng> _arrowCoords = [];
-  final List<String> _arrowMarkerIds = [];
-  double _lastArrowIntervalBucket = -1;
-  bool _isRedrawingArrows = false;
-
   // ── 검색 기록 ──
   List<String> _searchHistory = [];
   List<Map<String, dynamic>> _searchHistoryItems = [];
@@ -482,47 +476,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     }
   }
 
-  // ── 줌 레벨 → 화살표 간격 (double.infinity = 숨김) ──
-  double _zoomToArrowInterval(double zoom) {
-    if (zoom >= 15) return 300;
-    if (zoom >= 13) return 700;
-    if (zoom >= 11) return 1800;
-    return double.infinity; // zoom < 11: 화살표 숨김
-  }
-
-  Future<void> _redrawArrowsForZoom(double intervalM) async {
-    if (_mapController == null || _isRedrawingArrows) return;
-    _isRedrawingArrows = true;
-    try {
-      for (final id in List<String>.from(_arrowMarkerIds)) {
-        try {
-          await _mapController!.deleteOverlay(NOverlayInfo(type: NOverlayType.marker, id: id));
-        } catch (_) {}
-      }
-      _arrowMarkerIds.clear();
-      if (intervalM.isFinite) {
-        await _addRouteArrows(_arrowCoords, intervalM: intervalM);
-      }
-    } finally {
-      _isRedrawingArrows = false;
-    }
-  }
-
-  // ── 카메라 정지 → 피커 모드에서 역지오코딩 + 화살표 줌 적응형 ──
+  // ── 카메라 정지 → 피커 모드에서 역지오코딩 ──
   void _onCameraIdle() async {
-    if (_mapController == null) return;
-
-    // 화살표 줌 적응형 재배치
-    if (_arrowCoords.isNotEmpty && !_suppressCameraChange) {
-      final zoom = _mapController!.nowCameraPosition.zoom;
-      final interval = _zoomToArrowInterval(zoom);
-      if (interval != _lastArrowIntervalBucket) {
-        _lastArrowIntervalBucket = interval;
-        _redrawArrowsForZoom(interval);
-      }
-    }
-
-    if (!_isPickerMode || _suppressCameraChange) return;
+    if (!_isPickerMode || _mapController == null || _suppressCameraChange) return;
     final NCameraPosition pos;
     try {
       pos = await _mapController!.getCameraPosition();
@@ -1210,67 +1166,15 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
   // ── 경로 방향 화살표 헬퍼 ──────────────────────────────────────────────────────
 
   /// 두 좌표 사이의 방위각 (0°=북, 시계방향)
-  double _calcBearing(double lat1, double lng1, double lat2, double lng2) {
-    final l1 = lat1 * pi / 180;
-    final l2 = lat2 * pi / 180;
-    final dl = (lng2 - lng1) * pi / 180;
-    final y = sin(dl) * cos(l2);
-    final x = cos(l1) * sin(l2) - sin(l1) * cos(l2) * cos(dl);
-    return (atan2(y, x) * 180 / pi + 360) % 360;
-  }
-
-  /// 두 NLatLng 사이 거리 (m)
-  double _segDistM(NLatLng a, NLatLng b) {
-    const R = 6371000.0;
-    final lat1 = a.latitude * pi / 180;
-    final lat2 = b.latitude * pi / 180;
-    final dLat = lat2 - lat1;
-    final dLng = (b.longitude - a.longitude) * pi / 180;
-    final h = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
-    return 2 * R * atan2(sqrt(h), sqrt(1 - h));
-  }
-
-  /// 경로 위에 방위각 회전 화살표 마커를 일정 간격으로 배치 (줌 적응형)
-  Future<void> _addRouteArrows(List<NLatLng> coords, {double intervalM = 300}) async {
-    if (coords.length < 2 || _mapController == null || !mounted) return;
-
-    final arrowIcon = await NOverlayImage.fromWidget(
-      widget: CustomPaint(
-        painter: _RouteArrowPainter(),
-        size: const Size(7, 9),
-      ),
-      size: const Size(7, 9),
-      context: context,
-    );
-
-    double acc = intervalM / 2; // 처음 화살표를 너무 앞에 찍지 않도록 절반부터 시작
-    int idx = 0;
-
-    for (int i = 1; i < coords.length; i++) {
-      final prev = coords[i - 1];
-      final curr = coords[i];
-      acc += _segDistM(prev, curr);
-      if (acc >= intervalM) {
-        final bearing = _calcBearing(
-          prev.latitude, prev.longitude, curr.latitude, curr.longitude,
-        );
-        if (!mounted) return;
-        final id = 'route_arrow_$idx';
-        idx++;
-        await _mapController!.addOverlay(NMarker(
-          id: id,
-          position: curr,
-          icon: arrowIcon,
-          angle: bearing,
-          anchor: const NPoint(0.5, 0.5),
-          alpha: 0.9,
-        ));
-        _arrowMarkerIds.add(id);
-        acc = 0;
-      }
-    }
-  }
+  /// patternImage 생성 — NPathOverlay 가 경로 방향 자동 회전
+  Future<NOverlayImage> _buildPatternImage() => NOverlayImage.fromWidget(
+        widget: CustomPaint(
+          painter: _RouteArrowPainter(),
+          size: const Size(10, 14),
+        ),
+        size: const Size(10, 14),
+        context: context,
+      );
 
   Future<void> _drawResultOnMap({
     required List<Map<String, dynamic>> pathPoints,
@@ -1304,10 +1208,11 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
     await _mapController!.clearOverlays(type: NOverlayType.marker);
 
     // ── 경로 라인 ──
+    final patternImg = await _buildPatternImage();
+
     if (pathSegments != null && pathSegments.isNotEmpty) {
       // ① NMultipartPathOverlay: 교통 정보 세그먼트별 색상
       final multiPaths = <NMultipartPath>[];
-      final allCoordsForArrows = <NLatLng>[];
 
       for (int si = 0; si < pathSegments.length; si++) {
         final seg = pathSegments[si];
@@ -1321,9 +1226,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 ))
             .toList();
         if (coordsRaw.length < 2) continue;
-        final smoothed = _smoothPath(coordsRaw);
-        allCoordsForArrows.addAll(smoothed); // 스무딩된 좌표로 화살표 배치
-        final coords = _densifyPath(smoothed);
+        final coords = _densifyPath(_smoothPath(coordsRaw));
         final congestion = seg['congestion'] is num ? (seg['congestion'] as num).toInt() : 0;
         final color = _congestionColor(congestion);
         multiPaths.add(NMultipartPath(
@@ -1341,11 +1244,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           paths: multiPaths,
           width: 8,
           outlineWidth: 0,
+          patternImage: patternImg,
+          patternInterval: 50,
         ));
-        _arrowCoords = allCoordsForArrows;
-        final initInterval1 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
-        _lastArrowIntervalBucket = initInterval1;
-        if (initInterval1.isFinite) await _addRouteArrows(allCoordsForArrows, intervalM: initInterval1);
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
@@ -1357,8 +1258,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
                 (p['lng'] as num).toDouble(),
               ))
           .toList();
-      final smoothed = _smoothPath(coordsRaw);
-      final coords = _densifyPath(smoothed);
+      final coords = _densifyPath(_smoothPath(coordsRaw));
       await _mapController!.addOverlay(NPathOverlay(
         id: 'result_route',
         coords: coords,
@@ -1366,11 +1266,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         width: 8,
         outlineColor: Colors.transparent,
         outlineWidth: 0,
+        patternImage: patternImg,
+        patternInterval: 50,
       ));
-      _arrowCoords = smoothed;
-      final initInterval2 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
-      _lastArrowIntervalBucket = initInterval2;
-      if (initInterval2.isFinite) await _addRouteArrows(smoothed, intervalM: initInterval2);
     }
 
     // 출발 핀: 길찾기 요청과 동일한 좌표(현재 위치 또는 사용자가 고른 출발지). 도로 스냅 없음.
