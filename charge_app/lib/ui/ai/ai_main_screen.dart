@@ -1335,7 +1335,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           outlineWidth: 0,
         ));
         _arrowCoords = allCoordsForArrows;
-        await _addRouteArrows(allCoordsForArrows);
+        final initInterval1 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
+        _lastArrowIntervalBucket = initInterval1;
+        await _addRouteArrows(allCoordsForArrows, intervalM: initInterval1);
       } else {
         debugPrint('[AI_MAP_SEGMENTS] path_segments 존재하지만 유효 coords가 없어 multipart 렌더 실패');
       }
@@ -1358,7 +1360,9 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
         outlineWidth: 0,
       ));
       _arrowCoords = smoothed;
-      await _addRouteArrows(smoothed);
+      final initInterval2 = _zoomToArrowInterval(_mapController!.nowCameraPosition.zoom);
+      _lastArrowIntervalBucket = initInterval2;
+      await _addRouteArrows(smoothed, intervalM: initInterval2);
     }
 
     // 출발 핀: 길찾기 요청과 동일한 좌표(현재 위치 또는 사용자가 고른 출발지). 도로 스냅 없음.
@@ -3190,7 +3194,6 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
             options: NaverMapViewOptions(
               mapType: NMapType.basic,
               locationButtonEnable: false,
-              maxZoom: 18,
               // 사용자 선택 모드에서는 심볼(주유소 마커) 탭을 잡아서
               // 리스트 A/B 선택과 동기화한다.
               consumeSymbolTapEvents: _isSelectMode,
@@ -5813,24 +5816,22 @@ class _WatchProposalDialog extends StatelessWidget {
   }
 }
 
-/// 경로 화살표 — 위쪽을 향하는 좁은 chevron (angle 로 방향 회전)
+/// 경로 화살표 — 네이버 스타일 얇은 chevron (위쪽 기본, angle 으로 방향 회전)
 class _RouteArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.white
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
     final w = size.width;
     final h = size.height;
     final path = Path()
-      ..moveTo(w * 0.5, 0)           // 꼭대기 중앙
-      ..lineTo(w, h * 0.55)          // 오른쪽 중간
-      ..lineTo(w * 0.72, h * 0.55)   // 오른쪽 안쪽
-      ..lineTo(w * 0.72, h)          // 오른쪽 하단
-      ..lineTo(w * 0.28, h)          // 왼쪽 하단
-      ..lineTo(w * 0.28, h * 0.55)   // 왼쪽 안쪽
-      ..lineTo(0, h * 0.55)          // 왼쪽 중간
-      ..close();
+      ..moveTo(w * 0.1, h * 0.8)  // 왼쪽 하단
+      ..lineTo(w * 0.5, h * 0.15) // 꼭대기 중앙
+      ..lineTo(w * 0.9, h * 0.8); // 오른쪽 하단
     canvas.drawPath(path, paint);
   }
 
