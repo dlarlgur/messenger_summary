@@ -1215,7 +1215,7 @@ class _AiMainScreenState extends ConsumerState<AiMainScreen> with RouteAware {
           id: 'route_arrow_${idx++}',
           position: curr,
           icon: arrowIcon,
-          heading: bearing,
+          angle: bearing,
           anchor: const NPoint(0.5, 0.5),
           alpha: 0.85,
           zIndex: 1,
