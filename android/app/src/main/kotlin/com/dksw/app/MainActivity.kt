@@ -1,17 +1,20 @@
 package com.dksw.app
 
+import android.Manifest
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.android.play.core.integrity.IntegrityManager
 import com.google.android.play.core.integrity.IntegrityManagerFactory
@@ -37,9 +40,12 @@ class MainActivity : FlutterFragmentActivity() {
         const val ADFIT_CHANNEL = "com.dksw.app/adfit"
         const val ADFIT_BANNER_VIEW_TYPE = "com.dksw.app/adfit_banner"
         const val ADFIT_NATIVE_LIST_VIEW_TYPE = "com.dksw.app/adfit_native_chat_list"
+        const val ADFIT_NATIVE_TOP_VIEW_TYPE = "com.dksw.app/adfit_native_top"
+        private const val REQUEST_CODE_POST_NOTIFICATIONS = 2001
     }
 
     private var adFitPopupBridge: AdFitPopupBridge? = null
+    private var pendingNotificationPermissionResult: MethodChannel.Result? = null
 
     /**
      * TextureView 렌더링 모드 사용
@@ -129,6 +135,10 @@ class MainActivity : FlutterFragmentActivity() {
             ADFIT_NATIVE_LIST_VIEW_TYPE,
             AdFitNativeListPlatformViewFactory(this),
         )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            ADFIT_NATIVE_TOP_VIEW_TYPE,
+            AdFitNativeTopPlatformViewFactory(this),
+        )
 
         adFitPopupBridge = AdFitPopupBridge(this).also { it.registerFragmentListener() }
 
@@ -180,6 +190,9 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 "areNotificationsEnabled" -> {
                     result.success(areNotificationsEnabled())
+                }
+                "requestNotificationPermission" -> {
+                    requestNotificationPermission(result)
                 }
                 "openAppSettings" -> {
                     openAppSettings()
@@ -552,6 +565,50 @@ class MainActivity : FlutterFragmentActivity() {
             NotificationManagerCompat.from(this).areNotificationsEnabled()
         } else {
             true // Android 12 이하는 항상 true
+        }
+    }
+
+    /**
+     * 알림 전송 권한(POST_NOTIFICATIONS) 요청.
+     * - Android 13+: 네이티브 시스템 권한 다이얼로그 표시 (인앱 확인 팝업 없이 바로)
+     * - Android 12 이하: POST_NOTIFICATIONS 런타임 권한 없음 → 앱 설정 화면 오픈
+     * 결과: { granted: Boolean, fallbackToSettings: Boolean }
+     */
+    private fun requestNotificationPermission(result: MethodChannel.Result) {
+        if (areNotificationsEnabled()) {
+            result.success(mapOf("granted" to true, "fallbackToSettings" to false))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (pendingNotificationPermissionResult != null) {
+                result.error("BUSY", "notification permission already requesting", null)
+                return
+            }
+            pendingNotificationPermissionResult = result
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                REQUEST_CODE_POST_NOTIFICATIONS,
+            )
+        } else {
+            openAppSettings()
+            result.success(mapOf("granted" to false, "fallbackToSettings" to true))
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_POST_NOTIFICATIONS) {
+            val granted = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingNotificationPermissionResult?.success(
+                mapOf("granted" to granted, "fallbackToSettings" to false),
+            )
+            pendingNotificationPermissionResult = null
         }
     }
 

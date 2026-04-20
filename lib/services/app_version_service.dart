@@ -120,26 +120,26 @@ class AppVersionService {
       // 플랫폼 확인
       final platform = Platform.isAndroid ? 'android' : 'ios';
 
-      debugPrint('📱 버전 체크 시작: platform=$platform, currentVersionCode=$currentVersionCode');
+      // debugPrint('📱 버전 체크 시작: platform=$platform, currentVersionCode=$currentVersionCode');
 
       // API 호출
       final url = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.versionCheck}?platform=$platform&versionCode=$currentVersionCode'
       );
 
-      debugPrint('📱 버전 체크 URL: $url');
+      // debugPrint('📱 버전 체크 URL: $url');
 
       final response = await http.get(url).timeout(
         const Duration(seconds: 10),
         onTimeout: () => http.Response('{"message": "Timeout"}', 408),
       );
 
-      debugPrint('📱 버전 체크 응답: statusCode=${response.statusCode}, body=${response.body}');
+      // debugPrint('📱 버전 체크 응답: statusCode=${response.statusCode}, body=${response.body}');
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final result = VersionCheckResult.fromJson(json);
-        debugPrint('📱 버전 체크 결과: updateRequired=${result.updateRequired}, updateType=${result.updateType}');
+        // debugPrint('📱 버전 체크 결과: updateRequired=${result.updateRequired}, updateType=${result.updateType}');
         return result;
       } else {
         // 서버 오류 시 업데이트 체크 스킵 (앱 사용 가능)

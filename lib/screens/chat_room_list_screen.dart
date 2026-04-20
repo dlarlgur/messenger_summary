@@ -18,8 +18,9 @@ import '../services/messenger_registry.dart';
 import '../services/messenger_settings_service.dart';
 import '../services/app_version_service.dart';
 import '../services/ad_service.dart';
+import '../services/rating_prompt_service.dart';
 import '../widgets/update_dialog.dart';
-import '../widgets/adfit_banner_widget.dart';
+import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
@@ -104,11 +105,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   NativeAd? _topNativeAd;
   bool _isTopNativeLoaded = false;
   bool _showTopAdSlot = false; // ✅ 광고 실제 로드 완료 후에만 true
+  Timer? _topNativeAdTimeoutTimer;
 
   // 채팅방 목록 네이티브 광고 (탭별 별도 인스턴스)
   final Map<String, NativeAd> _listNativeAds = {};
   final Map<String, bool> _listNativeAdLoaded = {};
   final Set<String> _listAdCachedMessengers = {}; // ✅ 캐시된 광고 표시 메신저
+  final Map<String, Timer> _listNativeAdTimeoutTimers = {};
+  static const Duration _nativeAdLoadTimeout = Duration(seconds: 5);
 
   @override
   void initState() {
@@ -180,7 +184,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         final hoursSinceLastCheck = DateTime.now().difference(lastCheckTime).inHours;
         
         if (hoursSinceLastCheck < checkIntervalHours) {
-          debugPrint('⏭️ FAQ 채팅방 체크 스킵: ${hoursSinceLastCheck}시간 전에 체크됨 (${checkIntervalHours}시간 간격)');
+          // debugPrint('⏭️ FAQ 채팅방 체크 스킵: ${hoursSinceLastCheck}시간 전에 체크됨 (${checkIntervalHours}시간 간격)');
           return;
         }
       }
@@ -279,6 +283,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _planService.planTypeNotifier.removeListener(_onPlanTypeChanged);
     WidgetsBinding.instance.removeObserver(this);
     _dbObserverTimer?.cancel(); // ✅ 핵심 수정: DB Observer 중지
+    _topNativeAdTimeoutTimer?.cancel();
+    for (final t in _listNativeAdTimeoutTimers.values) {
+      t.cancel();
+    }
+    _listNativeAdTimeoutTimers.clear();
     _topNativeAd?.dispose();
     for (final ad in _listNativeAds.values) {
       ad.dispose();
@@ -318,6 +327,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 네이티브 광고 로드 (Free 티어만)
   /// 캐시된 플랜으로 즉시 광고 로드 시작 → 서버 확인은 병렬로 처리 (지연 최소화)
   Future<void> _loadNativeAds() async {
+    // AdMob 네이티브(iOS 등)는 MobileAds.initialize 이후에 로드해야 AdWidget 플랫폼 뷰 오류를 줄임
+    await AdService().initialize();
+
     // 캐시된 플랜 확인
     final cachedPlan = _planService.getCachedPlanTypeSync();
     final bool isFreeFromCache = cachedPlan == 'free';
@@ -349,6 +361,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 실제 NativeAd 객체 생성 및 로드 (중복 호출 방지 포함)
   void _startNativeAdLoad() {
     final adService = AdService();
+    // debugPrint('▶️ _startNativeAdLoad 시작 — useAdFitForTop=${adService.useAdFitForTop}, useAdFitForList=${adService.useAdFitForList}');
     // AdService.initialize()보다 목록이 먼저 뜰 수 있음 — Android AdFit 전용이면 AdMob 네이티브 시도 전에 플래그 동기화
     if (!kIsWeb && Platform.isAndroid && AdService.useAdFitOnlyOnAndroid) {
       adService.switchTopAdToAdFit();
@@ -362,6 +375,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         factoryId: AdService.nativeTopAdFactoryId,
         listener: NativeAdListener(
           onAdLoaded: (ad) {
+            _topNativeAdTimeoutTimer?.cancel();
             // stale 콜백 방지: 현재 맵의 광고와 동일한 인스턴스인지 확인
             if (mounted && _topNativeAd == ad) {
               setState(() {
@@ -372,16 +386,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             debugPrint('✅ 상단 네이티브 광고 로드 완료');
           },
           onAdFailedToLoad: (ad, error) {
+            _topNativeAdTimeoutTimer?.cancel();
             debugPrint('❌ 상단 네이티브 광고 로드 실패: ${error.message}');
             if (_topNativeAd == ad) {
               ad.dispose();
               _topNativeAd = null;
-              // AdMob 실패 시 애드핏으로 전환
+              // AdMob 실패 → AdFit 폴백
               adService.switchTopAdToAdFit();
               if (mounted) {
                 setState(() {
                   _isTopNativeLoaded = false;
-                  _showTopAdSlot = true; // 애드핏 광고 표시
+                  _showTopAdSlot = true;
                 });
               }
             }
@@ -390,6 +405,21 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         request: const AdRequest(),
       );
       unawaited(_topNativeAd!.load());
+      // 타임아웃: 일정 시간 내 콜백 없으면 AdFit 전환
+      _topNativeAdTimeoutTimer?.cancel();
+      _topNativeAdTimeoutTimer = Timer(_nativeAdLoadTimeout, () {
+        if (!mounted) return;
+        if (_isTopNativeLoaded || _topNativeAd == null) return;
+        debugPrint('⏱️ 상단 네이티브 AdMob 타임아웃 → AdFit 전환');
+        final toDispose = _topNativeAd;
+        _topNativeAd = null;
+        toDispose?.dispose();
+        adService.switchTopAdToAdFit();
+        setState(() {
+          _isTopNativeLoaded = false;
+          _showTopAdSlot = true;
+        });
+      });
     } else if (adService.useAdFitForTop) {
       // 이미 애드핏으로 전환된 경우 슬롯 표시
       if (mounted) {
@@ -410,6 +440,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         factoryId: AdService.nativeAdFactoryId,
         listener: NativeAdListener(
           onAdLoaded: (ad) {
+            _listNativeAdTimeoutTimers.remove(pkg)?.cancel();
             // stale 콜백 방지: 현재 맵의 광고와 동일한 인스턴스인지 확인
             if (mounted && _listNativeAds[pkg] == ad) {
               setState(() => _listNativeAdLoaded[pkg] = true);
@@ -417,11 +448,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             debugPrint('✅ 목록 네이티브 광고 로드 완료 ($pkg)');
           },
           onAdFailedToLoad: (ad, error) {
+            _listNativeAdTimeoutTimers.remove(pkg)?.cancel();
             debugPrint('❌ 목록 네이티브 광고 로드 실패 ($pkg): ${error.message}');
             if (_listNativeAds[pkg] == ad) {
               ad.dispose();
               _listNativeAds.remove(pkg);
-              // AdMob 실패 시 애드핏으로 전환
+              // AdMob 실패 → AdFit 폴백
               adService.switchListAdToAdFit();
               if (mounted) setState(() => _listNativeAdLoaded[pkg] = false);
             }
@@ -431,6 +463,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       );
       _listNativeAds[pkg] = ad;
       unawaited(ad.load());
+      // 타임아웃: 콜백이 안 오면 AdFit 전환
+      _listNativeAdTimeoutTimers[pkg]?.cancel();
+      _listNativeAdTimeoutTimers[pkg] = Timer(_nativeAdLoadTimeout, () {
+        if (!mounted) return;
+        if (_listNativeAdLoaded[pkg] == true) return;
+        if (!_listNativeAds.containsKey(pkg)) return;
+        debugPrint('⏱️ 목록 네이티브 AdMob 타임아웃 ($pkg) → AdFit 전환');
+        final toDispose = _listNativeAds.remove(pkg);
+        toDispose?.dispose();
+        adService.switchListAdToAdFit();
+        setState(() => _listNativeAdLoaded[pkg] = false);
+      });
     }
 
     // AdFit 목록 모드일 때 위 루프가 전부 skip될 수 있음 → 슬롯(3번째 아래) UI 갱신
@@ -454,7 +498,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       _checkDbChanges();
     });
     
-    debugPrint('✅ DB Observer 시작 (1초마다 확인)');
+    // debugPrint('✅ DB Observer 시작 (1초마다 확인)');
   }
   
   /// ✅ 핵심: DB 변경 확인 (updated_at 기준)
@@ -499,78 +543,46 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     return _profileService.getRoomProfile(roomName, packageName);
   }
 
-  /// 알림 설정 안내 다이얼로그 표시 (첫 진입 시, 가이드 건너뛰기/완료 후 메인에 진입했을 때만)
+  /// 알림 권한 요청 (첫 진입 시, 가이드 건너뛰기/완료 후 메인에 진입했을 때만)
+  /// 인앱 확인 다이얼로그 없이 바로 시스템 권한 다이얼로그 표시 (Android 13+)
+  /// Android 12 이하는 앱 설정 화면으로 바로 이동
   Future<void> _showNotificationDialogIfNeeded() async {
-    // 이미 다이얼로그 표시 중이면 리턴
     if (_isShowingNotificationDialog) return;
 
     try {
-      // 안내 페이지를 건너뛰거나 완료한 뒤 메인에 진입한 경우에만 표시 (가이드 위에 팝업 뜨는 것 방지)
       final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
       if (!hasSeenGuide) return;
 
       final prefs = await SharedPreferences.getInstance();
       final hasShown = prefs.getBool('has_shown_notification_dialog') ?? false;
-
       if (hasShown) return;
 
-      // 시스템 알림 권한 확인
       final methodChannel = const MethodChannel('com.dksw.app/notification');
-      final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
-
+      final hasPermission =
+          await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
       if (hasPermission) {
-        // 권한이 이미 있으면 표시하지 않음
         await prefs.setBool('has_shown_notification_dialog', true);
         return;
       }
 
       if (!mounted) return;
-
       _isShowingNotificationDialog = true;
+      await prefs.setBool('has_shown_notification_dialog', true);
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('알림 설정'),
-          content: const Text(
-            'AI 톡비서가 메시지를 수신하려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                prefs.setBool('has_shown_notification_dialog', true);
-              },
-              child: const Text('나중에'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await prefs.setBool('has_shown_notification_dialog', true);
-                _wasWaitingForPermission = true;
-                Navigator.of(dialogContext).pop();
-
-                // 설정 화면으로 이동
-                try {
-                  await methodChannel.invokeMethod('openAppSettings');
-                } catch (e) {
-                  debugPrint('설정 화면 열기 실패: $e');
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2196F3),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('설정으로 이동'),
-            ),
-          ],
-        ),
-      );
-
-      _isShowingNotificationDialog = false;
+      try {
+        final raw = await methodChannel.invokeMethod<dynamic>('requestNotificationPermission');
+        final map = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
+        final fallback = map['fallbackToSettings'] == true;
+        if (fallback) {
+          _wasWaitingForPermission = true; // 설정 다녀오면 자동으로 알림 켜기
+        }
+      } catch (e) {
+        debugPrint('알림 권한 요청 실패: $e');
+      }
     } catch (e) {
+      debugPrint('알림 권한 요청 준비 실패: $e');
+    } finally {
       _isShowingNotificationDialog = false;
-      debugPrint('알림 안내 다이얼로그 표시 실패: $e');
     }
   }
 
@@ -728,11 +740,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         _isLoading = false;
       });
       
-      // 최초 진입 시 알림 설정 다이얼로그 표시 (대화방 목록 로드 완료 후)
+      // 최초 진입 시 알림 권한 요청 → 평점 요청 순서로 처리 (대화방 목록 로드 완료 후)
       if (!silent && _isLoading == false) {
-        // 다음 프레임에서 다이얼로그 표시 (UI 업데이트 완료 후)
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showNotificationDialogIfNeeded();
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await _showNotificationDialogIfNeeded();
+          if (!mounted) return;
+          // 알림 권한 처리가 끝난 뒤에 평점 요청 (다이얼로그 겹침 방지)
+          await RatingPromptService.maybeShow();
         });
       }
       
@@ -1622,26 +1636,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         children: [
           // 패키지별 탭 필터
           _buildPackageTabs(),
-          // 상단 고정 광고 (AdMob 또는 애드핏)
-          if (_showTopAdSlot)
-            Builder(
-              builder: (context) {
-                final adService = AdService();
-                // AdMob 광고가 로드되었으면 AdMob 표시
-                if (_isTopNativeLoaded && _topNativeAd != null && !adService.useAdFitForTop) {
-                  return SizedBox(
-                    height: 116,
-                    child: AdWidget(ad: _topNativeAd!),
-                  );
-                }
-                // AdMob 실패 시 애드핏 — 채팅 목록과 같은 좌우 여백·구분선
-                if (adService.useAdFitForTop) {
-                  return _buildTopAdFitChatListChrome();
-                }
-                // 로딩 중
-                return const SizedBox.shrink();
-              },
-            ),
           // 채팅방 목록 (PageView로 탭 전환 - 손가락 따라 화면 이동)
           Expanded(
             child: Builder(
@@ -1724,43 +1718,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     );
   }
 
-  /// 광고 슬롯 우측 열 (채팅방 타일의 시간·배지 줄과 동일 간격)
-  Widget _buildAdTrailingColumn() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          'ⓘ',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[400],
-            height: 1.0,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2196F3).withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '광고',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
-            ),
-          ),
-        ),
-      ],
-    );
+  /// 목록 중간 광고 우측: 채팅 행의 시간·메뉴 줄과 비슷한 시각적 무게 (⋯만, AD 문구 없음)
+  Widget _buildMidListAdRightGutter() {
+    // AdFit 네이티브 레이아웃 안에서 "광고" 표기를 처리하므로,
+    // Flutter 쪽은 우측 여백만 남겨 채팅 타일과 리듬만 맞춥니다.
+    return const SizedBox(width: 40);
   }
 
-  /// 상단 AdFit 배너 — 카톡 목록 상단 광고와 비슷한 세로 여유 (제목+부제 2줄 클리핑 방지)
-  /// 표준 320×50만 쓰면 멀티라인 소재가 잘림 → 320×100급 슬롯 높이 + 패딩
-  static const double _kTopAdFitBannerDp = 100;
-
+  /// 상단 AdFit 네이티브 — 카드 전폭 (Flutter 쪽 ⓘ/AD 오버레이 없음, 「광고」 문구는 XML 내)
   Widget _buildTopAdFitChatListChrome() {
     return Container(
       width: double.infinity,
@@ -1770,31 +1735,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: AdFitBannerWidget(
-                adCode: AdService.adFitTopBannerCode,
-                height: _kTopAdFitBannerDp,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildAdTrailingColumn(),
-        ],
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: AdFitNativeTopAdWidget(
+        adCode: AdService.adFitTopNativeCode,
       ),
     );
   }
 
-  /// 목록 중간 AdFit: 채팅방 타일과 동일한 셀 크롬
+  /// 목록 중간 AdFit: 채팅 타일과 동일 좌우 14·하단 구분선, AD는 네이티브 행 안에 표시
   Widget _buildMidListAdFitChrome(String? packageName) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.only(left: 14, right: 6, top: 0, bottom: 0),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -1810,8 +1762,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               adCode: AdService.adFitChatListBannerCode,
             ),
           ),
-          const SizedBox(width: 8),
-          _buildAdTrailingColumn(),
+          _buildMidListAdRightGutter(),
         ],
       ),
     );
@@ -1838,6 +1789,31 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final roomsBefore = rooms.sublist(0, adPosition);
     final roomsAfter = adPosition < rooms.length ? rooms.sublist(adPosition) : <ChatRoom>[];
 
+    Widget buildTopAdForScroll() {
+      // 상단 광고가 표시 가능할 때만 렌더합니다.
+      if (_isTopNativeLoaded && _topNativeAd != null && !adService.useAdFitForTop) {
+        final ad = _topNativeAd!;
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: SizedBox(
+            height: 116,
+            child: AdWidget(key: ObjectKey(ad), ad: ad),
+          ),
+        );
+      }
+      if (adService.useAdFitForTop) {
+        return _buildTopAdFitChatListChrome();
+      }
+      return const SizedBox.shrink();
+    }
+
     SliverList buildRoomSliver(List<ChatRoom> list) {
       return SliverList(
         delegate: SliverChildBuilderDelegate(
@@ -1856,6 +1832,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       physics: const AlwaysScrollableScrollPhysics(),
       cacheExtent: 280,
       slivers: [
+        // 상단 네이티브 광고: 스크롤 영역 내부로 넣어서
+        // 채팅방과 같이 이동/해제되게 만듭니다.
+        if (_showTopAdSlot) SliverToBoxAdapter(child: buildTopAdForScroll()),
         buildRoomSliver(roomsBefore),
         // 채팅방 사이 광고 (AdMob 또는 애드핏)
         if (showAdPlaceholder)
@@ -1867,7 +1846,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   return SizedBox(
                     width: double.infinity,
                     height: 96,
-                    child: AdWidget(ad: ad),
+                    child: AdWidget(key: ObjectKey(ad), ad: ad),
                   );
                 }
                 if (useAdFit) {

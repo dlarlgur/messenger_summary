@@ -26,32 +26,33 @@ import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
 import io.flutter.plugin.platform.PlatformViewFactory
 
-/**
- * 채팅 목록 중간 슬롯 — Kakao AdFit 네이티브.
- *
- * Flutter SurfaceAndroidView 는 Flutter 가 준 높이 제약 안에서 렌더링되므로
- * Flutter 쪽에서 충분한 고정 높이를 보장한다 (AdFitNativeListAdWidget.slotHeight).
- */
-private const val TAG_NATIVE_LIST = "AdFitNativeList"
+private const val TAG_NATIVE_TOP = "AdFitNativeTop"
 
-class AdFitNativeListPlatformViewFactory(
+/**
+ * 채팅 목록 **상단** 슬롯 — Kakao AdFit 네이티브 (카드 레이아웃).
+ *
+ * 요청: [AdFitNativeAdLoader.create] + [AdFitNativeAdRequest.Builder]
+ * (광고 정보 아이콘 위치, WiFi 전용 동영상 자동재생 등).
+ * 바인딩: [AdFitNativeAdLayout.Builder] — 가이드의 필수/선택 요소에 맞게 구성.
+ */
+class AdFitNativeTopPlatformViewFactory(
     private val activity: Activity,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
         val params = args as? Map<*, *>
         val clientId = params?.get("clientId") as? String ?: ""
-        return AdFitNativeListPlatformView(activity, clientId)
+        return AdFitNativeTopPlatformView(activity, clientId)
     }
 }
 
-private class AdFitNativeListPlatformView(
+private class AdFitNativeTopPlatformView(
     private val activity: Activity,
     private val clientId: String,
 ) : PlatformView, AdFitNativeAdLoader.AdLoadListener {
 
     private val root: View =
-        LayoutInflater.from(activity).inflate(R.layout.adfit_native_chat_list_row, null, false)
+        LayoutInflater.from(activity).inflate(R.layout.adfit_native_top_card, null, false)
 
     private val placeholder: View = root.findViewById(R.id.adfit_placeholder)
     private val containerView: AdFitNativeAdView = root.findViewById(R.id.containerView)
@@ -81,7 +82,7 @@ private class AdFitNativeListPlatformView(
     override fun getView(): View {
         root.layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
         )
         return root
     }
@@ -92,7 +93,8 @@ private class AdFitNativeListPlatformView(
             return
         }
         if (activity is LifecycleOwner) {
-            if (activity.lifecycle.currentState == Lifecycle.State.DESTROYED) {
+            val state = activity.lifecycle.currentState
+            if (state == Lifecycle.State.DESTROYED) {
                 binder.unbind()
                 return
             }
@@ -128,10 +130,10 @@ private class AdFitNativeListPlatformView(
 
     override fun onAdLoadError(errorCode: Int) {
         if (disposed) return
-        Log.w(TAG_NATIVE_LIST, "onAdLoadError errorCode=$errorCode clientId=$clientId")
+        Log.w(TAG_NATIVE_TOP, "onAdLoadError errorCode=$errorCode clientId=$clientId")
         if (!nativeHttpRetryDone && errorCode == AdError.HTTP_FAILED.errorCode && nativeAdLoader != null) {
             nativeHttpRetryDone = true
-            Log.i(TAG_NATIVE_LIST, "HTTP_FAILED — native 1회 재요청")
+            Log.i(TAG_NATIVE_TOP, "HTTP_FAILED — native top 1회 재요청")
             mainHandler.postDelayed({
                 if (disposed) return@postDelayed
                 nativeAdLoader?.loadAd(nativeRequest, this)

@@ -1119,10 +1119,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // Android: AdMob 종료 전면 생략 시 — AdFit **앱 종료** 팝업을 직접 호출 (useAdFitForExit 플래그 의존 제거)
-        if (AdService.skipAdMobExitInterstitial &&
-            !kIsWeb &&
-            Platform.isAndroid) {
+        // 1) AdMob 종료 전면 먼저 시도 (준비돼 있을 때만 true 반환)
+        if (!AdService.skipAdMobExitInterstitial) {
+          final adShown = await adService.showExitAd(
+            onAdDismissed: () {
+              SystemNavigator.pop();
+            },
+          );
+          if (adShown) return;
+        }
+
+        // 2) Android: AdFit 앱 종료 팝업 폴백
+        if (!kIsWeb && Platform.isAndroid) {
           debugPrint(
             '🔄 앱 종료: AdFit showExitPopupAd (앱 종료형 단위 ID=${AdService.adFitAppExitCode})',
           );
@@ -1166,20 +1174,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // iOS 등: AdFit 앱 종료 미지원 → 바로 종료
-        if (AdService.skipAdMobExitInterstitial) {
-          if (context.mounted) SystemNavigator.pop();
-          return;
-        }
-
-        final adShown = await adService.showExitAd(
-          onAdDismissed: () {
-            SystemNavigator.pop();
-          },
-        );
-        if (!adShown && context.mounted) {
-          SystemNavigator.pop();
-        }
+        // 3) iOS 등: 바로 종료
+        if (context.mounted) SystemNavigator.pop();
       },
       child: ChatRoomListScreen(key: _chatRoomListKey),
     );

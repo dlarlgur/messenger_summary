@@ -241,7 +241,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 ),
               ),
             ),
-          const SizedBox(height: 16),
+          if (_appVersion.isNotEmpty) const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Center(
+              child: Text(
+                'Copyright 2026. 동키소프트웨어 All rights reserved.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[500],
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
         ],
       ),
     );

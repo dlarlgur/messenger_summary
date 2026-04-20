@@ -1920,6 +1920,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     });
 
     // 광고 표시 시도 (4번에 1번, 4분 쿨다운, 유료 플랜은 건너뜀)
+    bool popped = false;
+    void doPop() {
+      if (popped) return;
+      popped = true;
+      _isNavigatingBack = false;
+      if (mounted) Navigator.pop(context);
+    }
+
     bool adShown = false;
     final adService = AdService();
     // 목록보다 먼저 진입 시 AdService.initialize보다 앞설 수 있음 — Android AdFit 전용 플래그 맞춤
@@ -1927,39 +1935,39 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       adService.switchChatDetailAdToAdFit();
     }
     try {
-      adShown = await adService.showChatDetailAd(
-        onAdDismissed: () {
-          _isNavigatingBack = false;
-          if (mounted) Navigator.pop(context);
-        },
-      );
+      // 오프라인/네트워크 지연으로 인한 먹통 방지: 3초 내 응답 없으면 광고 포기
+      adShown = await adService
+          .showChatDetailAd(onAdDismissed: doPop)
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
     } catch (e) {
       debugPrint('❌ 채팅방 전면 광고 예외: $e');
     }
 
     // AdMob 대신 Kakao AdFit SDK — 앱 전환 팝업 (네이티브)
     if (adShown && adService.useAdFitForChatDetail && mounted) {
-      await AdFitNative.showTransitionPopupAd(AdService.adFitPageFlashCode);
-      _isNavigatingBack = false;
-      if (mounted) Navigator.pop(context);
+      try {
+        await AdFitNative.showTransitionPopupAd(AdService.adFitPageFlashCode)
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('❌ AdFit 전환 팝업 예외/타임아웃: $e');
+      }
+      doPop();
       return;
     }
 
-    // 광고가 표시되지 않으면 바로 뒤로 (플래그 리셋 후 pop)
+    // 광고가 표시되지 않으면 바로 뒤로
     if (!adShown) {
-      _isNavigatingBack = false;
-      if (mounted) Navigator.pop(context);
+      doPop();
+      return;
     }
-    // AdMob 광고가 표시됐지만 콜백이 오지 않는 경우 대비: 5초 후 강제 pop
-    else {
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted && _isNavigatingBack) {
-          debugPrint('⚠️ 광고 콜백 미수신 - 강제 뒤로가기');
-          _isNavigatingBack = false;
-          Navigator.pop(context);
-        }
-      });
-    }
+
+    // AdMob 전면 표시 중 — 콜백이 오지 않을 경우 대비 7초 후 강제 pop
+    Future.delayed(const Duration(seconds: 7), () {
+      if (!popped && mounted) {
+        debugPrint('⚠️ 광고 콜백 미수신 - 강제 뒤로가기');
+        doPop();
+      }
+    });
   }
 
   @override

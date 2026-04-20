@@ -25,22 +25,23 @@ class AdService {
   static const String _chatDetailExitAdId = 'ca-app-pub-8640148276009977/4943784306';
 
   // 애드핏 — **운영** 광고 단위 (대시보드 광고 유형과 일치해야 노출)
-  static const String _adFitTopBannerCode = 'DAN-JNV7dXONQNhXO6RW'; // 배너
+  // 상단/목록/팝업 각 슬롯은 반드시 해당 유형의 DAN으로 설정되어야 합니다.
+  static const String _adFitTopNativeCode = 'DAN-iOk8xjwCoCapX5ZM';
   static const String _adFitChatListBannerCode = 'DAN-W4WDVrCgPvchmiDQ'; // 네이티브(목록)
   static const String _adFitAppExitCode = 'DAN-wo6sjdtX0Cg10Mwu'; // 앱 종료 팝업
   static const String _adFitPageFlashCode = 'DAN-IPgxRfjgzURGJQu3'; // 앱 전환 팝업
-  static const String _adFitRewardSummaryCode = 'DAN-qYNWhkhSCtdZ7uA8'; // 요약 리워드 대체
+  static const String _adFitRewardSummaryCode = 'DAN-qYNWhkhSCtdZ7uA8'; // 요약 리워드 대체(앱 전환 팝업)
 
   // 네이티브 광고 팩토리 ID (Android NativeAdFactory에 등록된 이름)
   static const String nativeAdFactoryId = 'chatListNativeAd';      // 목록 사이 (흰색)
   static const String nativeTopAdFactoryId = 'topNativeAd';        // 상단 고정 (연한 회색)
 
   /// `true`: 뒤로가기 앱 종료 시 **AdMob 전면을 쓰지 않고** Kakao AdFit 종료 팝업만 사용.
-  static const bool skipAdMobExitInterstitial = true;
+  static const bool skipAdMobExitInterstitial = false;
 
   /// Android 무료 플랜: 상단·목록 **AdMob 네이티브**, 채팅 나가기 **AdMob 전면** 로드 자체를 하지 않고 AdFit만 사용.
   /// (iOS는 AdFit 배너 미연동이라 AdMob 네이티브 유지)
-  static const bool useAdFitOnlyOnAndroid = true;
+  static const bool useAdFitOnlyOnAndroid = false;
 
   /// `true`: AdMob 리워드만 쓰고 싶을 때 (아래 폴백도 끔).
   static const bool useAdFitRewardInsteadOfAdMob = false;
@@ -82,6 +83,9 @@ class AdService {
   final PlanService _planService = PlanService();
   bool _isInitialized = false;
 
+  /// 동시에 `initialize()` 여러 번 호출돼도 한 번만 실행되도록 공유 Future
+  Future<void>? _initializeFuture;
+
   // 전면 광고 (앱 종료)
   InterstitialAd? _exitInterstitialAd;
   bool _isExitAdLoaded = false;
@@ -98,17 +102,31 @@ class AdService {
   final ValueNotifier<bool> rewardedAdReadyNotifier = ValueNotifier(false);
 
   /// Free 티어 여부 확인
+  /// 오프라인/네트워크 지연 시 캐시 즉시 반환(최대 2초 대기) — 뒤로가기 먹통 방지
   Future<bool> _isFreeTier() async {
-    final planType = await _planService.getCurrentPlanType();
-    return planType == 'free';
+    try {
+      final planType = await _planService.getCurrentPlanType().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => _planService.getCachedPlanTypeSync(),
+      );
+      return planType == 'free';
+    } catch (e) {
+      debugPrint('⚠️ 플랜 확인 실패 - 캐시 사용: $e');
+      return _planService.getCachedPlanTypeSync() == 'free';
+    }
   }
 
   /// 앱 종료/무료 광고 흐름 여부 (외부에서 동기 전제 깨지지 않게 조회)
   Future<bool> isFreeTierForExitAd() => _isFreeTier();
 
-  /// 초기화
+  /// 초기화 (`main()`과 채팅 목록 등에서 동시 호출 가능 — 한 번만 실행)
   Future<void> initialize() async {
     if (_isInitialized) return;
+    _initializeFuture ??= _initializeOnce();
+    await _initializeFuture!;
+  }
+
+  Future<void> _initializeOnce() async {
     try {
       // Android + AdFit 전용: 무료 플랜에서 AdMob을 전혀 쓰지 않으면 SDK 초기화 생략
       final freeTierEarly = await _isFreeTier();
@@ -165,6 +183,7 @@ class AdService {
       }
     } catch (e) {
       debugPrint('❌ 광고(AdMob) 초기화 실패: $e');
+      _initializeFuture = null;
     }
   }
 
@@ -177,7 +196,7 @@ class AdService {
   static String get nativeChatListId => _nativeChatListId;
 
   /// 애드핏 광고 코드 (fallback용)
-  static String get adFitTopBannerCode => _adFitTopBannerCode;
+  static String get adFitTopNativeCode => _adFitTopNativeCode;
   static String get adFitChatListBannerCode => _adFitChatListBannerCode;
   static String get adFitAppExitCode => _adFitAppExitCode;
   static String get adFitPageFlashCode => _adFitPageFlashCode;
@@ -300,14 +319,14 @@ class AdService {
       return true;
     }
 
-    // AdFit 앱 종료 팝업 (네이티브)
+    // AdMob 미준비 → AdFit 폴백 플래그만 켜고 실제 팝업은 호출측에서 띄움
     switchExitAdToAdFit();
     debugPrint(
       skipAdMobExitInterstitial
-          ? '🔄 앱 종료: AdMob 전면 생략 설정 → AdFit 종료 팝업만 시도'
-          : '🔄 AdMob 종료 전면 미준비 → AdFit 앱 종료 팝업 시도',
+          ? '🔄 앱 종료: AdMob 전면 생략 설정 → AdFit 종료 팝업 필요'
+          : '🔄 AdMob 종료 전면 미준비 → AdFit 앱 종료 팝업 필요',
     );
-    return true;
+    return false;
   }
 
   /// 전면광고 표시 중 앱이 백그라운드로 전환됐을 때 호출

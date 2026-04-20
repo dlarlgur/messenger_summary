@@ -45,7 +45,7 @@ class ProfileImageService {
         String? filesDirPath;
         try {
           final filesDir = await _methodChannel.invokeMethod<String>('getFilesDir');
-          debugPrint('📁 getFilesDir 반환값: $filesDir');
+          // debugPrint('📁 getFilesDir 반환값: $filesDir');
           if (filesDir != null && filesDir.isNotEmpty) {
             filesDirPath = filesDir;
           }
@@ -91,7 +91,7 @@ class ProfileImageService {
         }
         
         _profileDir = '$filesDirPath/profile';
-        debugPrint('✅ 최종 프로필 디렉토리: $_profileDir');
+        // debugPrint('✅ 최종 프로필 디렉토리: $_profileDir');
       } else {
         // iOS: Documents 디렉토리 사용
         final dir = await getApplicationDocumentsDirectory();
@@ -110,7 +110,7 @@ class ProfileImageService {
       }
 
       _initialized = true;
-      debugPrint('✅ ProfileImageService 초기화 완료: $_profileDir');
+      // debugPrint('✅ ProfileImageService 초기화 완료: $_profileDir');
     } catch (e) {
       debugPrint('❌ ProfileImageService 초기화 실패: $e');
       // fallback: 임시 디렉토리 사용
@@ -257,7 +257,7 @@ class ProfileImageService {
   void clearCache() {
     _roomProfileCache.clear();
     _senderProfileCache.clear();
-    debugPrint('프로필 이미지 메모리 캐시 클리어');
+    // debugPrint('프로필 이미지 메모리 캐시 클리어');
   }
 
   /// 프로필 디렉토리 경로 반환

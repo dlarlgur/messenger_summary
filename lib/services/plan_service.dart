@@ -297,12 +297,12 @@ class PlanService {
   /// 사용량 조회 (GET /api/v1/llm/usage)
   Future<Map<String, dynamic>?> getUsage() async {
     try {
-      debugPrint('📊 [getUsage] GET /api/v1/llm/usage 호출');
+      // debugPrint('📊 [getUsage] GET /api/v1/llm/usage 호출');
       final response = await _dio.get(_usageEndpoint);
 
       if (response.statusCode == 200) {
         final data = Map<String, dynamic>.from(response.data);
-        debugPrint('📊 [getUsage] 사용량 조회 완료: limit=${data['limit']}, currentUsage=${data['currentUsage']}, maxLimit=${data['maxLimit']}');
+        // debugPrint('📊 [getUsage] 사용량 조회 완료: limit=${data['limit']}, currentUsage=${data['currentUsage']}, maxLimit=${data['maxLimit']}');
         return data;
       } else {
         debugPrint('❌ 사용량 조회 실패: ${response.statusCode}');

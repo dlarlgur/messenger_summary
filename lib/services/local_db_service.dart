@@ -51,7 +51,7 @@ class LocalDbService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _databaseName);
     
-    debugPrint('DB 경로: $path');
+    // debugPrint('DB 경로: $path');
 
     return await openDatabase(
       path,
