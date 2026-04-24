@@ -220,6 +220,20 @@ class AdService {
     debugPrint('🔄 리스트 광고를 애드핏으로 전환');
   }
 
+  /// 상단 광고 AdFit 폴백 해제 (AdMob 재시도용 — 포그라운드 복귀 등)
+  void resetTopAdFallback() {
+    if (!_useAdFitForTop) return;
+    _useAdFitForTop = false;
+    debugPrint('↩️ 상단 광고 AdFit 폴백 해제 — AdMob 재시도');
+  }
+
+  /// 리스트 광고 AdFit 폴백 해제 (AdMob 재시도용)
+  void resetListAdFallback() {
+    if (!_useAdFitForList) return;
+    _useAdFitForList = false;
+    debugPrint('↩️ 리스트 광고 AdFit 폴백 해제 — AdMob 재시도');
+  }
+
   /// 앱 종료 광고를 애드핏으로 전환
   void switchExitAdToAdFit() {
     _useAdFitForExit = true;
