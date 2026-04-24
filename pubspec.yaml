@@ -59,6 +59,12 @@ dependencies:
   # 인앱 평점 (Google Play In-App Review)
   in_app_review: ^2.0.10
 
+  # DKSW 통합 어드민 연동 SDK
+  dksw_app_core:
+    git:
+      url: https://github.com/dlarlgur/dksw_app_core.git
+      ref: v0.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

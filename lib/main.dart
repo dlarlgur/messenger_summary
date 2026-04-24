@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -81,6 +82,15 @@ void main() async {
   unawaited(MessengerSettingsService().initialize());
   unawaited(ProfileImageService().initialize());
   unawaited(AdService().initialize());
+
+  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ) 초기화
+  unawaited(() async {
+    await DkswCore.init(
+      packageName: 'com.dksw.app',
+      serverUrl: 'https://dksw4.com/console',
+    );
+    DkswCore.trackSession();
+  }());
 }
 
 class MyApp extends StatelessWidget {
