@@ -153,6 +153,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  dksw_app_core:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: "v0.2.1"
+      resolved-ref: a70ae76a7f26a6d783f3898774599883860da145
+      url: "https://github.com/dlarlgur/dksw_app_core.git"
+    source: git
+    version: "0.2.1"
   fake_async:
     dependency: transitive
     description:
