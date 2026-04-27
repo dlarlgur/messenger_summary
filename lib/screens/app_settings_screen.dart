@@ -9,6 +9,10 @@ import 'usage_management_screen.dart';
 import 'subscription_screen.dart';
 import 'how_to_use_screen.dart';
 import 'about_screen.dart';
+import 'notices_screen.dart';
+import 'events_screen.dart';
+import 'faq_screen.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/plan_service.dart';
@@ -177,6 +181,46 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 ),
               );
             },
+          ),
+          const SizedBox(height: 16),
+
+          // 소식·도움말 섹션 (콘솔 등록 콘텐츠)
+          _buildSectionHeaderStyled('소식·도움말', Icons.support_agent),
+          _buildStyledMenuItem(
+            icon: Icons.campaign,
+            title: '공지사항',
+            subtitle: _supportCountSubtitle('notices', '새 공지를 확인해보세요'),
+            iconColor: const Color(0xFF2563EB),
+            isFirst: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NoticesScreen()),
+              );
+            },
+          ),
+          _buildStyledMenuItem(
+            icon: Icons.celebration,
+            title: '이벤트',
+            subtitle:
+                _supportCountSubtitle('events', '진행 중 이벤트가 있을 수 있어요'),
+            iconColor: Colors.deepOrange,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EventsScreen()),
+              );
+            },
+          ),
+          _buildStyledMenuItem(
+            icon: Icons.help_center,
+            title: '자주 묻는 질문',
+            subtitle: _supportCountSubtitle('faqs', '궁금한 점을 확인해보세요'),
+            iconColor: Colors.teal,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const FaqScreen()),
+              );
+            },
+            isLast: true,
           ),
           const SizedBox(height: 16),
 
@@ -473,6 +517,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         ),
       ],
     );
+  }
+
+  /// 부트스트랩 응답의 카운트가 있으면 "n건" 노출, 없으면 fallback 문구.
+  String _supportCountSubtitle(String key, String fallback) {
+    final c = DkswCore.lastBootstrap?.counts;
+    if (c == null) return fallback;
+    final n = switch (key) {
+      'notices' => c.notices,
+      'events' => c.events,
+      'faqs' => c.faqs,
+      _ => 0,
+    };
+    return n > 0 ? '$n건 등록됨' : fallback;
   }
 
   /// 스타일된 섹션 헤더
