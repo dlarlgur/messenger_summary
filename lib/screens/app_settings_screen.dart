@@ -12,6 +12,7 @@ import 'about_screen.dart';
 import 'notices_screen.dart';
 import 'events_screen.dart';
 import 'faq_screen.dart';
+import 'policies_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
 import '../services/auto_summary_settings_service.dart';
@@ -267,6 +268,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const AboutScreen(),
+                ),
+              );
+            },
+          ),
+          _buildStyledMenuItem(
+            icon: Icons.policy_outlined,
+            title: '정책 및 약관',
+            subtitle: '개인정보처리방침·이용약관 등',
+            iconColor: Colors.indigo,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PoliciesScreen(),
                 ),
               );
             },
