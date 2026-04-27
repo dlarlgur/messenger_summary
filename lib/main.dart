@@ -21,9 +21,11 @@ import 'services/ad_service.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'screens/maintenance_screen.dart';
 import 'screens/permission_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
 import 'screens/subscription_screen.dart';
+import 'services/splash_ad_cache.dart';
 import 'widgets/update_dialog.dart';
 import 'services/adfit_native.dart';
 
@@ -83,15 +85,25 @@ void main() async {
   unawaited(ProfileImageService().initialize());
   unawaited(AdService().initialize());
 
-  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ·약관·팝업) 초기화 + 부트스트랩
-  // 결과는 _MyAppHomeState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
+  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ·약관·팝업·스플래시광고) 초기화 + 부트스트랩
+  // 결과는 _MainScreenState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
+  // 스플래시 광고 캐시는 부트스트랩 완료 후 갱신/제거 (다음 실행에 반영).
   unawaited(() async {
     await DkswCore.init(
       packageName: 'com.dksw.app',
       serverUrl: 'https://dksw4.com/console',
     );
     unawaited(DkswCore.trackSession()); // fire-and-forget
-    await DkswCore.bootstrap();
+    final boot = await DkswCore.bootstrap();
+    if (boot != null) {
+      final fresh = boot.ad;
+      if (fresh != null) {
+        final same = await SplashAdCache.isSameAsCached(fresh);
+        if (!same) unawaited(SplashAdCache.save(fresh));
+      } else {
+        unawaited(SplashAdCache.clear());
+      }
+    }
   }());
 }
 
@@ -128,7 +140,7 @@ class MyApp extends StatelessWidget {
             },
           ),
         ),
-        home: const MainScreen(),
+        home: SplashScreen(nextBuilder: (_) => const MainScreen()),
       ),
     );
   }
