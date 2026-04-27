@@ -1686,10 +1686,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         children: [
           // 패키지별 탭 필터
           _buildPackageTabs(),
-          // 상단 네이티브 광고: PageView 밖에 한 번만 렌더링하여
-          // AdWidget 인스턴스가 페이지 전환 도중 두 곳에 붙는 문제를 차단합니다.
-          if (_showTopAdSlot) _buildSharedTopAd(),
           // 채팅방 목록 (PageView로 탭 전환 - 손가락 따라 화면 이동)
+          // 상단 네이티브 광고는 첫 번째 탭의 CustomScrollView 첫 sliver로 들어가
+          // 목록과 함께 스크롤 아웃된다 (sticky 방지). AdWidget 단일 인스턴스 보장은
+          // isFirstPage 체크로 유지.
           Expanded(
             child: Builder(
               builder: (context) {
@@ -1912,6 +1912,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       physics: const AlwaysScrollableScrollPhysics(),
       cacheExtent: 280,
       slivers: [
+        // 상단 네이티브 광고 — 첫 번째 탭에서만, 목록과 함께 스크롤되어 사라짐.
+        if (isFirstPage && _showTopAdSlot)
+          SliverToBoxAdapter(child: _buildSharedTopAd()),
         buildRoomSliver(roomsBefore),
         // 채팅방 사이 광고 (AdMob 또는 애드핏) — 첫 번째 탭에만 표시
         if (showAdPlaceholder)
