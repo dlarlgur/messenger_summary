@@ -59,9 +59,10 @@ class AdService {
   
   // 애드핏 광고 사용 여부 (AdMob 로드 실패 시 true)
   bool _useAdFitForTop = false;
-  bool _useAdFitForList = false;
   bool _useAdFitForExit = false;
   bool _useAdFitForChatDetail = false;
+  // 리스트 광고는 슬롯별(4·8)로 폴백 상태 분리
+  final Map<int, bool> _useAdFitForListSlot = {4: false, 8: false};
 
   // SharedPreferences 키
   static const String _keyRewardDate = 'ad_reward_date';
@@ -159,7 +160,9 @@ class AdService {
       // Android: 목록/상단/채팅 전면을 처음부터 AdFit으로 (AdMob 네이티브·전면 로드 안 함)
       if (_androidAdFitOnly) {
         switchTopAdToAdFit();
-        switchListAdToAdFit();
+        for (final slot in _useAdFitForListSlot.keys) {
+          switchListAdToAdFit(slot);
+        }
         switchChatDetailAdToAdFit();
         debugPrint('✅ Android — 상단·목록·채팅 전면 AdMob 로드 생략, AdFit 사용');
       }
@@ -204,9 +207,12 @@ class AdService {
 
   /// 애드핏 사용 여부 확인
   bool get useAdFitForTop => _useAdFitForTop;
-  bool get useAdFitForList => _useAdFitForList;
   bool get useAdFitForExit => _useAdFitForExit;
   bool get useAdFitForChatDetail => _useAdFitForChatDetail;
+
+  /// 리스트 슬롯(4 또는 8)별 AdFit 폴백 상태
+  bool useAdFitForListSlot(int slot) =>
+      _useAdFitForListSlot[slot] ?? false;
 
   /// 상단 광고를 애드핏으로 전환
   void switchTopAdToAdFit() {
@@ -214,10 +220,11 @@ class AdService {
     debugPrint('🔄 상단 광고를 애드핏으로 전환');
   }
 
-  /// 리스트 광고를 애드핏으로 전환
-  void switchListAdToAdFit() {
-    _useAdFitForList = true;
-    debugPrint('🔄 리스트 광고를 애드핏으로 전환');
+  /// 리스트 광고 슬롯(4 또는 8)을 애드핏으로 전환
+  void switchListAdToAdFit(int slot) {
+    if (!_useAdFitForListSlot.containsKey(slot)) return;
+    _useAdFitForListSlot[slot] = true;
+    debugPrint('🔄 리스트 광고 슬롯$slot 애드핏으로 전환');
   }
 
   /// 상단 광고 AdFit 폴백 해제 (AdMob 재시도용 — 포그라운드 복귀 등)
@@ -227,12 +234,30 @@ class AdService {
     debugPrint('↩️ 상단 광고 AdFit 폴백 해제 — AdMob 재시도');
   }
 
-  /// 리스트 광고 AdFit 폴백 해제 (AdMob 재시도용)
-  void resetListAdFallback() {
-    if (!_useAdFitForList) return;
-    _useAdFitForList = false;
-    debugPrint('↩️ 리스트 광고 AdFit 폴백 해제 — AdMob 재시도');
+  /// 리스트 광고 슬롯별 AdFit 폴백 해제 (AdMob 재시도용)
+  void resetListAdFallback(int slot) {
+    if (_useAdFitForListSlot[slot] != true) return;
+    _useAdFitForListSlot[slot] = false;
+    debugPrint('↩️ 리스트 광고 슬롯$slot AdFit 폴백 해제 — AdMob 재시도');
   }
+
+  /// 모든 리스트 슬롯 폴백 일괄 해제
+  void resetAllListAdFallbacks() {
+    bool changed = false;
+    for (final k in _useAdFitForListSlot.keys.toList()) {
+      if (_useAdFitForListSlot[k] == true) {
+        _useAdFitForListSlot[k] = false;
+        changed = true;
+      }
+    }
+    if (changed) {
+      debugPrint('↩️ 모든 리스트 광고 슬롯 AdFit 폴백 해제 — AdMob 재시도');
+    }
+  }
+
+  /// 어떤 리스트 슬롯이라도 AdFit 폴백 중이면 true
+  bool get anyListSlotInAdFitFallback =>
+      _useAdFitForListSlot.values.any((v) => v == true);
 
   /// 앱 종료 광고를 애드핏으로 전환
   void switchExitAdToAdFit() {

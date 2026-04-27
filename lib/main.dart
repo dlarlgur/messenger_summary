@@ -26,6 +26,7 @@ import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
 import 'screens/subscription_screen.dart';
 import 'services/splash_ad_cache.dart';
+import 'services/house_ad_service.dart';
 import 'widgets/update_dialog.dart';
 import 'services/adfit_native.dart';
 
@@ -85,15 +86,22 @@ void main() async {
   unawaited(ProfileImageService().initialize());
   unawaited(AdService().initialize());
 
-  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ·약관·팝업·스플래시광고) 초기화 + 부트스트랩
+  // DKSW 통합 어드민 초기화 + 부트스트랩 + 광고 캐시
   // 결과는 _MainScreenState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
-  // 스플래시 광고 캐시는 부트스트랩 완료 후 갱신/제거 (다음 실행에 반영).
+  // 스플래시·house ad 캐시는 부트스트랩 완료 후 갱신/제거 (다음 실행에 반영).
   unawaited(() async {
     await DkswCore.init(
       packageName: 'com.dksw.app',
       serverUrl: 'https://dksw4.com/console',
     );
     unawaited(DkswCore.trackSession()); // fire-and-forget
+
+    // House ad — 디스크 캐시 즉시 로드 (첫 프레임에 광고 가능) → 백그라운드 fetch
+    unawaited(() async {
+      await HouseAdCache.readFromDiskAndInstall();
+      await HouseAdCache.fetch();
+    }());
+
     final boot = await DkswCore.bootstrap();
     if (boot != null) {
       final fresh = boot.ad;

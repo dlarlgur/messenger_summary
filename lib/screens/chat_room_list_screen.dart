@@ -24,6 +24,8 @@ import '../widgets/popup_notice_dialog.dart';
 import '../widgets/popup_ad_dialog.dart';
 import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
+import '../widgets/house_ad_card.dart';
+import '../services/house_ad_service.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
 import 'notification_list_screen.dart';
@@ -109,11 +111,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   bool _showTopAdSlot = false; // ✅ 광고 실제 로드 완료 후에만 true
   Timer? _topNativeAdTimeoutTimer;
 
-  // 채팅방 목록 네이티브 광고 (탭별 별도 인스턴스)
+  // 채팅방 목록 네이티브 광고 — 슬롯 4·8 두 개를 탭별 인스턴스로 관리.
+  // 키: "$pkg|$slot" (예: "com.kakao.talk|4"). AdWidget 단일 인스턴스 보장은
+  // 첫 번째 탭에만 광고를 그려서 유지함.
   final Map<String, NativeAd> _listNativeAds = {};
   final Map<String, bool> _listNativeAdLoaded = {};
-  final Set<String> _listAdCachedMessengers = {}; // ✅ 캐시된 광고 표시 메신저
   final Map<String, Timer> _listNativeAdTimeoutTimers = {};
+  // AdSlotResolver의 admob 슬롯과 동일하게 4·8.
+  static const List<int> _admobListSlots = [4, 8];
+  String _listAdKey(String pkg, int slot) => '$pkg|$slot';
   // AdMob 콜드 스타트(네트워크 초기화 + 미디에이션 웨이터폴)는 3~7초까지 걸릴 수
   // 있음. 2.5초처럼 짧게 끊으면 AdMob이 사실상 준비 중이어도 AdFit으로 전환되어
   // 단가 높은 AdMob 노출을 잃게 된다. → 여유 있게 6초로 설정.
@@ -357,9 +363,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       needRetry = true;
     }
 
-    // 목록: AdFit 폴백 중이면 재시도
-    if (adService.useAdFitForList) {
-      adService.resetListAdFallback();
+    // 목록: 어떤 슬롯이라도 AdFit 폴백 중이면 모두 해제하고 재시도
+    if (adService.anyListSlotInAdFitFallback) {
+      adService.resetAllListAdFallbacks();
       needRetry = true;
     }
 
@@ -410,7 +416,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     // AdService.initialize()보다 목록이 먼저 뜰 수 있음 — Android AdFit 전용이면 AdMob 네이티브 시도 전에 플래그 동기화
     if (!kIsWeb && Platform.isAndroid && AdService.useAdFitOnlyOnAndroid) {
       adService.switchTopAdToAdFit();
-      adService.switchListAdToAdFit();
+      for (final slot in _admobListSlots) {
+        adService.switchListAdToAdFit(slot);
+      }
     }
 
     // 슬롯 공간을 즉시 예약 → 광고 로드 동안 placeholder 표시, 로드되면 자연스럽게 채워짐 (레이아웃 점프 방지)
@@ -491,57 +499,62 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       }
     }
 
-    // 채팅방 목록 광고 (탭별)
+    // 채팅방 목록 광고 — charge_app과 동일하게 슬롯 4·8 각각 별도 NativeAd 인스턴스.
+    // AdWidget(PlatformView)은 한 위젯 트리에 한 번만 그려야 하므로 첫 번째 탭에만 표시.
+    // 슬롯별로 AdFit 폴백 플래그가 분리돼 있어 한쪽이 폴백돼도 다른 쪽은 AdMob 유지.
     final messengers = MessengerSettingsService().getEnabledMessengers();
-    for (final messenger in messengers) {
-      final pkg = messenger.packageName;
-      if (_listNativeAds.containsKey(pkg) || adService.useAdFitForList) continue;
+    final firstPkg = messengers.firstOrNull?.packageName;
+    if (firstPkg != null) {
+      for (final slot in _admobListSlots) {
+        final key = _listAdKey(firstPkg, slot);
+        if (_listNativeAds.containsKey(key)) continue;
+        if (adService.useAdFitForListSlot(slot)) continue;
 
-      final ad = NativeAd(
-        adUnitId: AdService.nativeChatListId,
-        factoryId: AdService.nativeAdFactoryId,
-        listener: NativeAdListener(
-          onAdLoaded: (ad) {
-            _listNativeAdTimeoutTimers.remove(pkg)?.cancel();
-            // stale 콜백 방지: 현재 맵의 광고와 동일한 인스턴스인지 확인
-            if (mounted && _listNativeAds[pkg] == ad) {
-              adService.resetListAdFallback();
-              setState(() => _listNativeAdLoaded[pkg] = true);
-            }
-            debugPrint('✅ 목록 네이티브 광고 로드 완료 ($pkg)');
-          },
-          onAdFailedToLoad: (ad, error) {
-            _listNativeAdTimeoutTimers.remove(pkg)?.cancel();
-            debugPrint('❌ 목록 네이티브 광고 로드 실패 ($pkg): ${error.message}');
-            if (_listNativeAds[pkg] == ad) {
-              ad.dispose();
-              _listNativeAds.remove(pkg);
-              // AdMob 실패 → AdFit 폴백
-              adService.switchListAdToAdFit();
-              if (mounted) setState(() => _listNativeAdLoaded[pkg] = false);
-            }
-          },
-        ),
-        request: const AdRequest(),
-      );
-      _listNativeAds[pkg] = ad;
-      unawaited(ad.load());
-      // 타임아웃: 콜백이 안 오면 AdFit 전환
-      // 타임아웃 시 AdMob 인스턴스는 dispose하지 않고 계속 대기.
-      // 뒤늦게 onAdLoaded가 오면 render 우선순위에 따라 AdMob으로 자동 교체.
-      _listNativeAdTimeoutTimers[pkg]?.cancel();
-      _listNativeAdTimeoutTimers[pkg] = Timer(_nativeAdLoadTimeout, () {
-        if (!mounted) return;
-        if (_listNativeAdLoaded[pkg] == true) return;
-        if (!_listNativeAds.containsKey(pkg)) return;
-        debugPrint('⏱️ 목록 네이티브 AdMob 타임아웃 ($pkg) → AdFit 임시 표시 (AdMob 계속 대기)');
-        adService.switchListAdToAdFit();
-        setState(() {});
-      });
+        final ad = NativeAd(
+          adUnitId: AdService.nativeChatListId,
+          factoryId: AdService.nativeAdFactoryId,
+          listener: NativeAdListener(
+            onAdLoaded: (ad) {
+              _listNativeAdTimeoutTimers.remove(key)?.cancel();
+              if (mounted && _listNativeAds[key] == ad) {
+                adService.resetListAdFallback(slot);
+                setState(() => _listNativeAdLoaded[key] = true);
+              }
+              debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $firstPkg)');
+            },
+            onAdFailedToLoad: (ad, error) {
+              _listNativeAdTimeoutTimers.remove(key)?.cancel();
+              debugPrint(
+                  '❌ 목록 네이티브 광고 로드 실패 (slot=$slot, $firstPkg): ${error.message}');
+              if (_listNativeAds[key] == ad) {
+                ad.dispose();
+                _listNativeAds.remove(key);
+                adService.switchListAdToAdFit(slot);
+                if (mounted) setState(() => _listNativeAdLoaded[key] = false);
+              }
+            },
+          ),
+          request: const AdRequest(),
+        );
+        _listNativeAds[key] = ad;
+        unawaited(ad.load());
+        // 타임아웃: AdMob 인스턴스는 dispose하지 않고 계속 대기.
+        // 뒤늦게 onAdLoaded가 오면 render 우선순위에 따라 자동 교체.
+        _listNativeAdTimeoutTimers[key]?.cancel();
+        _listNativeAdTimeoutTimers[key] = Timer(_nativeAdLoadTimeout, () {
+          if (!mounted) return;
+          if (_listNativeAdLoaded[key] == true) return;
+          if (!_listNativeAds.containsKey(key)) return;
+          debugPrint(
+              '⏱️ 목록 네이티브 AdMob 타임아웃 (slot=$slot, $firstPkg) → AdFit 임시 표시');
+          adService.switchListAdToAdFit(slot);
+          setState(() {});
+        });
+      }
     }
 
-    // AdFit 목록 모드일 때 위 루프가 전부 skip될 수 있음 → 슬롯(3번째 아래) UI 갱신
-    if (adService.useAdFitForList && mounted) {
+    // 어떤 슬롯이라도 AdFit 폴백 상태면 UI 갱신
+    if (adService.anyListSlotInAdFitFallback && mounted) {
       setState(() {});
     }
   }
@@ -1878,91 +1891,54 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     );
   }
 
-  /// 채팅방 목록 + 리스트 네이티브 광고 빌드
-  /// AdWidget은 ListView.builder 안에서 재사용 시 에러 발생
-  /// → CustomScrollView + Sliver로 고정 위치에 삽입
+  /// 채팅방 목록 + 리스트 네이티브 광고 빌드.
+  ///
+  /// charge_app과 동일한 슬롯 머지 패턴:
+  ///   - 슬롯 4·8 = AdMob 네이티브 (첫 번째 탭만, AdWidget 단일성 보장)
+  ///   - 슬롯 12+ = 콘솔 등록 house ad
+  ///   - bypass=true house ad 가 4·8에 등록되면 AdMob 자리를 가로챔
+  /// 룸 수가 적어 슬롯 위치까지 도달하지 못하면 그 슬롯은 자연히 미표시.
   Widget _buildChatListWithAd(
     NotificationSettingsService notificationService, {
     String? packageName,
   }) {
-    final rooms = packageName != null ? _getFilteredRoomsForPackage(packageName) : _getFilteredRooms();
-    final adService = AdService();
+    final rooms = packageName != null
+        ? _getFilteredRoomsForPackage(packageName)
+        : _getFilteredRooms();
 
-    // AdWidget(PlatformView)은 위젯 트리에서 이동 불가 → 항상 첫 번째 탭에만 고정
-    // PageView가 인접 페이지를 동시 렌더링할 때 AdWidget이 두 곳에 삽입되면 에러 발생
-    final firstPackageName = MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
+    final firstPackageName =
+        MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
     final isFirstPage = packageName == null || packageName == firstPackageName;
 
-    // 탭별 별도 NativeAd 인스턴스 사용 (AdWidget은 한 위젯 트리에 하나만 가능)
-    // 렌더 우선순위: AdMob(단가↑) > AdFit 폴백. AdMob이 로드되었으면 AdFit 플래그가
-    // 켜져 있어도 AdMob을 표시.
-    final ad = packageName != null ? _listNativeAds[packageName] : null;
-    final isLoaded = packageName != null ? (_listNativeAdLoaded[packageName] == true) : false;
-    final isCached = packageName != null ? _listAdCachedMessengers.contains(packageName) : false;
-    final hasListAd = isFirstPage && isLoaded && ad != null && rooms.length >= 3;
-    final useAdFit = adService.useAdFitForList;
-    final showAdPlaceholder = isFirstPage && (((isLoaded || isCached) && rooms.length >= 3) || (useAdFit && rooms.length >= 3));
-    final preferAdMob = hasListAd;
-
-    // 광고 삽입 위치: 3번째 아이템(index 2) 뒤
-    final adPosition = showAdPlaceholder ? 2 : rooms.length;
-
-    final roomsBefore = rooms.sublist(0, adPosition);
-    final roomsAfter = adPosition < rooms.length ? rooms.sublist(adPosition) : <ChatRoom>[];
-
-    SliverList buildRoomSliver(List<ChatRoom> list) {
-      return SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final room = list[index];
-            final isMuted = notificationService.isMuted(
-                room.roomName, room.packageName, room.chatId);
-            return _buildChatRoomTile(room, isMuted);
-          },
-          childCount: list.length,
-        ),
-      );
-    }
+    // 첫 탭에서만 광고 슬롯 머지. 그 외 탭은 룸만.
+    final List<Object> merged =
+        isFirstPage ? _mergeRoomsWithAdSlots(rooms) : rooms;
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       cacheExtent: 280,
       slivers: [
-        // 상단 네이티브 광고 — 첫 번째 탭에서만, 목록과 함께 스크롤되어 사라짐.
+        // 상단 네이티브 광고 — 첫 번째 탭에서만, 목록과 함께 스크롤됨.
         if (isFirstPage && _showTopAdSlot)
           SliverToBoxAdapter(child: _buildSharedTopAd()),
-        buildRoomSliver(roomsBefore),
-        // 채팅방 사이 광고 (AdMob 또는 애드핏) — 첫 번째 탭에만 표시
-        if (showAdPlaceholder)
-          SliverToBoxAdapter(
-            child: Builder(
-              builder: (context) {
-                if (preferAdMob && ad != null) {
-                  // 네이티브 XML: 제목 1줄 + 본문 최대 2줄 → 채팅 타일 높이에 맞춤
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 96,
-                    child: AdWidget(key: ObjectKey(ad), ad: ad),
-                  );
-                }
-                if (useAdFit) {
-                  return _buildMidListAdFitChrome(packageName);
-                }
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-                    ),
-                  ),
-                  height: 96,
-                  child: Container(color: Colors.grey[100]),
-                );
-              },
-            ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final item = merged[index];
+              if (item is _AdMobMarker) {
+                return _buildAdMobListSlot(item.slot, packageName);
+              }
+              if (item is _HouseAdMarker) {
+                return HouseAdCard(ad: item.ad);
+              }
+              final room = item as ChatRoom;
+              final isMuted = notificationService.isMuted(
+                  room.roomName, room.packageName, room.chatId);
+              return _buildChatRoomTile(room, isMuted);
+            },
+            childCount: merged.length,
           ),
-        buildRoomSliver(roomsAfter),
+        ),
         // 스크롤 끝에서 마지막 타일이 화면 밑으로 더 보이도록
         SliverToBoxAdapter(
           child: SizedBox(
@@ -1970,6 +1946,69 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           ),
         ),
       ],
+    );
+  }
+
+  /// charge_app `mergeWithAdSlots` 이식 — pos 1부터 스캔,
+  /// admob 슬롯이면 마커 push, house 슬롯이면 HouseAd push, none이면 룸 push.
+  List<Object> _mergeRoomsWithAdSlots(List<ChatRoom> rooms) {
+    if (rooms.isEmpty) return const [];
+    final merged = <Object>[];
+    int rIdx = 0;
+    int pos = 1;
+    while (rIdx < rooms.length) {
+      final kind = AdSlotResolver.kindAt(pos);
+      switch (kind) {
+        case SlotKind.admob:
+          merged.add(_AdMobMarker(pos));
+          break;
+        case SlotKind.house:
+          final house = HouseAdCache.at(pos);
+          if (house != null) merged.add(_HouseAdMarker(house));
+          break;
+        case SlotKind.none:
+          merged.add(rooms[rIdx]);
+          rIdx++;
+          break;
+      }
+      pos++;
+      // 안전망 — 광고 슬롯만 잇따르는 비정상 케이스 방지
+      if (pos > 200) break;
+    }
+    return merged;
+  }
+
+  /// AdMob 슬롯(4 또는 8) 렌더.
+  /// 우선순위: AdMob(단가↑) > AdFit 폴백 > placeholder.
+  Widget _buildAdMobListSlot(int slot, String? packageName) {
+    if (packageName == null) return const SizedBox.shrink();
+    final adService = AdService();
+    final key = _listAdKey(packageName, slot);
+    final ad = _listNativeAds[key];
+    final isLoaded = _listNativeAdLoaded[key] == true;
+    final useAdFit = adService.useAdFitForListSlot(slot);
+
+    if (isLoaded && ad != null) {
+      return SizedBox(
+        width: double.infinity,
+        height: 96,
+        child: AdWidget(key: ObjectKey(ad), ad: ad),
+      );
+    }
+    if (useAdFit) {
+      return _buildMidListAdFitChrome(packageName);
+    }
+    // 로드 전 placeholder
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+        ),
+      ),
+      height: 96,
+      child: Container(color: Colors.grey[100]),
     );
   }
 
@@ -2630,4 +2669,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       );
     }
   }
+}
+
+/// 슬롯 머지에서 룸 / AdMob 슬롯 / House ad 를 한 List에 섞기 위한 마커.
+class _AdMobMarker {
+  final int slot;
+  const _AdMobMarker(this.slot);
+}
+
+class _HouseAdMarker {
+  final HouseAd ad;
+  const _HouseAdMarker(this.ad);
 }
