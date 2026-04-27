@@ -96,10 +96,16 @@ void main() async {
     );
     unawaited(DkswCore.trackSession()); // fire-and-forget
 
-    // House ad — 디스크 캐시 즉시 로드 (첫 프레임에 광고 가능) → 백그라운드 fetch
+    // House ad / Top banner — 디스크 캐시 즉시 로드 → 백그라운드 fetch
+    // 첫 프레임부터 광고 노출 가능 (stale-while-revalidate).
     unawaited(() async {
-      await HouseAdCache.readFromDiskAndInstall();
-      await HouseAdCache.fetch();
+      await Future.wait([
+        HouseAdCache.readFromDiskAndInstall(),
+        TopBannerCache.readFromDiskAndInstall(),
+      ]);
+      // 둘 다 같은 도메인이라 직렬보다 병렬이 빠름
+      unawaited(HouseAdCache.fetch());
+      unawaited(TopBannerCache.fetch());
     }());
 
     final boot = await DkswCore.bootstrap();

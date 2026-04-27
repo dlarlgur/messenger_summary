@@ -13,6 +13,9 @@ const Color _accent = Color(0xFF2563EB);
 ///   - 배너: imageUrl만 풀 폭으로 깔리고 좌상단 AD 라벨
 ///
 /// Impressions 자동 보고(첫 프레임), 클릭 시 ctaUrl 외부 브라우저 + 클릭 보고.
+///
+/// 리스트 슬롯(4·8·12+) 전용. 96dp 압축 카드.
+/// 상단 배너는 [TopBannerView]로 별도 처리.
 class HouseAdCard extends StatefulWidget {
   final HouseAd ad;
   final EdgeInsets margin;
@@ -67,7 +70,7 @@ class _HouseAdCardState extends State<HouseAdCard> {
 
     return Container(
       margin: widget.margin,
-      height: 96, // chat_llm 채팅 타일 톤에 맞춘 높이
+      height: 96,
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(14),

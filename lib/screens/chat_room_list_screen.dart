@@ -25,6 +25,7 @@ import '../widgets/popup_ad_dialog.dart';
 import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
 import '../widgets/house_ad_card.dart';
+import '../widgets/top_banner_view.dart';
 import '../services/house_ad_service.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
@@ -110,6 +111,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   bool _isTopNativeLoaded = false;
   bool _showTopAdSlot = false; // ✅ 광고 실제 로드 완료 후에만 true
   Timer? _topNativeAdTimeoutTimer;
+  // 콘솔 TopBanner 이미지 로딩 실패 시 AdMob/AdFit 폴백 트리거
+  bool _topBannerImageFailed = false;
 
   // 채팅방 목록 네이티브 광고 — 슬롯 4·8 두 개를 탭별 인스턴스로 관리.
   // 키: "$pkg|$slot" (예: "com.kakao.talk|4"). AdWidget 단일 인스턴스 보장은
@@ -1854,9 +1857,30 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 상단 공유 네이티브 광고 — PageView 밖에 한 번만 렌더링.
   /// AdMob NativeAd는 인스턴스당 하나의 AdWidget만 허용하므로 부모 레벨에 고정.
-  /// 렌더 우선순위: AdMob(단가↑) > AdFit 폴백 > 빈 슬롯.
+  /// 렌더 우선순위:
+  ///   1. 콘솔 등록 TopBanner + bypass=true → AdMob 자리 가로채 노출
+  ///   2. AdMob (단가↑)
+  ///   3. AdFit 폴백
+  ///   4. 빈 슬롯 placeholder
+  /// TopBanner 이미지 로딩 실패 시 [_topBannerImageFailed]가 켜져 다음 build에서 2~4 흐름 복귀.
   Widget _buildSharedTopAd() {
     final adService = AdService();
+
+    // 1) 콘솔 TopBanner + bypass=true (이미지 실패 안 한 경우)
+    final topBanner = TopBannerCache.current;
+    if (topBanner != null &&
+        topBanner.bypassAdmob &&
+        !_topBannerImageFailed) {
+      return TopBannerView(
+        ad: topBanner,
+        onImageError: () {
+          if (!mounted || _topBannerImageFailed) return;
+          debugPrint('⚠️ TopBanner 이미지 로딩 실패 → AdMob/AdFit 폴백');
+          setState(() => _topBannerImageFailed = true);
+        },
+      );
+    }
+
     if (_isTopNativeLoaded && _topNativeAd != null) {
       final ad = _topNativeAd!;
       return Container(

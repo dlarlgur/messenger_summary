@@ -309,3 +309,153 @@ class AdSlotResolver {
 }
 
 enum SlotKind { admob, house, none }
+
+/// 홈 상단 배너 광고 캐시 (chat_llm 전용 단일 슬롯).
+///
+/// /api/top-banner 응답을 stale-while-revalidate 패턴으로 디스크 캐시.
+/// HouseAdCache와 동일한 SharedPreferences + path_provider 저장 방식.
+///
+/// 노출 규칙:
+///  - bypassAdmob=true 인 활성 광고가 있으면 chat_room_list_screen 의 상단
+///    AdMob 자리를 가로채 노출.
+///  - 없거나 bypassAdmob=false 면 기존 AdMob → AdFit 폴백 그대로.
+class TopBannerCache {
+  TopBannerCache._();
+
+  static const String _packageName = 'com.dksw.app';
+  static const String _serverBaseUrl = 'https://dksw4.com/console';
+  static const String _kAdJson = 'top_banner_meta';
+  static const String _kAdSavedAt = 'top_banner_meta_saved_at';
+  static const String _imageFileName = 'top_banner_cache.bin';
+  static const int _maxAgeMs = 7 * 24 * 60 * 60 * 1000;
+
+  static HouseAd? _ad;
+  static bool _fetched = false;
+
+  static HouseAd? get current => _ad;
+  static bool get fetched => _fetched;
+
+  /// 디스크 캐시 즉시 로드 + image cache에 미리 등록 → 첫 프레임에 광고 표시.
+  static Future<void> readFromDiskAndInstall() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedAt = prefs.getInt(_kAdSavedAt);
+      if (savedAt == null) return;
+      if (DateTime.now().millisecondsSinceEpoch - savedAt > _maxAgeMs) return;
+
+      final raw = prefs.getString(_kAdJson);
+      if (raw == null || raw.isEmpty) return;
+      final json = jsonDecode(raw);
+      if (json is! Map) return;
+      final ad = HouseAd.fromJson(Map<String, dynamic>.from(json));
+      if (ad.imageUrl.isEmpty) return;
+      _ad = ad;
+      _fetched = true;
+
+      final file = await _imageFile();
+      if (await file.exists()) {
+        try {
+          final bytes = await file.readAsBytes();
+          if (bytes.isNotEmpty) {
+            await _installInImageCache(
+              DkswCore.resolveAssetUrl(ad.imageUrl),
+              bytes,
+            );
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[TopBannerCache] readFromDisk 실패: $e');
+    }
+  }
+
+  static Future<void> _installInImageCache(
+      String url, Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final completer = OneFrameImageStreamCompleter(
+        Future.value(ImageInfo(image: frame.image, scale: 1.0)),
+      );
+      PaintingBinding.instance.imageCache.putIfAbsent(
+        NetworkImage(url),
+        () => completer,
+      );
+    } catch (_) {}
+  }
+
+  /// 콘솔 /api/top-banner 호출 + 이미지 다운로드 + 디스크 저장.
+  static Future<void> fetch() async {
+    try {
+      final res = await Dio().get(
+        '$_serverBaseUrl/api/top-banner',
+        queryParameters: {'package': _packageName},
+        options: Options(receiveTimeout: const Duration(seconds: 5)),
+      );
+      final data = res.data;
+      if (data is! Map || data['ok'] != true) {
+        _fetched = true;
+        return;
+      }
+      final adRaw = data['ad'];
+      if (adRaw is! Map) {
+        // 활성 광고 없음 → 캐시 비움
+        _ad = null;
+        _fetched = true;
+        await _clearDisk();
+        return;
+      }
+      final ad = HouseAd.fromJson(Map<String, dynamic>.from(adRaw));
+      _ad = ad;
+      _fetched = true;
+
+      // 이미지 다운로드 + 디스크 저장 + image cache 등록
+      final url = DkswCore.resolveAssetUrl(ad.imageUrl);
+      try {
+        final r = await Dio().get<List<int>>(
+          url,
+          options: Options(
+            responseType: ResponseType.bytes,
+            receiveTimeout: const Duration(seconds: 10),
+          ),
+        );
+        final body = r.data;
+        if (r.statusCode == 200 && body != null && body.isNotEmpty) {
+          final bytes = Uint8List.fromList(body);
+          final file = await _imageFile();
+          await file.writeAsBytes(bytes, flush: true);
+          await _installInImageCache(url, bytes);
+        }
+      } catch (_) {}
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kAdJson, jsonEncode(ad.toJson()));
+      await prefs.setInt(
+          _kAdSavedAt, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('[TopBannerCache] fetch 실패: $e');
+      _fetched = true;
+    }
+  }
+
+  static Future<void> _clearDisk() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kAdJson);
+      await prefs.remove(_kAdSavedAt);
+      final file = await _imageFile();
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  /// HouseAdCache와 동일 엔드포인트 사용. 호출 위임.
+  static Future<void> reportImpression(int adId) =>
+      HouseAdCache.reportImpression(adId);
+  static Future<void> reportClick(int adId) =>
+      HouseAdCache.reportClick(adId);
+
+  static Future<File> _imageFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/$_imageFileName');
+  }
+}
