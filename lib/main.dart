@@ -14,12 +14,12 @@ import 'services/notification_settings_service.dart';
 import 'services/auto_summary_settings_service.dart';
 import 'services/profile_image_service.dart';
 import 'services/auth_service.dart';
-import 'services/app_version_service.dart';
 import 'services/plan_service.dart';
 import 'services/in_app_purchase_service.dart';
 import 'services/messenger_settings_service.dart';
 import 'services/ad_service.dart';
 import 'screens/chat_room_list_screen.dart';
+import 'screens/maintenance_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
@@ -83,13 +83,15 @@ void main() async {
   unawaited(ProfileImageService().initialize());
   unawaited(AdService().initialize());
 
-  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ) 초기화
+  // DKSW 통합 어드민(접속기록·공지·이벤트·FAQ·약관·팝업) 초기화 + 부트스트랩
+  // 결과는 _MyAppHomeState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
   unawaited(() async {
     await DkswCore.init(
       packageName: 'com.dksw.app',
       serverUrl: 'https://dksw4.com/console',
     );
-    DkswCore.trackSession();
+    unawaited(DkswCore.trackSession()); // fire-and-forget
+    await DkswCore.bootstrap();
   }());
 }
 
@@ -154,7 +156,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _isCheckingPermissions = false; // ⚠️ 수정: 권한 확인 중이면 로딩 표시하지 않음 (권한 화면이 잠깐 보이는 것 방지)
   bool _isForceUpdateRequired = false; // 강제 업데이트 필요 여부
   bool _showGuide = false; // 사용 가이드 표시 여부
-  VersionCheckResult? _versionCheckResult; // 버전 체크 결과
+  UpdatePolicy? _updatePolicy; // 부트스트랩으로 받아온 업데이트 정책
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
   final LocalDbService _localDb = LocalDbService();
   final Set<int> _processedSummaryIds = {}; // 이미 처리한 summaryId 추적
@@ -197,7 +199,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             _backgroundInitialize();
           } else {
             // JWT 없으면 버전체크 + JWT 발급 동시 실행 후 구독 체크
-            await Future.wait([_checkVersion(), _getJwtToken()]);
+            await Future.wait([_initBootstrap(), _getJwtToken()]);
             await _checkSubscription();
             if (mounted) {
               final notificationService =
@@ -225,12 +227,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // 백그라운드에서 나머지 초기화 작업 진행
     Future.microtask(() async {
       try {
-        // 버전 체크와 JWT 토큰 발급을 비동기로 동시에 실행
-        final versionCheckFuture = _checkVersion();
+        // 부트스트랩 처리와 JWT 토큰 발급을 비동기로 동시에 실행
+        final bootstrapFuture = _initBootstrap();
         final jwtTokenFuture = _getJwtToken();
-        
+
         // 두 작업 모두 완료될 때까지 대기
-        await Future.wait([versionCheckFuture, jwtTokenFuture]);
+        await Future.wait([bootstrapFuture, jwtTokenFuture]);
         if (!mounted) return;
 
         // JWT 토큰이 발급된 후 구독 정보 조회
@@ -312,14 +314,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   /// 백그라운드 초기화 (JWT 토큰이 있을 때)
-  /// 권한 체크와 독립적으로 실행 (버전 체크, 구독 동기화 등)
+  /// 권한 체크와 독립적으로 실행 (부트스트랩, 구독 동기화 등)
   void _backgroundInitialize() {
     // 모든 작업을 백그라운드에서 비동기로 처리
     Future.microtask(() async {
       try {
-        // 1. 버전 체크 (강제 업데이트만 체크)
-        await _checkVersion();
-        
+        // 1. 부트스트랩 결과 수신 (강제 업데이트·점검·정책)
+        await _initBootstrap();
+
         // 2. 구독 정보 조회 (기기 변경 시 구독 부활 포함)
         await _checkSubscription();
         if (!mounted) return;
@@ -337,34 +339,46 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     });
   }
   
-  /// 버전 체크 (비동기, 백그라운드에서 실행)
-  Future<void> _checkVersion() async {
+  /// 부트스트랩 결과 수신.
+  /// main()에서 [DkswCore.bootstrap]을 await하므로 호출 시점엔 [DkswCore.lastBootstrap]이
+  /// 채워져 있다. 안전하게 한 번 더 fetch를 시도하는 폴백 포함(재시도 효과).
+  Future<void> _initBootstrap() async {
     try {
-      final versionService = AppVersionService();
-      final result = await versionService.checkVersion();
+      final boot = DkswCore.lastBootstrap ?? await DkswCore.bootstrap();
+      if (boot == null) return; // 네트워크 실패 시 앱 사용 허용
+      _updatePolicy = boot.update;
 
-      if (result.updateRequired && result.updateType == UpdateType.force) {
-        // 강제 업데이트만 앱 시작 시 처리
-        _versionCheckResult = result;
-        if (mounted) {
-          setState(() {
-            _isForceUpdateRequired = true;
-            _isCheckingPermissions = false;
-          });
-
-          // 다이얼로그 표시
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              UpdateDialog.show(context, result);
-            }
-          });
-        }
+      // 1) 점검 모드: 다른 화면 모두 막고 풀스크린으로 전환
+      if (boot.maintenance != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(MyApp.navigatorKey.currentContext ?? context)
+              .pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) =>
+                  MaintenanceScreen(maintenance: boot.maintenance!),
+            ),
+            (_) => false,
+          );
+        });
         return;
       }
-      // 일반 업데이트는 대화 목록 화면에서 처리
+
+      // 2) 강제 업데이트: 진입 차단 화면 + 다이얼로그
+      if (boot.update.forceUpdate && mounted) {
+        setState(() {
+          _isForceUpdateRequired = true;
+          _isCheckingPermissions = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) UpdateDialog.showIfNeeded(context, boot.update);
+        });
+        return;
+      }
+      // 선택 업데이트는 대화 목록 화면에서 처리
     } catch (e) {
-      debugPrint('❌ 버전 체크 실패: $e');
-      // 버전 체크 실패 시 앱 사용 허용
+      debugPrint('❌ 부트스트랩 처리 실패: $e');
+      // 실패 시 앱 사용 허용
     }
   }
   
@@ -1069,7 +1083,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '앱을 계속 사용하려면\n최신 버전(${_versionCheckResult?.latestVersion ?? ""})으로\n업데이트해 주세요.',
+                  '앱을 계속 사용하려면\n최신 버전(${_updatePolicy?.latestVersion ?? ""})으로\n업데이트해 주세요.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
@@ -1079,8 +1093,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
                   onPressed: () {
-                    if (_versionCheckResult != null) {
-                      UpdateDialog.show(context, _versionCheckResult!);
+                    if (_updatePolicy != null) {
+                      UpdateDialog.showIfNeeded(context, _updatePolicy!);
                     }
                   },
                   icon: const Icon(Icons.download),

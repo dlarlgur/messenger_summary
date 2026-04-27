@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:dksw_app_core/dksw_app_core.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/notification_settings_service.dart';
@@ -16,7 +17,6 @@ import '../services/auth_service.dart';
 import '../services/plan_service.dart';
 import '../services/messenger_registry.dart';
 import '../services/messenger_settings_service.dart';
-import '../services/app_version_service.dart';
 import '../services/ad_service.dart';
 import '../services/rating_prompt_service.dart';
 import '../widgets/update_dialog.dart';
@@ -229,31 +229,23 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     });
   }
 
-  /// 일반 업데이트 체크 (대화 목록 로드 시)
+  /// 선택 업데이트 체크 (대화 목록 로드 시).
+  /// 부트스트랩 결과의 [UpdatePolicy]를 SharedPreferences 스킵 정책과 함께 처리.
   Future<void> _checkOptionalUpdate() async {
     try {
-      final versionService = AppVersionService();
-      final result = await versionService.checkVersion();
-      
-      if (result.updateRequired && result.updateType == UpdateType.optional) {
-        // 오늘 하루 보지 않기 체크
-        final shouldSkip = await versionService.shouldSkipUpdateDialogToday();
-        if (shouldSkip) {
-          debugPrint('📢 선택 업데이트 가능하지만 오늘 하루 보지 않기로 설정됨');
-          return;
-        }
-        
-        // 팝업 표시
-        if (mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              UpdateDialog.show(context, result);
-            }
-          });
-        }
+      final policy = DkswCore.lastBootstrap?.update;
+      if (policy == null) return;
+      if (!policy.optionalUpdate || policy.forceUpdate) return; // 강제는 main에서 처리
+
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            UpdateDialog.showIfNeeded(context, policy);
+          }
+        });
       }
     } catch (e) {
-      debugPrint('일반 업데이트 체크 실패: $e');
+      debugPrint('선택 업데이트 체크 실패: $e');
     }
   }
 
