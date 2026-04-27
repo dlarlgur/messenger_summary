@@ -1,7 +1,7 @@
 name: chat_llm
 description: AI Chat LLM Mobile App
 publish_to: 'none'
-version: 1.0.27+33
+version: 1.0.28+34
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -63,7 +63,10 @@ dependencies:
   dksw_app_core:
     git:
       url: https://github.com/dlarlgur/dksw_app_core.git
-      ref: v0.2.1
+      ref: v0.2.7
+
+  # HTML 렌더링 (공지·이벤트·FAQ 답변)
+  flutter_html: ^3.0.0-beta.2
 
 dev_dependencies:
   flutter_test:
