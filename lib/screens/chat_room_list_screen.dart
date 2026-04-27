@@ -20,6 +20,8 @@ import '../services/messenger_settings_service.dart';
 import '../services/ad_service.dart';
 import '../services/rating_prompt_service.dart';
 import '../widgets/update_dialog.dart';
+import '../widgets/popup_notice_dialog.dart';
+import '../widgets/popup_ad_dialog.dart';
 import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
 import 'chat_room_detail_screen.dart';
@@ -129,7 +131,21 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _loadNativeAds(); // 네이티브 광고 로드 (채팅방과 동시)
     _planService.planTypeNotifier.addListener(_onPlanTypeChanged);
     _restoreLastSelectedTab(); // 마지막 선택된 탭 복원
-    // 알림 다이얼로그 제거
+    _showHomePopups(); // 콘솔 등록 공지/광고 팝업 (있을 때만 1회)
+  }
+
+  /// 진입 후 잠깐 지연 두고 콘솔 팝업 표시.
+  /// 공지(type=popup)가 있으면 그것 우선, 없으면 광고 팝업 시도.
+  /// 둘 다 표시 정책(스킵·1회) 내장이라 호출만 하면 됨.
+  void _showHomePopups() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        await PopupNoticeDialog.showIfEligible(context);
+        if (!mounted) return;
+        await PopupAdDialog.showIfEligible(context);
+      });
+    });
   }
 
   /// 마지막으로 선택된 메신저 탭을 SharedPreferences에서 복원
