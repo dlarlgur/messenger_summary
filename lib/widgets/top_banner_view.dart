@@ -8,9 +8,9 @@ const Color _accent = Color(0xFF2563EB);
 
 /// 톡비서 채팅방 목록 상단 배너 광고 (chat_llm 전용 단일 슬롯).
 ///
-/// 두 가지 표시 모드 자동 분기:
-///   - 헤드라인 비움 → **풀폭 그래픽 배너** (이미지 자연 비율 그대로, 카드 보더 없음)
-///   - 헤드라인 채움 → **카드** (좌측 아이콘 + 텍스트 + CTA, 116dp)
+/// 두 가지 표시 모드 (콘솔 등록 시 [HouseAd.displayStyle] 로 명시 선택):
+///   - 'banner' → **풀폭 그래픽 배너** (이미지 자연 비율 그대로, 카드 보더 없음)
+///   - 'card'   → **카드** (좌측 아이콘 + 텍스트 + CTA, 116dp)
 ///
 /// Impressions 자동 보고(첫 프레임), 클릭 시 ctaUrl 외부 브라우저 + 클릭 보고.
 /// 이미지 로딩 실패 시 [onImageError] 호출 → 호출처(chat_room_list_screen)에서
@@ -62,8 +62,7 @@ class _TopBannerViewState extends State<TopBannerView> {
       color: Colors.transparent,
       child: InkWell(
         onTap: _onTap,
-        child:
-            widget.ad.isStructured ? _buildCard(context) : _buildBanner(),
+        child: widget.ad.isBanner ? _buildBanner() : _buildCard(context),
       ),
     );
   }

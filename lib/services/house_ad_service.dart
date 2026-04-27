@@ -14,13 +14,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 콘솔에서 등록한 직접(house) 광고.
 ///
 /// imageUrl 은 상대 경로일 수 있어 사용 시 [DkswCore.resolveAssetUrl] 로 해석.
-/// home_list 광고는 headline/bodyText/ctaLabel 채워서 등록하면 AdMob 카드와
-/// 동일한 [icon | headline + body | CTA] 구조로 노출. 비어있으면 이미지만
-/// 깔리는 배너로 폴백.
+///
+/// [displayStyle]:
+///   - 'card'   : AdMob 카드 톤 [아이콘 | 헤드라인 + 본문 | CTA]
+///   - 'banner' : 풀폭 그래픽 배너 (이미지만, 카톡 채팅 상단 스타일)
+/// 콘솔 등록 시 명시적으로 선택. 미지정/구버전 응답은 'card' 폴백.
 class HouseAd {
   final int id;
   final int listPosition;
   final bool bypassAdmob;
+  final String displayStyle; // 'card' | 'banner'
   final String imageUrl;
   final String? headline;
   final String? bodyText;
@@ -33,6 +36,7 @@ class HouseAd {
     required this.id,
     required this.listPosition,
     required this.bypassAdmob,
+    required this.displayStyle,
     required this.imageUrl,
     this.headline,
     this.bodyText,
@@ -42,14 +46,18 @@ class HouseAd {
     required this.weight,
   });
 
-  /// 구조화(텍스트) 형태로 등록되었는지 — headline 있으면 AdMob 스타일 카드.
-  bool get isStructured =>
-      headline != null && headline!.trim().isNotEmpty;
+  /// 풀폭 배너 모드 (이미지만 노출).
+  bool get isBanner => displayStyle == 'banner';
+
+  /// 카드 모드 (텍스트 + 아이콘 + CTA).
+  bool get isCard => displayStyle != 'banner';
 
   factory HouseAd.fromJson(Map<String, dynamic> j) => HouseAd(
         id: (j['id'] as num).toInt(),
         listPosition: (j['listPosition'] as num?)?.toInt() ?? 0,
         bypassAdmob: j['bypassAdmob'] == true,
+        displayStyle:
+            j['displayStyle']?.toString() == 'banner' ? 'banner' : 'card',
         imageUrl: j['imageUrl']?.toString() ?? '',
         headline: j['headline']?.toString(),
         bodyText: j['bodyText']?.toString(),
@@ -63,6 +71,7 @@ class HouseAd {
         'id': id,
         'listPosition': listPosition,
         'bypassAdmob': bypassAdmob,
+        'displayStyle': displayStyle,
         'imageUrl': imageUrl,
         'headline': headline,
         'bodyText': bodyText,

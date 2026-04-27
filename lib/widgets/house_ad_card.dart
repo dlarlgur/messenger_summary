@@ -64,9 +64,9 @@ class _HouseAdCardState extends State<HouseAdCard> {
     final borderColor =
         isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0);
 
-    final inner = widget.ad.isStructured
-        ? _StructuredAdContent(ad: widget.ad)
-        : _BannerAdContent(ad: widget.ad);
+    final inner = widget.ad.isBanner
+        ? _BannerAdContent(ad: widget.ad)
+        : _StructuredAdContent(ad: widget.ad);
 
     return Container(
       margin: widget.margin,
