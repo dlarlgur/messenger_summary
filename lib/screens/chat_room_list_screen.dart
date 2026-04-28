@@ -1746,8 +1746,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     final pagePackageName = messengers[pageIndex].packageName;
                     if (_isLoading) {
                       return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+                        child: Image(
+                          image: AssetImage('assets/ai_talk.png'),
+                          width: 120,
                         ),
                       );
                     }

@@ -147,7 +147,12 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               // 권한 목록
               Expanded(
                 child: _isChecking
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(
+                        child: Image(
+                          image: AssetImage('assets/ai_talk.png'),
+                          width: 120,
+                        ),
+                      )
                     : ListView(
                         children: [
                           // 알림 접근 권한 (필수)

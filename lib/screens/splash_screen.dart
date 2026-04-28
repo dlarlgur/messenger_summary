@@ -92,19 +92,22 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // native splash와 같은 톤 배경(검정/흰)으로 깜빡임 방지
+    // Native splash 가 0.3초 동안 위에 깔려 로고 노출 → 그 사이 캐시 광고 push.
+    // 광고 없으면 native splash 내려가면서 다음 화면으로 (이 Scaffold 의 흰/검 배경만 잠깐).
+    // charge_app 의 splash_screen.dart 와 동일 패턴.
     final isDark =
         MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
       body: _ad == null
-          ? const SizedBox.expand()
+          ? const SizedBox.expand()  // native splash 가 위에 있어 로고 보임
           : GestureDetector(
               onTap: _onTap,
               child: SizedBox.expand(
                 child: Image.network(
                   DkswCore.resolveAssetUrl(_ad!.imageUrl),
                   fit: BoxFit.cover,
+                  // 로딩 중엔 native splash 가 아래에 깔려있어 깜빡임 X
                   loadingBuilder: (_, child, progress) =>
                       progress == null ? child : const SizedBox.shrink(),
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
