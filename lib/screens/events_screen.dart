@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -90,10 +91,10 @@ class _EventCard extends StatelessWidget {
             if (imageUrl != null && imageUrl.isNotEmpty)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
-                  DkswCore.resolveAssetUrl(imageUrl),
+                child: CachedNetworkImage(
+                  imageUrl: DkswCore.resolveAssetUrl(imageUrl),
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  errorWidget: (_, __, ___) =>
                       Container(color: muted.withValues(alpha: 0.1)),
                 ),
               ),
@@ -165,10 +166,10 @@ class EventDetailScreen extends StatelessWidget {
           if (imageUrl != null && imageUrl.isNotEmpty)
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(
-                DkswCore.resolveAssetUrl(imageUrl),
+              child: CachedNetworkImage(
+                imageUrl: DkswCore.resolveAssetUrl(imageUrl),
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
           Padding(

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 
@@ -24,10 +25,10 @@ class MaintenanceScreen extends StatelessWidget {
                   child: InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
-                    child: Image.network(
-                      DkswCore.resolveAssetUrl(imageUrl),
+                    child: CachedNetworkImage(
+                      imageUrl: DkswCore.resolveAssetUrl(imageUrl),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
+                      errorWidget: (_, __, ___) =>
                           _defaultBody(context, isDark),
                     ),
                   ),
