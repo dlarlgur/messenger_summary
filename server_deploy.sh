@@ -208,6 +208,11 @@ deploy_kapt() {
         -e "ssh -i $SSH_KEY" \
         /Users/ghim/my_business/kapt/dist/ \
         $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/kapt/dist/
+    # 정적 리소스 (public) 동기화 – charge.html 등 빌드 시 필요한 파일 포함
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        /Users/ghim/my_business/kapt/public/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/kapt/public/
     rsync -avz \
         -e "ssh -i $SSH_KEY" \
         /Users/ghim/my_business/kapt/server.js \
@@ -222,7 +227,7 @@ deploy_kapt() {
     # 4. Docker 재시작
     log_info "Docker 컨테이너 재시작 중..."
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
-        "cd ~/aiapp/docker && docker compose build --no-cache kapt && docker compose up -d kapt"
+        "cd ~/aiapp/docker && docker compose build --no-cache kapt && docker compose up -d --force-recreate kapt"
 
     # 5. 로그 확인
     log_info "시작 대기 중 (8초)..."
@@ -234,12 +239,72 @@ deploy_kapt() {
     log_info "========== KAPT 배포 완료 =========="
 }
 
+deploy_console() {
+    log_info "========== CONSOLE 배포 시작 =========="
+
+    # 1. 업로드 (node_modules / .env / uploads 제외)
+    log_info "서버에 업로드 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/console ~/aiapp/data/console/uploads ~/aiapp/config/env ~/aiapp/data/logs/console"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.env' \
+        --exclude='.git' \
+        --exclude='public/uploads' \
+        /Users/ghim/my_business/dksw_console/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/console/
+
+    # 2. Docker 이미지 빌드 + raw docker run
+    #    (docker-compose up -d 는 depends_on 사고 방지를 위해 사용하지 않음 — feedback_docker_compose_deps 참조)
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/console
+
+        if [ ! -f ~/aiapp/config/env/console.env ]; then
+            echo "[CONSOLE] ERROR: ~/aiapp/config/env/console.env 없음. 최초 배포는 .env 먼저 수동 생성."
+            exit 1
+        fi
+
+        docker build -t aiapp_console:latest .
+        docker stop aiapp_console 2>/dev/null || true
+        docker rm -f aiapp_console 2>/dev/null || true
+        docker run -d \
+            --name aiapp_console \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            --env-file ~/aiapp/config/env/console.env \
+            -v ~/aiapp/data/console/uploads:/app/public/uploads \
+            -v ~/aiapp/data/logs/console:/logs \
+            aiapp_console:latest
+
+        # 3. 마이그레이션 (새 .sql 파일이 있으면 자동 적용, 이미 적용된 건 스킵)
+        sleep 3
+        echo "[CONSOLE] migrate..."
+        docker exec aiapp_console node src/utils/migrate.js
+
+        # 4. nginx reload (공식 dksw4.com/console/ 라우트)
+        docker exec aiapp_nginx nginx -t
+        docker exec aiapp_nginx nginx -s reload
+        echo "[CONSOLE] nginx reloaded"
+ENDSSH
+
+    # 5. 로그 확인
+    sleep 2
+    log_info "로그 확인:"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker logs aiapp_console 2>&1 | tail -10"
+
+    log_info "========== CONSOLE 배포 완료 =========="
+}
+
 deploy_charge() {
     log_info "========== CHARGE 배포 시작 =========="
 
     # 1. 업로드
     log_info "서버에 업로드 중..."
-    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST "mkdir -p ~/aiapp/apps/charge"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST "mkdir -p ~/aiapp/apps/charge ~/aiapp/data/charge"
     rsync -avz --delete \
         -e "ssh -i $SSH_KEY" \
         --exclude='node_modules' \
@@ -247,10 +312,17 @@ deploy_charge() {
         /Users/ghim/my_business/charge_server/ \
         $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/charge/
 
+    # 1-1. 정적 데이터 파일을 볼륨 마운트 경로에 동기화
+    #      (/app/data 는 ~/aiapp/data/charge 로 bind mount 되어 이미지의 정적 파일이 가려짐.
+    #       런타임 캐시인 evPrices.json/highwayStations.json 은 건드리지 않고 repo 추적 CSV 만 덮어쓴다.)
+    log_info "정적 데이터(CSV) 볼륨 마운트 경로로 동기화..."
+    scp -i $SSH_KEY /Users/ghim/my_business/charge_server/data/highway_rest_stops.csv \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/data/charge/highway_rest_stops.csv
+
     # 2. Docker 재시작
     log_info "Docker 컨테이너 재시작 중..."
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
-        "cd ~/aiapp/docker && docker compose build --no-cache charge && docker compose up -d charge"
+        "cd ~/aiapp/docker && docker compose build --no-cache charge && { docker stop aiapp_charge 2>/dev/null; docker rm -f aiapp_charge 2>/dev/null; } ; docker compose up -d charge"
 
     # 3. 로그 확인
     log_info "시작 대기 중 (5초)..."
@@ -262,6 +334,111 @@ deploy_charge() {
     log_info "========== CHARGE 배포 완료 =========="
 }
 
+deploy_homepage() {
+    log_info "========== HOMEPAGE 배포 시작 =========="
+
+    # 1. 업로드 (node_modules / .next / .env 제외)
+    log_info "서버에 업로드 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST "mkdir -p ~/aiapp/apps/dksw_homepage"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.next' \
+        --exclude='.git' \
+        --exclude='.env*' \
+        --exclude='.DS_Store' \
+        /Users/ghim/my_business/dksw_homepage/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/dksw_homepage/
+
+    # 2. Docker 이미지 빌드 + raw docker run
+    #    (docker-compose up -d 는 depends_on 사고 방지를 위해 사용하지 않음 — feedback_docker_compose_deps 참조)
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/dksw_homepage
+
+        docker build -t aiapp/dksw_homepage:latest .
+        docker stop aiapp_dksw_homepage 2>/dev/null || true
+        docker rm -f aiapp_dksw_homepage 2>/dev/null || true
+        docker run -d \
+            --name aiapp_dksw_homepage \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            -e NODE_ENV=production \
+            -e PORT=3100 \
+            aiapp/dksw_homepage:latest
+
+        sleep 2
+        docker ps --filter "name=aiapp_dksw_homepage" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+        # nginx reload (dksw4.com / 라우트가 이 컨테이너로 프록시됨)
+        docker exec aiapp_nginx nginx -t
+        docker exec aiapp_nginx nginx -s reload
+        echo "[HOMEPAGE] nginx reloaded"
+ENDSSH
+
+    # 3. 내부 헬스 체크
+    log_info "내부 헬스 체크..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker exec aiapp_nginx wget -q -O- http://aiapp_dksw_homepage:3100/ | head -c 80 && echo" 2>/dev/null || log_warn "헬스 체크 실패 (컨테이너 기동 직후일 수 있음)"
+
+    # 4. 로그 확인
+    log_info "로그 확인:"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker logs aiapp_dksw_homepage 2>&1 | tail -10"
+
+    log_info "========== HOMEPAGE 배포 완료 =========="
+}
+
+deploy_cats() {
+    log_info "========== CATS 배포 시작 =========="
+    log_warn "주의: CATS 는 트레이딩 봇이라 blue/green 안 함 (중복 가동 위험). 단순 재시작."
+
+    # 1. 코드 업로드 (Python — 빌드 X, rsync 만)
+    log_info "코드 업로드..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/cats ~/aiapp/data/logs/cats ~/aiapp/data/cats/results"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='__pycache__' \
+        --exclude='.venv' \
+        --exclude='.env' \
+        --exclude='.git' \
+        --exclude='logs' \
+        --exclude='data' \
+        --exclude='results' \
+        /Users/ghim/my_business/cats/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/cats/
+
+    # 2. Docker 재빌드 + 재시작 (5개 서비스: ws/coingecko/notices/bot/api)
+    log_info "Docker 빌드 및 재시작..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/docker
+
+        # build (의존 서비스만)
+        docker compose build cats_ws cats_coingecko cats_notices cats_bot cats_api
+
+        # force-recreate (DB 컨테이너 cats_timescale 는 안 건드림)
+        docker compose up -d --no-deps --force-recreate \
+            cats_ws cats_coingecko cats_notices cats_bot cats_api
+
+        sleep 5
+        echo "[CATS] 컨테이너 상태:"
+        for svc in cats_ws cats_coingecko cats_notices cats_bot cats_api; do
+            STATUS=$(docker inspect --format='{{.State.Status}}' aiapp_${svc} 2>/dev/null || echo "absent")
+            echo "  ${svc}: ${STATUS}"
+        done
+ENDSSH
+
+    # 3. 로그 확인
+    log_info "최근 로그 (cats_ws):"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker logs aiapp_cats_ws 2>&1 | tail -10" 2>/dev/null || log_warn "cats_ws 로그 없음"
+
+    log_info "========== CATS 배포 완료 =========="
+}
+
 cleanup_images() {
     log_info "========== 안 쓰는 Docker 이미지 정리 =========="
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
@@ -270,15 +447,18 @@ cleanup_images() {
 }
 
 show_usage() {
-    echo "사용법: $0 [aiif|aipf|kapt|charge|all|cleanup]"
+    echo "사용법: $0 [aiif|aipf|kapt|charge|console|homepage|cats|all|cleanup]"
     echo ""
     echo "옵션:"
-    echo "  aiif    - AIIF 서버만 배포"
-    echo "  aipf    - AIPF 서버만 배포"
-    echo "  kapt    - KAPT 서버만 배포"
-    echo "  charge  - CHARGE 서버만 배포"
-    echo "  all     - 모두 배포"
-    echo "  cleanup - 안 쓰는 Docker 이미지 정리"
+    echo "  aiif     - AIIF 서버만 배포"
+    echo "  aipf     - AIPF 서버만 배포"
+    echo "  kapt     - KAPT 서버만 배포"
+    echo "  charge   - CHARGE 서버만 배포"
+    echo "  console  - DKSW Console 배포"
+    echo "  homepage - DKSW Homepage (dksw4.com) 배포"
+    echo "  cats     - CATS 자동매매 봇 배포 (격자 통과 + 마이그레이션 후 사용)"
+    echo "  all      - 모두 배포"
+    echo "  cleanup  - 안 쓰는 Docker 이미지 정리"
     echo ""
     echo "예시:"
     echo "  $0 kapt"
@@ -299,6 +479,15 @@ case "$1" in
     charge)
         deploy_charge
         ;;
+    console)
+        deploy_console
+        ;;
+    homepage)
+        deploy_homepage
+        ;;
+    cats)
+        deploy_cats
+        ;;
     all)
         deploy_aiif
         echo ""
@@ -307,6 +496,10 @@ case "$1" in
         deploy_kapt
         echo ""
         deploy_charge
+        echo ""
+        deploy_console
+        echo ""
+        deploy_homepage
         ;;
     cleanup)
         cleanup_images
