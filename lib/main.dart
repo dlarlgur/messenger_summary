@@ -5,6 +5,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -74,7 +75,12 @@ String _adFitExitFailureDetail(Map<String, dynamic>? r) {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  // Native splash 유지 → 0.3초 후 자동 내림 (charge_app 동일 패턴).
+  // 캐시된 광고가 같은 시점에 SplashScreen 아래로 push 되어 있어
+  // 내려가는 순간 흰 갭 없이 광고/로고로 자연 전환됨.
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
+  Timer(const Duration(milliseconds: 300), FlutterNativeSplash.remove);
 
   // 즉시 UI 표시 (권한 화면 바로 노출) - 모든 초기화는 백그라운드에서
   runApp(const MyApp());
@@ -92,7 +98,7 @@ void main() async {
   unawaited(() async {
     await DkswCore.init(
       packageName: 'com.dksw.app',
-      serverUrl: 'https://dksw4.com/console',
+      serverUrl: 'https://console.dksw4.com/console',
     );
     unawaited(DkswCore.trackSession()); // fire-and-forget
 
