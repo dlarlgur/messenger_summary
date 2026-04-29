@@ -76,11 +76,11 @@ String _adFitExitFailureDetail(Map<String, dynamic>? r) {
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
-  // Native splash 유지 → 0.6초 후 자동 내림. SplashScreen 의 _ad==null 케이스는
-  // 동일한 흰 배경 + 로고 위젯을 그려 native splash 가 사라져도 시각 점프 없음.
-  // 0.3초보다 약간 길게 잡아 첫 진입 초기화(AdMob/DkswCore.init/캐시) 시간을 확보.
+  // Native splash 유지 — remove 시점은 SplashScreen 이 직접 제어.
+  // (charge_app 동일 패턴: 광고 push / 다음 화면 첫 프레임 그려진 시점에 remove)
+  // fail-safe 로 3초 후 강제 내림 — splash 흐름이 어딘가에서 멈춰도 흰 화면에 갇히지 않음.
   FlutterNativeSplash.preserve(widgetsBinding: binding);
-  Timer(const Duration(milliseconds: 600), FlutterNativeSplash.remove);
+  Timer(const Duration(seconds: 3), FlutterNativeSplash.remove);
 
   // 즉시 UI 표시 (권한 화면 바로 노출) - 모든 초기화는 백그라운드에서
   runApp(const MyApp());

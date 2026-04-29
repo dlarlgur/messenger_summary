@@ -148,9 +148,13 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               Expanded(
                 child: _isChecking
                     ? const Center(
-                        child: Image(
-                          image: AssetImage('assets/ai_talk.png'),
-                          width: 120,
+                        child: SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: Image(
+                            image: AssetImage('assets/ai_talk.png'),
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       )
                     : ListView(

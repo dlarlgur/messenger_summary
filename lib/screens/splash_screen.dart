@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/splash_ad_cache.dart';
@@ -40,15 +41,25 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _start() async {
     try {
       final cached = await SplashAdCache.read();
-      if (!mounted) return;
+      if (!mounted) {
+        FlutterNativeSplash.remove();
+        return;
+      }
 
       if (cached != null) {
         final (ad, bytes) = cached;
         final resolvedUrl = DkswCore.resolveAssetUrl(ad.imageUrl);
         // 이미지 캐시에 미리 꽂아두면 Image.network 첫 프레임이 즉시 그려져 깜빡임 0.
         await SplashAdCache.installInImageCache(resolvedUrl, bytes);
-        if (!mounted) return;
+        if (!mounted) {
+          FlutterNativeSplash.remove();
+          return;
+        }
         setState(() => _ad = ad);
+        // 광고 위젯 첫 프레임 그려진 직후 native splash 내림 → 흰 갭 없이 광고 노출.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          FlutterNativeSplash.remove();
+        });
         _autoClose = Timer(
           Duration(milliseconds: ad.displayMs),
           _navigateNext,
@@ -58,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (e) {
       debugPrint('[SplashScreen] start 실패: $e');
     }
-    // 캐시 없음/실패 → 즉시 다음 화면
+    // 캐시 없음/실패 → 즉시 다음 화면 (native splash 는 _navigateNext 가 내림)
     _navigateNext();
   }
 
@@ -66,6 +77,11 @@ class _SplashScreenState extends State<SplashScreen> {
     if (_navigated || !mounted) return;
     _navigated = true;
     _autoClose?.cancel();
+    // 다음 화면 첫 프레임 그려진 직후 native splash 내림 — 그 사이엔 native splash 가
+    // 위에 깔려있어 흰 갭 / loading 위젯이 사용자에게 안 보임.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: widget.nextBuilder),
     );

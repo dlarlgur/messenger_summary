@@ -1745,10 +1745,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   itemBuilder: (context, pageIndex) {
                     final pagePackageName = messengers[pageIndex].packageName;
                     if (_isLoading) {
-                      return const Center(
-                        child: Image(
-                          image: AssetImage('assets/ai_talk.png'),
-                          width: 120,
+                      // native splash 가 떨어진 직후 마운트되는 첫 화면.
+                      // 시각 점프 없게 native splash 톤(흰 배경 + 가운데 로고)과 동일하게.
+                      return Container(
+                        color: Colors.white,
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: Image(
+                            image: AssetImage('assets/ai_talk.png'),
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       );
                     }
