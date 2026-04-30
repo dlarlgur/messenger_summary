@@ -1197,34 +1197,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (cancelled) return;
 
           final ok = r != null && r['ok'] == true;
-          if (!ok && context.mounted) {
-            final detail = _adFitExitFailureDetail(r);
-            final exitAnyway = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('알림'),
-                content: Text(
-                  '지금은 종료 광고를 불러올 수 없습니다.\n'
-                  '(AdFit 콘솔에서 "앱 종료" 유형 광고 단위·소재를 확인해 주세요.)\n\n'
-                  '$detail\n\n'
-                  '앱을 종료할까요?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('취소'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('종료'),
-                  ),
-                ],
-              ),
+          if (!ok) {
+            // AdFit 종료 광고 실패해도 사용자에겐 안내하지 않고 그냥 종료.
+            // 광고 실패는 사용자 책임이 아니므로 다이얼로그로 노출하면 어색함.
+            debugPrint(
+              '⚠️ AdFit 종료 팝업 실패 — 안내 없이 종료. ${_adFitExitFailureDetail(r)}',
             );
-            if (exitAnyway == true && context.mounted) {
-              SystemNavigator.pop();
-            }
-            return;
           }
           if (context.mounted) SystemNavigator.pop();
           return;
