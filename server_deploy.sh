@@ -392,7 +392,7 @@ ENDSSH
 
 deploy_cats() {
     log_info "========== CATS 배포 시작 =========="
-    log_warn "주의: CATS 는 트레이딩 봇이라 blue/green 안 함 (중복 가동 위험). 단순 재시작."
+    log_warn "주의: CATS 는 systemd 로 관리됨. pkill+nohup 금지 (중복 프로세스 유발)."
 
     # 1. 코드 업로드 (Python — 빌드 X, rsync 만)
     log_info "코드 업로드..."
@@ -410,33 +410,71 @@ deploy_cats() {
         /Users/ghim/my_business/cats/ \
         $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/cats/
 
-    # 2. Docker 재빌드 + 재시작 (5개 서비스: ws/coingecko/notices/bot/api)
-    log_info "Docker 빌드 및 재시작..."
+    # 2. systemctl restart — cats-telegram / cats-grid 는 배포 시 건드리지 않음
+    log_info "systemctl restart (api/ws/synthesizer/upbit-sync/bot/momentum)..."
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
         set -e
-        cd ~/aiapp/docker
-
-        # build (의존 서비스만)
-        docker compose build cats_ws cats_coingecko cats_notices cats_bot cats_api
-
-        # force-recreate (DB 컨테이너 cats_timescale 는 안 건드림)
-        docker compose up -d --no-deps --force-recreate \
-            cats_ws cats_coingecko cats_notices cats_bot cats_api
-
-        sleep 5
-        echo "[CATS] 컨테이너 상태:"
-        for svc in cats_ws cats_coingecko cats_notices cats_bot cats_api; do
-            STATUS=$(docker inspect --format='{{.State.Status}}' aiapp_${svc} 2>/dev/null || echo "absent")
-            echo "  ${svc}: ${STATUS}"
-        done
+        sudo systemctl restart cats-api cats-ws cats-synthesizer cats-upbit-sync cats-bot cats-momentum
+        sleep 4
+        echo "[CATS] 서비스 상태:"
+        systemctl is-active cats-api cats-ws cats-synthesizer cats-upbit-sync cats-bot cats-momentum
 ENDSSH
 
-    # 3. 로그 확인
-    log_info "최근 로그 (cats_ws):"
+    # 3. 최근 로그 확인
+    log_info "최근 봇 로그:"
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
-        "docker logs aiapp_cats_ws 2>&1 | tail -10" 2>/dev/null || log_warn "cats_ws 로그 없음"
+        "tail -10 ~/aiapp/apps/cats/logs/bot_panic.log 2>/dev/null || echo '로그 없음'"
 
     log_info "========== CATS 배포 완료 =========="
+}
+
+deploy_cats_web() {
+    log_info "========== CATS_WEB 배포 시작 =========="
+
+    # 1. 코드 업로드 (Next.js — 빌드는 서버에서)
+    log_info "코드 업로드..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/cats_web"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.next' \
+        --exclude='.git' \
+        --exclude='.env*' \
+        /Users/ghim/my_business/cats_web/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/cats_web/
+
+    # 2. Docker 이미지 빌드 + raw docker run
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/cats_web
+
+        docker build -t aiapp/cats_web:latest .
+        docker stop aiapp_cats_web 2>/dev/null || true
+        docker rm -f aiapp_cats_web 2>/dev/null || true
+        docker run -d \
+            --name aiapp_cats_web \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            -p 3200:3200 \
+            --add-host=host.docker.internal:host-gateway \
+            aiapp/cats_web:latest
+
+        sleep 3
+        docker ps --filter "name=aiapp_cats_web" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+        # nginx reload (cats.dksw4.com upstream)
+        docker exec aiapp_nginx nginx -t
+        docker exec aiapp_nginx nginx -s reload
+        echo "[CATS_WEB] nginx reloaded"
+ENDSSH
+
+    log_info "내부 헬스 체크..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker exec aiapp_nginx wget -qO- --tries=1 http://aiapp_cats_web:3200/ | head -c 80 && echo" 2>/dev/null || log_warn "헬스 체크 실패 (직후일 수 있음)"
+
+    log_info "========== CATS_WEB 배포 완료 =========="
 }
 
 cleanup_images() {
@@ -457,6 +495,7 @@ show_usage() {
     echo "  console  - DKSW Console 배포"
     echo "  homepage - DKSW Homepage (dksw4.com) 배포"
     echo "  cats     - CATS 자동매매 봇 배포 (격자 통과 + 마이그레이션 후 사용)"
+    echo "  cats_web - CATS 웹 대시보드 배포 (Next.js, cats.dksw4.com)"
     echo "  all      - 모두 배포"
     echo "  cleanup  - 안 쓰는 Docker 이미지 정리"
     echo ""
@@ -487,6 +526,9 @@ case "$1" in
         ;;
     cats)
         deploy_cats
+        ;;
+    cats_web|catsweb|web)
+        deploy_cats_web
         ;;
     all)
         deploy_aiif
