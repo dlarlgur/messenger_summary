@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -270,8 +271,17 @@ class PlanService {
       );
 
       if (response.statusCode == 200) {
-        final result = Map<String, dynamic>.from(response.data);
-        // 캐시 업데이트
+        // 응답이 Map 으로 자동 파싱되지 않은 경우(Content-Type 미일치 등) jsonDecode 시도.
+        final raw = response.data;
+        final Map<String, dynamic> result;
+        if (raw is Map) {
+          result = Map<String, dynamic>.from(raw);
+        } else if (raw is String && raw.trim().startsWith('{')) {
+          result = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+        } else {
+          debugPrint('⚠️ 구독 정보 응답 형태 비정상 (${raw.runtimeType}): $raw');
+          return null;
+        }
         _cachedPlanType = result['planType'] as String? ?? 'free';
         _lastFetchTime = DateTime.now();
         planTypeNotifier.value = _cachedPlanType!;
