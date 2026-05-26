@@ -665,32 +665,25 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
   }
 
-  /// 알림 권한 허용 후 자동으로 알림 켜기
+  /// 알림 권한 허용 후 처리.
+  /// 주의: 채팅방별 음소거 설정(_mutedRooms)은 OS 권한과 무관하게 사용자가
+  /// 직접 끈 설정이므로 이 시점에 일괄 해제하면 안 됨. 권한 확인 + 안내만.
   Future<void> _checkAndEnableNotificationsAfterPermission() async {
     try {
       final methodChannel = const MethodChannel('com.dksw.app/notification');
-      final hasPermission = await methodChannel.invokeMethod<bool>('areNotificationsEnabled') ?? false;
-      
-      if (hasPermission) {
-        // 권한이 허용되었으면 모든 채팅방 알림 켜기
-        final notificationService = Provider.of<NotificationSettingsService>(context, listen: false);
-        for (final room in _chatRooms) {
-          if (notificationService.isMuted(room.roomName, room.packageName, room.chatId)) {
-            await notificationService.enableNotification(room.roomName, room.packageName, room.chatId);
-          }
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('알림 권한이 허용되어 모든 채팅방 알림이 켜졌습니다.'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
+      final hasPermission = await methodChannel
+              .invokeMethod<bool>('areNotificationsEnabled') ??
+          false;
+      if (hasPermission && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('알림 권한이 허용되었습니다.'),
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
     } catch (e) {
-      debugPrint('알림 자동 켜기 실패: $e');
+      debugPrint('알림 권한 확인 실패: $e');
     }
   }
 
