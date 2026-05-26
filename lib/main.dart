@@ -82,7 +82,11 @@ void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: binding);
   Timer(const Duration(seconds: 3), FlutterNativeSplash.remove);
 
-  // 즉시 UI 표시 (권한 화면 바로 노출) - 모든 초기화는 백그라운드에서
+  // 첫 build 부터 음소거 표시가 정확히 반영되도록 알림 설정만 await 로 선행.
+  // SharedPreferences read 한 번 → 수십 ms 라 splash 시간에 충분히 흡수됨.
+  await NotificationSettingsService().initialize();
+
+  // 즉시 UI 표시 (권한 화면 바로 노출) - 나머지 초기화는 백그라운드에서
   runApp(const MyApp());
 
   // 모두 백그라운드에서 초기화 (UI를 블록하지 않음)
@@ -136,7 +140,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => NotificationSettingsService()),
+        // singleton 인스턴스를 .value 로 주입 — main()에서 이미 init 완료된 상태.
+        ChangeNotifierProvider<NotificationSettingsService>.value(
+          value: NotificationSettingsService(),
+        ),
         ChangeNotifierProvider(create: (_) => AutoSummarySettingsService()),
       ],
       child: MaterialApp(

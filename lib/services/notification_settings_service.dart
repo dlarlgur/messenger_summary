@@ -3,13 +3,22 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationSettingsService extends ChangeNotifier {
+  // Singleton — main()에서 한 번 init, 모든 곳에서 같은 인스턴스 사용.
+  // ChangeNotifierProvider.value 로 주입해 첫 build 시점부터 _mutedRooms 보장.
+  NotificationSettingsService._internal();
+  static final NotificationSettingsService _instance =
+      NotificationSettingsService._internal();
+  factory NotificationSettingsService() => _instance;
+
   static const String _mutedRoomsKey = 'muted_rooms';
   static const String _mutedRoomsMigratedKey = 'muted_rooms_migrated_v2';
 
   // 알림 끄기된 키 목록 (packageName|roomName 형식)
   Set<String> _mutedRooms = {};
+  bool _initialized = false;
 
   Set<String> get mutedRooms => _mutedRooms;
+  bool get isInitialized => _initialized;
 
   /// 음소거 키 생성 (packageName|roomName 또는 packageName|chatId)
   /// 라인인 경우 chatId를 우선 사용 (roomName이 랜덤으로 변할 수 있음)
@@ -23,7 +32,9 @@ class NotificationSettingsService extends ChangeNotifier {
   }
 
   // 초기화 - 저장된 설정 로드 + 마이그레이션
+  // 이미 초기화됐으면 즉시 반환 (singleton + idempotent).
   Future<void> initialize() async {
+    if (_initialized) return;
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -51,9 +62,11 @@ class NotificationSettingsService extends ChangeNotifier {
         debugPrint('음소거 목록 마이그레이션 완료: ${_mutedRooms.length}개');
       }
 
+      _initialized = true;
       notifyListeners();
     } catch (e) {
       debugPrint('알림 설정 로드 오류: $e');
+      _initialized = true; // 실패해도 다시 무한 재시도하지 않음
     }
   }
 

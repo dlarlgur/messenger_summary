@@ -1458,22 +1458,34 @@ class NotificationListener : NotificationListenerService() {
             val prefs = applicationContext.getSharedPreferences(FLUTTER_PREFS_NAME, Context.MODE_PRIVATE)
             val mutedRoomsJson = prefs.getString(MUTED_ROOMS_KEY, null)
 
-            if (mutedRoomsJson != null && mutedRoomsJson.isNotEmpty()) {
-                val mutedRooms = JSONArray(mutedRoomsJson)
+            if (mutedRoomsJson.isNullOrEmpty()) return false
+            val mutedRooms = JSONArray(mutedRoomsJson)
 
-                // 라인인 경우 chatId를 우선 사용
-                if (packageName == "jp.naver.line.android" && !chatId.isNullOrEmpty()) {
-                    val chatIdKey = "$packageName|$chatId"
-                    for (i in 0 until mutedRooms.length()) {
-                        if (mutedRooms.getString(i) == chatIdKey) return true
-                    }
-                }
-
-                val compoundKey = "$packageName|$roomName"
+            // 라인인 경우 chatId를 우선 사용
+            if (packageName == "jp.naver.line.android" && !chatId.isNullOrEmpty()) {
+                val chatIdKey = "$packageName|$chatId"
                 for (i in 0 until mutedRooms.length()) {
-                    val mutedRoom = mutedRooms.getString(i)
-                    if (mutedRoom == compoundKey || mutedRoom == roomName) return true
+                    if (mutedRooms.getString(i) == chatIdKey) return true
                 }
+            }
+
+            val compoundKey = "$packageName|$roomName"
+            for (i in 0 until mutedRooms.length()) {
+                val mutedRoom = mutedRooms.getString(i)
+                if (mutedRoom == compoundKey || mutedRoom == roomName) return true
+            }
+
+            // 매칭 실패 — 사용자가 끈 채팅방인데도 알림이 안 지워지는 경우 추적용 진단.
+            // mutedRooms 에 카톡 키가 1개 이상 있는데 입력 roomName 과 매칭 안 되면
+            // roomName 글자가 어딘가에서 변형된 거. logcat 으로 정확한 값 비교 가능.
+            val mutedKakao = mutableListOf<String>()
+            for (i in 0 until mutedRooms.length()) {
+                val k = mutedRooms.getString(i)
+                if (k.startsWith("$packageName|")) mutedKakao.add(k)
+            }
+            if (mutedKakao.isNotEmpty()) {
+                Log.w(TAG, "🔇 isRoomMuted=false 매칭 실패: input='$compoundKey' chatId='$chatId' " +
+                        "vs mutedKakao=$mutedKakao")
             }
         } catch (e: Exception) {
             Log.e(TAG, "음소거 확인 실패: ${e.message}")
