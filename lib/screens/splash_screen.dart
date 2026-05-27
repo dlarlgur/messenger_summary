@@ -131,12 +131,11 @@ class _SplashScreenState extends State<SplashScreen> {
           : GestureDetector(
               onTap: _onTap,
               child: SizedBox.expand(
-                // contain — 광고 이미지가 폰 화면 비율과 달라도 비율 유지하며
-                // 잘림 없이 표시. 빈 영역은 Scaffold 배경(흰/검) 색.
-                // 광고주가 1080×1920(9:16) 권장 사이즈로 올리면 풀스크린.
+                // cover — 폰 화면을 가득 채워 임팩트 강. 광고주는 폰 세로
+                // 비율(1080×1920, 9:16)으로 올려야 잘림 없이 풀스크린.
                 child: Image.network(
                   DkswCore.resolveAssetUrl(_ad!.imageUrl),
-                  fit: BoxFit.contain,
+                  fit: BoxFit.cover,
                   loadingBuilder: (_, child, progress) =>
                       progress == null ? child : const SizedBox.shrink(),
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
