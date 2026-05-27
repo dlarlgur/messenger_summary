@@ -1,7 +1,7 @@
 name: chat_llm
 description: AI Chat LLM Mobile App
 publish_to: 'none'
-version: 1.0.28+34
+version: 1.0.30+36
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -99,18 +99,21 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
+  # iOS·legacy Android: 풀 로고 카드 그대로
   image_path: "assets/ai_talk.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#4A90E2"
-  adaptive_icon_foreground: "assets/ai_talk.png"
+  # Android adaptive: 가운데 660 안에 로고(외곽 투명) + accent 배경.
+  # 시스템이 외곽을 자르거나 모양 바꿔도 안전 영역 안에 있어 안 잘림.
+  adaptive_icon_background: "#3B6DFF"
+  adaptive_icon_foreground: "assets/ai_talk_foreground.png"
   remove_alpha_ios: true
 
 flutter_native_splash:
-  # 로고 자체가 파란 그라디언트 카드형이라 외곽은 흰/검 단색이 더 깔끔.
-  # MainScreen/PermissionScreen 흰 배경과도 연결돼 native splash 사라지는 순간
-  # 색 점프가 안 일어남. charge_app과 동일 톤.
+  # MainScreen/PermissionScreen 흰 배경과 자연 연결. native splash 사라지는
+  # 순간 색 점프 0. dark 모드는 #0C0E13.
   color: "#FFFFFF"
   color_dark: "#0C0E13"
-  image: "assets/ai_talk.png"
+  # 가운데 480 안에 로고 + 외곽 투명 — 화면 가운데 적당한 크기로 노출.
+  image: "assets/ai_talk_splash.png"
   android: true
   ios: true
