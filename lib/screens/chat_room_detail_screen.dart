@@ -1988,17 +1988,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         }
       },
       child: Scaffold(
-        backgroundColor: widget.room.packageName == 'com.dksw.app.faq'
-            ? const Color(0xFFF8FAFF) // FAQ: 더 깨끗한 아주 연한 파란 흰색
-            : const Color(0xFFE8F4FC), // 일반: 밝은 하늘색 배경
+        // 페이지 배경은 global theme(AppTokens.bg) 사용 — 메인 톤과 통일.
+        // FAQ 도 같은 톤 사용 (더 깨끗한 흰이 필요하면 별도 분기 가능).
         appBar: AppBar(
-          backgroundColor: const Color(AppColors.primaryValue), // 앱 테마 파란색
-          elevation: 0,
+          // AppBar 색·타이틀 폰트는 global appBarTheme 사용 (bg + text)
           titleSpacing: 0,
           leading: IconButton(
             icon: Icon(
               _isDeleteMode ? Icons.close : Icons.arrow_back,
-              color: Colors.white,
+              color: AppTokens.text2,
             ),
             onPressed: () {
               // 삭제 모드가 활성화되어 있으면 삭제 모드 종료
@@ -2017,9 +2015,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               ? const Text(
                   '메시지 삭제',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    color: AppTokens.text,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
                 )
               : _isSearchMode || _isSummaryMode
@@ -2030,9 +2028,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         Text(
                           widget.room.roomName,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            color: AppTokens.text,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.34,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2040,7 +2039,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           Text(
                             '${widget.room.participantCount}명',
                             style: const TextStyle(
-                              color: Colors.white70,
+                              color: AppTokens.text3,
                               fontSize: 12,
                             ),
                           ),
@@ -2051,7 +2050,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             if (!_isSearchMode && !_isSummaryMode && !_isDeleteMode) ...[
               // 검색 버튼 (돋보기)
               IconButton(
-                icon: const Icon(Icons.search, color: Colors.white, size: 22),
+                icon: const Icon(Icons.search, color: AppTokens.text2, size: 22),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 32),
                 onPressed: () {
@@ -2068,7 +2067,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               if (widget.room.summaryEnabled)
                 IconButton(
                   icon: const Icon(Icons.auto_awesome,
-                      color: Colors.white, size: 22),
+                      color: AppTokens.accent, size: 22),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 28, minHeight: 32),
@@ -2099,7 +2098,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             // 검색/요약 모드가 아닐 때만 메뉴 버튼 표시
             if (!_isSearchMode && !_isSummaryMode)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
+                icon: const Icon(Icons.more_vert, color: AppTokens.text2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -2616,19 +2615,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     // 요약 모드일 때는 간단한 타이틀 표시 (조절 기능은 하단 바에)
     if (_isSummaryMode) {
       return Row(
-        children: [
+        children: const [
           Icon(
             Icons.auto_awesome,
-            color: Colors.white.withOpacity(0.9),
+            color: AppTokens.accent,
             size: 20,
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             'AI 요약 모드',
             style: TextStyle(
-              color: Colors.white,
+              color: AppTokens.text,
               fontSize: 17,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -2645,7 +2644,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           child: Container(
             height: screenWidth * 0.09,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTokens.accentSoft,
               borderRadius: BorderRadius.circular(screenWidth * 0.045),
             ),
             child: Row(
