@@ -15,6 +15,7 @@ import 'faq_screen.dart';
 import 'policies_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
+import '../theme/app_tokens.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/plan_service.dart';
 
@@ -33,7 +34,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   final PlanService _planService = PlanService();
 
   // 파란색 테마 컬러
-  static const Color _primaryBlue = Color(0xFF2196F3);
+  // 모든 accent 사용처가 토큰 한 곳을 보도록 alias.
+  static const Color _primaryBlue = AppTokens.accent;
 
   @override
   void initState() {
@@ -117,19 +119,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      // backgroundColor 는 global theme(AppTokens.bg) 사용
       appBar: AppBar(
-        title: const Text(
-          '앱 설정',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: _primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        // 색·타이틀 폰트는 global appBarTheme 사용
+        title: const Text('앱 설정'),
       ),
       body: ListView(
         children: [
@@ -191,7 +184,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             icon: Icons.campaign,
             title: '공지사항',
             subtitle: _supportCountSubtitle('notices', '새 공지를 확인해보세요'),
-            iconColor: const Color(0xFF2563EB),
+            iconColor: AppTokens.accent,
             isFirst: true,
             onTap: () {
               Navigator.of(context).push(
@@ -354,16 +347,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
+            // C1 톤 — 채도 낮춘 accent 그라데이션
             colors: [
-              Color(0xFF2196F3),  // 파란색
-              Color(0xFF1976D2),  // 진한 파랑
-              Color(0xFF0D47A1),  // 더 진한 파랑
+              AppTokens.accent,
+              AppTokens.accent2,
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2196F3).withValues(alpha: 0.4),
-              blurRadius: 12,
+              color: AppTokens.accent.withValues(alpha: 0.25),
+              blurRadius: 16,
               offset: const Offset(0, 6),
             ),
           ],
@@ -570,7 +563,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A237E),
+              color: AppTokens.text,
             ),
           ),
         ],
@@ -611,7 +604,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         border: !isLast
             ? const Border(
                 bottom: BorderSide(
-                  color: Color(0xFFE8EDF3),
+                  color: AppTokens.hair,
                   width: 1,
                 ),
               )
@@ -651,7 +644,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
+                          color: AppTokens.text,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -733,7 +726,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             color: Colors.white,
             border: Border(
               bottom: BorderSide(
-                color: Color(0xFFE8EDF3),
+                color: AppTokens.hair,
                 width: 1,
               ),
             ),
@@ -775,7 +768,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: canToggle ? const Color(0xFF1A1A1A) : Colors.grey[400],
+                              color: canToggle ? AppTokens.text : Colors.grey[400],
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -870,7 +863,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: canToggle ? const Color(0xFF1A1A1A) : Colors.grey[400],
+                              color: canToggle ? AppTokens.text : Colors.grey[400],
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -924,7 +917,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             ),
             border: Border(
               bottom: BorderSide(
-                color: Color(0xFFE8EDF3),
+                color: AppTokens.hair,
                 width: 1,
               ),
             ),
@@ -957,7 +950,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2196F3),
+                              backgroundColor: AppTokens.accent,
                               foregroundColor: Colors.white,
                             ),
                             child: const Text('설정으로 이동'),
@@ -1004,7 +997,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1A1A1A),
+                              color: AppTokens.text,
                             ),
                           ),
                           const SizedBox(height: 2),
