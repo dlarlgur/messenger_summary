@@ -13,6 +13,7 @@ import '../config/constants.dart';
 import '../models/chat_room.dart';
 import 'summary_history_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
+import '../theme/app_tokens.dart';
 
 /// 요약 관리 화면
 class UsageManagementScreen extends StatefulWidget {
@@ -226,7 +227,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('요약 관리'),
-        backgroundColor: const Color(0xFF2196F3),
+        backgroundColor: AppTokens.accent,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -244,7 +245,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+          valueColor: AlwaysStoppedAnimation<Color>(AppTokens.accent),
         ),
       );
     }
@@ -347,8 +348,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         gradient: LinearGradient(
           colors: isFree
               ? [
-                  const Color(0xFF2196F3).withOpacity(0.1),
-                  const Color(0xFF2196F3).withOpacity(0.05),
+                  AppTokens.accent.withOpacity(0.1),
+                  AppTokens.accent.withOpacity(0.05),
                 ]
               : [
                   const Color(0xFF4CAF50).withOpacity(0.1),
@@ -360,7 +361,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isFree
-              ? const Color(0xFF2196F3).withOpacity(0.3)
+              ? AppTokens.accent.withOpacity(0.3)
               : const Color(0xFF4CAF50).withOpacity(0.3),
           width: 1.5,
         ),
@@ -374,8 +375,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               gradient: LinearGradient(
                 colors: isFree
                     ? [
-                        const Color(0xFF2196F3),
-                        const Color(0xFF1976D2),
+                        AppTokens.accent,
+                        AppTokens.accent,
                       ]
                     : [
                         const Color(0xFF4CAF50),
@@ -385,7 +386,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: (isFree ? const Color(0xFF2196F3) : const Color(0xFF4CAF50))
+                  color: (isFree ? AppTokens.accent : const Color(0xFF4CAF50))
                       .withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
@@ -528,8 +529,8 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                   Colors.orange[600]!,
                                 ]
                               : [
-                                  const Color(0xFF2196F3),
-                                  const Color(0xFF1976D2),
+                                  AppTokens.accent,
+                                  AppTokens.accent,
                                 ],
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -539,7 +540,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                 ? Colors.red
                                 : isNearLimit
                                     ? Colors.orange
-                                    : const Color(0xFF2196F3))
+                                    : AppTokens.accent)
                             .withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
@@ -609,7 +610,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                           ? Colors.red
                           : remaining <= 3
                               ? Colors.orange
-                              : const Color(0xFF2196F3),
+                              : AppTokens.accent,
                     ),
                   ),
                 ],
@@ -740,7 +741,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTokens.accent),
                 ),
               ),
           ],
@@ -910,7 +911,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     final messengerInfo = packageName != null
         ? MessengerRegistry.getByPackageName(packageName)
         : null;
-    final selectedColor = messengerInfo?.brandColor ?? const Color(0xFF2196F3);
+    final selectedColor = messengerInfo?.brandColor ?? AppTokens.accent;
     final messengerIcon = messengerInfo?.icon ?? Icons.chat;
     final isKakaoTalk = packageName == 'com.kakao.talk';
 
@@ -1007,7 +1008,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         },
         leading: CircleAvatar(
           radius: 20,
-          backgroundColor: const Color(0xFF64B5F6),
+          backgroundColor: AppTokens.accent2,
           backgroundImage: bgImage,
           child: bgImage == null
               ? Text(
@@ -1045,7 +1046,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             Switch(
               value: room.summaryEnabled,
               onChanged: (value) => _toggleSummaryEnabled(room),
-              activeColor: const Color(0xFF2196F3),
+              activeColor: AppTokens.accent,
             ),
             Icon(
               isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -1059,7 +1060,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         ListTile(
           leading: const Icon(
             Icons.history,
-            color: Color(0xFF2196F3),
+            color: AppTokens.accent,
           ),
           title: const Text('요약 히스토리'),
           subtitle: Text(
@@ -1172,7 +1173,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 trailing: Switch(
                   value: room.autoSummaryEnabled,
                   onChanged: (value) => _toggleAutoSummary(room, value),
-                  activeColor: const Color(0xFF2196F3),
+                  activeColor: AppTokens.accent,
                 ),
               ),
                 if (room.autoSummaryEnabled)
@@ -1207,7 +1208,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF2196F3),
+                                  color: AppTokens.accent,
                                 ),
                               ),
                             ],
@@ -1284,7 +1285,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                             min: 5,
                             max: 200,
                             divisions: 39,
-                            activeColor: const Color(0xFF2196F3),
+                            activeColor: AppTokens.accent,
                             inactiveColor: Colors.grey[300],
                             onChanged: (value) {
                               final intValue = value.toInt();
@@ -1324,7 +1325,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                             child: ElevatedButton(
                               onPressed: () => _saveAutoSummaryMessageCount(room),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2196F3),
+                                backgroundColor: AppTokens.accent,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
@@ -1429,7 +1430,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         SnackBar(
           content: Text('${room.roomName}의 자동 요약 개수가 ${clampedCount}개로 저장되었습니다.'),
           duration: const Duration(seconds: 1),
-          backgroundColor: const Color(0xFF2196F3),
+          backgroundColor: AppTokens.accent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),

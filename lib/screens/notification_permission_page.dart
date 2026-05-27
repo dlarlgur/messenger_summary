@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../theme/app_tokens.dart';
 
 /// 시스템 알림(POST_NOTIFICATIONS) 권한 안내 페이지.
 ///
@@ -77,7 +78,7 @@ class _NotificationPermissionPageState extends State<NotificationPermissionPage>
 
   @override
   Widget build(BuildContext context) {
-    const blue = Color(0xFF2196F3);
+    const blue = AppTokens.accent;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -93,7 +94,7 @@ class _NotificationPermissionPageState extends State<NotificationPermissionPage>
                 child: const LinearProgressIndicator(
                   value: 1.0,
                   minHeight: 4,
-                  backgroundColor: Color(0xFFE3F2FD),
+                  backgroundColor: AppTokens.accentSoft,
                   valueColor: AlwaysStoppedAnimation(blue),
                 ),
               )
@@ -154,7 +155,7 @@ class _NotificationPermissionPageState extends State<NotificationPermissionPage>
                     const SizedBox(height: 36),
                     _buildBenefitCard(
                       icon: Icons.summarize_outlined,
-                      iconColor: const Color(0xFF2196F3),
+                      iconColor: AppTokens.accent,
                       title: '자동 요약 알림',
                       description: '대화방 요약이 끝나면 즉시 알려드려요',
                     ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/in_app_purchase_service.dart';
 import '../services/plan_service.dart';
+import '../theme/app_tokens.dart';
 
 /// 플랜 구독 화면
 class SubscriptionScreen extends StatefulWidget {
@@ -320,12 +321,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         // 현재 플랜 표시
         if (_currentPlanType != null) ...[
           Card(
-            color: Colors.blue.shade50,
+            color: AppTokens.accentSoft,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.blue),
+                  const Icon(Icons.info_outline, color: AppTokens.accent),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -419,7 +420,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2196F3),
+                        color: AppTokens.accent,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -430,7 +431,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ElevatedButton(
                       onPressed: () => _purchasePlan(product),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2196F3),
+                        backgroundColor: AppTokens.accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,

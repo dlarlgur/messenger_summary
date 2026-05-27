@@ -6,6 +6,7 @@ import '../models/chat_message.dart';
 import '../services/local_db_service.dart';
 import '../config/constants.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_tokens.dart';
 
 /// 요약 히스토리 화면
 class SummaryHistoryScreen extends StatefulWidget {
@@ -1116,7 +1117,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                         listIndent: 32,
                         listBullet: const TextStyle(
                           fontSize: 16,
-                          color: Color(0xFF2196F3),
+                          color: AppTokens.accent,
                           fontWeight: FontWeight.w600,
                         ),
                         listBulletPadding: const EdgeInsets.only(right: 8),
@@ -1139,7 +1140,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                         blockquoteDecoration: BoxDecoration(
                           border: Border(
                             left: BorderSide(
-                              color: const Color(0xFF2196F3),
+                              color: AppTokens.accent,
                               width: 4,
                             ),
                           ),
@@ -1158,13 +1159,13 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              const Color(0xFF2196F3).withOpacity(0.08),
-                              const Color(0xFF2196F3).withOpacity(0.03),
+                              AppTokens.accent.withOpacity(0.08),
+                              AppTokens.accent.withOpacity(0.03),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFF2196F3).withOpacity(0.2),
+                            color: AppTokens.accent.withOpacity(0.2),
                             width: 1.5,
                           ),
                         ),
@@ -1174,7 +1175,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2196F3).withOpacity(0.15),
+                                color: AppTokens.accent.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
@@ -1183,7 +1184,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   const Icon(
                                     Icons.info_outline_rounded,
                                     size: 18,
-                                    color: Color(0xFF2196F3),
+                                    color: AppTokens.accent,
                                   ),
                                   const SizedBox(width: 8),
                                   const Text(
@@ -1191,7 +1192,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF2196F3),
+                                      color: AppTokens.accent,
                                     ),
                                   ),
                                 ],
@@ -1243,7 +1244,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                 listIndent: 16,
                                 listBullet: const TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF2196F3),
+                                  color: AppTokens.accent,
                                 ),
                                 listBulletPadding: const EdgeInsets.only(right: 8),
                                 code: TextStyle(
@@ -1265,7 +1266,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                 blockquoteDecoration: BoxDecoration(
                                   border: Border(
                                     left: BorderSide(
-                                      color: const Color(0xFF2196F3),
+                                      color: AppTokens.accent,
                                       width: 4,
                                     ),
                                   ),
@@ -1484,7 +1485,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                       listIndent: 24,
                       listBullet: const TextStyle(
                         fontSize: 16,
-                        color: Color(0xFF2196F3),
+                        color: AppTokens.accent,
                       ),
                       listBulletPadding: const EdgeInsets.only(right: 8),
                       code: TextStyle(
@@ -1506,7 +1507,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                       blockquoteDecoration: BoxDecoration(
                         border: Border(
                           left: BorderSide(
-                            color: const Color(0xFF2196F3),
+                            color: AppTokens.accent,
                             width: 4,
                           ),
                         ),
@@ -1523,14 +1524,14 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                         onPressed: () => _showSummaryDetail(summary),
                         icon: const Icon(
                           Icons.expand_more,
-                          color: Color(0xFF2196F3),
+                          color: AppTokens.accent,
                         ),
                         label: const Text(
                           '상세보기',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF2196F3),
+                            color: AppTokens.accent,
                           ),
                         ),
                       ),

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../config/constants.dart';
+import '../theme/app_tokens.dart';
 
 /// AI 톡비서 사용 가이드 화면
 class HowToUseScreen extends StatelessWidget {
   const HowToUseScreen({super.key});
 
-  static const Color _primaryBlue = Color(0xFF2196F3);
+  static const Color _primaryBlue = AppTokens.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +296,7 @@ class HowToUseScreen extends StatelessWidget {
         // 무료 플랜 카드
         _buildPlanCard(
           planName: '무료 플랜',
-          planColor: Colors.blue,
+          planColor: AppTokens.accent,
           items: [
             _buildPlanItem('요약 횟수', '하루 최대 ${UsageConstants.freePlanMaxLimitFallback}회 (${UsageConstants.freePlanMaxAdRewardsFallback}회는 광고 시청 시, 매일 자정 초기화)'),
             _buildPlanItem('1회 요약 한도', '5~50개'),

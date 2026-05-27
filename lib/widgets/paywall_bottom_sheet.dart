@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/subscription_screen.dart';
+import '../theme/app_tokens.dart';
 
 /// 구독 유도 페이월 바텀시트
 ///
@@ -78,7 +79,7 @@ class PaywallBottomSheet extends StatelessWidget {
             height: 64,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF4CAF50), Color(0xFF2196F3)],
+                colors: [Color(0xFF4CAF50), AppTokens.accent],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -155,8 +156,8 @@ class PaywallBottomSheet extends StatelessWidget {
                     onWatchAd!();
                   },
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2196F3),
-                    side: const BorderSide(color: Color(0xFF2196F3), width: 1.5),
+                    foregroundColor: AppTokens.accent,
+                    side: const BorderSide(color: AppTokens.accent, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -329,13 +330,13 @@ class PaywallBottomSheet extends StatelessWidget {
           decoration: BoxDecoration(
             color: highlight
                 ? const Color(0xFF4CAF50).withOpacity(0.15)
-                : const Color(0xFF2196F3).withOpacity(0.08),
+                : AppTokens.accent.withOpacity(0.08),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: highlight ? const Color(0xFF4CAF50) : const Color(0xFF2196F3),
+            color: highlight ? const Color(0xFF4CAF50) : AppTokens.accent,
           ),
         ),
         const SizedBox(width: 12),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart';
+import '../theme/app_tokens.dart';
 
 class AppGuideScreen extends StatefulWidget {
   const AppGuideScreen({super.key});
@@ -105,7 +106,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentPage == index
-                              ? const Color(0xFF2196F3)
+                              ? AppTokens.accent
                               : Colors.grey[300],
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -120,7 +121,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                     child: ElevatedButton(
                       onPressed: _nextPage,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2196F3),
+                        backgroundColor: AppTokens.accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -410,20 +411,20 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE3F2FD),
+                        color: AppTokens.accentSoft,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, size: 14, color: Color(0xFF1976D2)),
+                          Icon(Icons.auto_awesome, size: 14, color: AppTokens.accent),
                           SizedBox(width: 4),
                           Text(
                             'AI 요약',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1976D2),
+                              color: AppTokens.accent,
                             ),
                           ),
                         ],
@@ -490,7 +491,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: const Color(0xFF1976D2)),
+            Icon(icon, size: 18, color: AppTokens.accent),
             const SizedBox(height: 4),
             Text(
               value,
@@ -596,7 +597,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF2196F3),
+                        color: AppTokens.accent,
                       ),
                     ),
                   ),

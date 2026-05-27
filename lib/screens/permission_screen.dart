@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../main.dart';
+import '../theme/app_tokens.dart';
 
 /// 권한 설정 화면
 class PermissionScreen extends StatefulWidget {
@@ -215,7 +216,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2196F3),
+                    backgroundColor: AppTokens.accent,
                     disabledBackgroundColor: Colors.grey[300],
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -253,10 +254,10 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isGranted ? const Color(0xFFE3F2FD) : Colors.grey[50],
+          color: isGranted ? AppTokens.accentSoft : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isGranted ? const Color(0xFF64B5F6) : Colors.grey[200]!,
+            color: isGranted ? AppTokens.accent2 : Colors.grey[200]!,
             width: 1,
           ),
         ),

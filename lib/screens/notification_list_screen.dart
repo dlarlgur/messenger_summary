@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/local_db_service.dart';
 import 'summary_history_screen.dart';
 import 'chat_room_detail_screen.dart';
+import '../theme/app_tokens.dart';
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
@@ -158,7 +159,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2196F3),
+        backgroundColor: AppTokens.accent,
         elevation: 0,
         title: const Text(
           '자동 요약 알림',
@@ -289,10 +290,10 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               // 읽음/안읽음에 따라 배경색 구분
-                              color: isRead ? Colors.grey[50] : const Color(0xFF2196F3).withOpacity(0.08),
+                              color: isRead ? Colors.grey[50] : AppTokens.accent.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isRead ? Colors.grey[200]! : const Color(0xFF2196F3).withOpacity(0.3),
+                                color: isRead ? Colors.grey[200]! : AppTokens.accent.withOpacity(0.3),
                                 width: isRead ? 1 : 1.5,
                               ),
                             ),
@@ -312,7 +313,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                             height: 8,
                                             margin: const EdgeInsets.only(right: 8),
                                             decoration: const BoxDecoration(
-                                              color: Color(0xFF2196F3),
+                                              color: AppTokens.accent,
                                               shape: BoxShape.circle,
                                             ),
                                           ),

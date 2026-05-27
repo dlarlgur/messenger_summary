@@ -1164,7 +1164,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   icon: const Icon(Icons.download),
                   label: const Text('업데이트하기'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: AppTokens.accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,

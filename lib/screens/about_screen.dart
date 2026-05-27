@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../theme/app_tokens.dart';
 
 /// AI 톡비서 소개 화면
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const Color _primaryBlue = Color(0xFF2196F3);
+  static const Color _primaryBlue = AppTokens.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +54,7 @@ class AboutScreen extends StatelessWidget {
           colors: [
             _primaryBlue,
             _primaryBlue.withValues(alpha: 0.8),
-            const Color(0xFF1976D2),
+            AppTokens.accent,
           ],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -199,7 +200,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildFeatureItem(
               icon: Icons.collections_bookmark,
-              iconColor: Colors.blue,
+              iconColor: AppTokens.accent,
               title: '메신저 대화 자동 수집',
               description: '카카오톡, 라인 등 다양한 메신저의 대화를 자동으로 수집하여 저장합니다.',
             ),

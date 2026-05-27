@@ -3,6 +3,7 @@ import '../services/messenger_registry.dart';
 import '../services/messenger_settings_service.dart';
 import '../services/plan_service.dart';
 import 'subscription_screen.dart';
+import '../theme/app_tokens.dart';
 
 /// 메신저 관리 설정 화면
 class MessengerSettingsScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
   bool _isBasicPlan = false;
   bool _isLoading = true;
 
-  static const Color _primaryBlue = Color(0xFF2196F3);
+  static const Color _primaryBlue = AppTokens.accent;
 
   @override
   void initState() {

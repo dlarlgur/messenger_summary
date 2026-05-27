@@ -23,7 +23,9 @@ class HouseAdCard extends StatefulWidget {
   const HouseAdCard({
     super.key,
     required this.ad,
-    this.margin = const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+    // 채팅방 타일과 동일 간격으로 정렬 — vertical 0 으로 위/아래 갭 제거.
+    // 좌우 14 인셋은 'AD' 라벨 카드 시각을 유지.
+    this.margin = const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
   });
 
   @override

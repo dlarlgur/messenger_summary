@@ -984,8 +984,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                         CircleAvatar(
                           radius: 22,
                           backgroundColor: bgImage == null
-                              ? (isKakaoTalk ? const Color(0xFFFFE812) : const Color(0xFF64B5F6))
-                              : const Color(0xFF64B5F6),
+                              ? (isKakaoTalk ? const Color(0xFFFFE812) : AppTokens.accent2)
+                              : AppTokens.accent2,
                           backgroundImage: bgImage,
                           child: bgImage == null
                               ? (isKakaoTalk
@@ -1032,7 +1032,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 title: room.summaryEnabled ? 'AI 요약 기능 끄기' : 'AI 요약 기능 켜기',
                 subtitle: room.summaryEnabled ? '요약 기능이 활성화되어 있습니다' : '요약 기능이 비활성화되어 있습니다',
                 isEnabled: room.summaryEnabled,
-                iconColor: room.summaryEnabled ? const Color(0xFF2196F3) : null,
+                iconColor: room.summaryEnabled ? AppTokens.accent : null,
                 onTap: () async {
                   Navigator.pop(context);
                   await _toggleSummaryEnabled(room);
@@ -1049,7 +1049,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                           : '자동 요약이 꺼져 있습니다')
                       : 'BASIC 플랜에서 사용 가능',
                   isEnabled: isBasicPlan && room.autoSummaryEnabled,
-                  iconColor: isBasicPlan && room.autoSummaryEnabled ? const Color(0xFF2196F3) : null,
+                  iconColor: isBasicPlan && room.autoSummaryEnabled ? AppTokens.accent : null,
                   onTap: () {
                     Navigator.pop(context);
                     if (!isBasicPlan) {
@@ -1069,7 +1069,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   icon: Icons.done_all,
                   title: '읽음 처리',
                   subtitle: '${room.unreadCount}개의 안 읽은 메시지를 읽음으로 표시',
-                  iconColor: const Color(0xFF2196F3),
+                  iconColor: AppTokens.accent,
                   onTap: () async {
                     Navigator.pop(context);
                     await _markSingleRoomAsRead(room);
@@ -1080,7 +1080,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 icon: room.pinned ? Icons.push_pin : Icons.push_pin_outlined,
                 title: room.pinned ? '채팅방 고정 해제' : '채팅방 상단 고정',
                 isEnabled: room.pinned,
-                iconColor: room.pinned ? const Color(0xFF2196F3) : null,
+                iconColor: room.pinned ? AppTokens.accent : null,
                 onTap: () async {
                   Navigator.pop(context);
                   await _togglePinned(room);
@@ -1093,7 +1093,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     : Icons.notifications_active_outlined,
                 title: isMuted ? '채팅방 알림 켜기' : '채팅방 알림 끄기',
                 isEnabled: !isMuted,
-                iconColor: !isMuted ? const Color(0xFF2196F3) : null,
+                iconColor: !isMuted ? AppTokens.accent : null,
                 onTap: () async {
                   Navigator.pop(context);
                   // 라인인 경우 chatId를 우선 사용 (roomName이 랜덤으로 변할 수 있음)
@@ -1361,14 +1361,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   }) {
     // 아이콘 색상 결정
     final finalIconColor = iconColor ??
-        (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? const Color(0xFF555555)));
+        (isEnabled == true ? AppTokens.accent : (textColor ?? const Color(0xFF555555)));
     // 아이콘 배경색 결정
     final iconBgColor = textColor == Colors.red
         ? Colors.red.withOpacity(0.1)
         : textColor == Colors.orange
             ? Colors.orange.withOpacity(0.1)
             : (isEnabled == true
-                ? const Color(0xFF2196F3).withOpacity(0.1)
+                ? AppTokens.accent.withOpacity(0.1)
                 : Colors.grey.withOpacity(0.08));
 
     return InkWell(
@@ -1417,14 +1417,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isEnabled == true
-                      ? const Color(0xFF2196F3).withOpacity(0.1)
+                      ? AppTokens.accent.withOpacity(0.1)
                       : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   isEnabled == true ? 'ON' : 'OFF',
                   style: TextStyle(
-                    color: isEnabled == true ? const Color(0xFF2196F3) : Colors.grey[600],
+                    color: isEnabled == true ? AppTokens.accent : Colors.grey[600],
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1447,7 +1447,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     bool showSlash = false,
   }) {
     // 아이콘 색상 결정: iconColor가 지정되면 사용, 없으면 isEnabled에 따라 파란색 또는 기본색
-    final finalIconColor = iconColor ?? (isEnabled == true ? const Color(0xFF2196F3) : (textColor ?? Colors.black87));
+    final finalIconColor = iconColor ?? (isEnabled == true ? AppTokens.accent : (textColor ?? Colors.black87));
     
     return ListTile(
       leading: showSlash
@@ -1792,7 +1792,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     }
                     return RefreshIndicator(
                       onRefresh: _loadChatRooms,
-                      color: const Color(0xFF2196F3),
+                      color: AppTokens.accent,
                       child: _buildChatListWithAd(
                         notificationService,
                         packageName: pagePackageName,
@@ -2077,7 +2077,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       },
       onLongPress: () => _showRoomContextMenu(context, room),
       child: Container(
-        color: AppTokens.surface,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: const BoxDecoration(
           color: AppTokens.surface,
@@ -2639,7 +2638,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 await _setPlan(deviceIdHash, 'basic');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: AppTokens.accent,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Basic'),

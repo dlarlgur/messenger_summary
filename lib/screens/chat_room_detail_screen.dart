@@ -23,6 +23,7 @@ import '../services/ad_service.dart';
 import 'summary_history_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
 import '../services/adfit_native.dart';
+import '../theme/app_tokens.dart';
 
 /// 텍스트 세그먼트 정보
 class _TextSegment {
@@ -1192,7 +1193,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 return ListTile(
                   leading: CircleAvatar(
                     radius: 20,
-                    backgroundColor: const Color(0xFF64B5F6),
+                    backgroundColor: AppTokens.accent2,
                     backgroundImage:
                         profileImage != null ? FileImage(profileImage) : null,
                     child: profileImage == null
@@ -2123,12 +2124,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2196F3).withOpacity(0.1),
+                              color: AppTokens.accent.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
                               Icons.auto_awesome,
-                              color: Color(0xFF2196F3),
+                              color: AppTokens.accent,
                               size: 18,
                             ),
                           ),
@@ -2151,7 +2152,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         final messengerInfo = MessengerRegistry.getByPackageName(widget.room.packageName);
                         final messengerName = messengerInfo?.alias ?? '메신저';
                         final messengerIcon = messengerInfo?.icon ?? Icons.chat_bubble_rounded;
-                        final brandColor = messengerInfo?.brandColor ?? const Color(0xFF2196F3);
+                        final brandColor = messengerInfo?.brandColor ?? AppTokens.accent;
                         final isKakaoTalk = widget.room.packageName == 'com.kakao.talk';
                         
                         return Row(
@@ -3653,7 +3654,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 height: 40,
                 decoration: BoxDecoration(
                   color: _chatInputController.text.trim().isNotEmpty
-                      ? const Color(0xFF2196F3)
+                      ? AppTokens.accent
                       : Colors.grey[300],
                   shape: BoxShape.circle,
                 ),
@@ -4523,7 +4524,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       color: const Color(0xFFF3F8FF),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color(0xFF2196F3).withOpacity(0.3),
+                        color: AppTokens.accent.withOpacity(0.3),
                       ),
                     ),
                     child: Column(
@@ -4531,7 +4532,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         Row(
                           children: [
                             const Icon(Icons.play_circle_outline,
-                                color: Color(0xFF2196F3), size: 22),
+                                color: AppTokens.accent, size: 22),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -4574,7 +4575,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2196F3),
+                        backgroundColor: AppTokens.accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -4866,7 +4867,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           Icons.chat_bubble_rounded,
                           '${summaryData['messageCount'] ?? 0}개',
                           '메시지',
-                          Colors.blue,
+                          AppTokens.accent,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -5040,7 +5041,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     listIndent: 32,
                     listBullet: const TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF2196F3),
+                      color: AppTokens.accent,
                     ),
                     listBulletPadding: const EdgeInsets.only(right: 8),
                     code: TextStyle(
@@ -5062,7 +5063,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     blockquoteDecoration: BoxDecoration(
                       border: Border(
                         left: BorderSide(
-                          color: const Color(0xFF2196F3),
+                          color: AppTokens.accent,
                           width: 4,
                         ),
                       ),
@@ -5107,7 +5108,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         vertical: 16, horizontal: 24),
                     decoration: BoxDecoration(
                       color: _showDetail
-                          ? const Color(0xFF2196F3).withOpacity(0.05)
+                          ? AppTokens.accent.withOpacity(0.05)
                           : Colors.transparent,
                       borderRadius: const BorderRadius.vertical(
                         bottom: Radius.circular(20),
@@ -5122,8 +5123,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: _showDetail
-                                ? const Color(0xFF2196F3)
-                                : const Color(0xFF2196F3),
+                                ? AppTokens.accent
+                                : AppTokens.accent,
                             letterSpacing: -0.3,
                           ),
                         ),
@@ -5133,7 +5134,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           duration: const Duration(milliseconds: 200),
                           child: Icon(
                             Icons.keyboard_arrow_down,
-                            color: const Color(0xFF2196F3),
+                            color: AppTokens.accent,
                             size: 24,
                           ),
                         ),
@@ -5149,7 +5150,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     curve: Curves.easeInOut,
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2196F3).withOpacity(0.02),
+                      color: AppTokens.accent.withOpacity(0.02),
                       borderRadius: const BorderRadius.vertical(
                         bottom: Radius.circular(20),
                       ),
@@ -5164,7 +5165,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             Icon(
                               Icons.info_outline,
                               size: 18,
-                              color: const Color(0xFF2196F3).withOpacity(0.7),
+                              color: AppTokens.accent.withOpacity(0.7),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -5172,7 +5173,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2196F3).withOpacity(0.8),
+                                color: AppTokens.accent.withOpacity(0.8),
                                 letterSpacing: -0.2,
                               ),
                             ),
@@ -5226,7 +5227,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             listIndent: 16,
                             listBullet: const TextStyle(
                               fontSize: 15,
-                              color: Color(0xFF2196F3),
+                              color: AppTokens.accent,
                             ),
                             listBulletPadding: const EdgeInsets.only(right: 8),
                             code: TextStyle(
@@ -5248,7 +5249,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             blockquoteDecoration: BoxDecoration(
                               border: Border(
                                 left: BorderSide(
-                                  color: const Color(0xFF2196F3),
+                                  color: AppTokens.accent,
                                   width: 4,
                                 ),
                               ),
@@ -5519,7 +5520,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
           text: segmentText,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF2196F3),
+            color: AppTokens.accent,
             height: 1.4,
             letterSpacing: -0.2,
             decoration: TextDecoration.underline,
@@ -6055,11 +6056,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected
-                        ? const Color(0xFF2196F3)
+                        ? AppTokens.accent
                         : Colors.transparent,
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF2196F3)
+                          ? AppTokens.accent
                           : Colors.grey[400]!,
                       width: 2,
                     ),
@@ -6194,7 +6195,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? const Color(0xFF2196F3)
+                                          ? AppTokens.accent
                                               .withOpacity(0.1)
                                           : bubbleColor,
                                       borderRadius: BorderRadius.only(
@@ -6206,7 +6207,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                       ),
                                       border: isSelected
                                           ? Border.all(
-                                              color: const Color(0xFF2196F3),
+                                              color: AppTokens.accent,
                                               width: 2)
                                           : isCurrentSearchResult
                                               ? Border.all(
@@ -6274,7 +6275,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? const Color(0xFF2196F3)
+                                          ? AppTokens.accent
                                               .withOpacity(0.1)
                                           : bubbleColor,
                                       borderRadius: BorderRadius.only(
@@ -6285,7 +6286,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                       ),
                                       border: isSelected
                                           ? Border.all(
-                                              color: const Color(0xFF2196F3),
+                                              color: AppTokens.accent,
                                               width: 2)
                                           : isCurrentSearchResult
                                               ? Border.all(
@@ -6515,7 +6516,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                       : url,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.blue[700],
+                                    color: AppTokens.accent,
                                     decoration: TextDecoration.underline,
                                   ),
                                   maxLines: 1,
@@ -7362,7 +7363,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                 listIndent: 32,
                 listBullet: const TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF2196F3),
+                  color: AppTokens.accent,
                 ),
                 listBulletPadding: const EdgeInsets.only(right: 8),
                 code: TextStyle(
@@ -7384,7 +7385,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                 blockquoteDecoration: BoxDecoration(
                   border: Border(
                     left: BorderSide(
-                      color: const Color(0xFF2196F3),
+                      color: AppTokens.accent,
                       width: 4,
                     ),
                   ),
@@ -7404,7 +7405,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                   boxShadow: _showDetail
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF2196F3).withOpacity(0.15),
+                            color: AppTokens.accent.withOpacity(0.15),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -7427,8 +7428,8 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         gradient: _showDetail
                             ? LinearGradient(
                                 colors: [
-                                  const Color(0xFF2196F3).withOpacity(0.12),
-                                  const Color(0xFF2196F3).withOpacity(0.06),
+                                  AppTokens.accent.withOpacity(0.12),
+                                  AppTokens.accent.withOpacity(0.06),
                                 ],
                               )
                             : null,
@@ -7436,7 +7437,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: _showDetail
-                              ? const Color(0xFF2196F3).withOpacity(0.4)
+                              ? AppTokens.accent.withOpacity(0.4)
                               : Colors.grey[300]!,
                           width: 1.5,
                         ),
@@ -7447,7 +7448,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                           Icon(
                             _showDetail ? Icons.expand_less : Icons.expand_more,
                             color: _showDetail
-                                ? const Color(0xFF2196F3)
+                                ? AppTokens.accent
                                 : const Color(0xFF666666),
                             size: 22,
                           ),
@@ -7458,7 +7459,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: _showDetail
-                                  ? const Color(0xFF2196F3)
+                                  ? AppTokens.accent
                                   : const Color(0xFF666666),
                               letterSpacing: -0.3,
                               decoration: TextDecoration.none,
@@ -7484,18 +7485,18 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              const Color(0xFF2196F3).withOpacity(0.08),
-                              const Color(0xFF2196F3).withOpacity(0.03),
+                              AppTokens.accent.withOpacity(0.08),
+                              AppTokens.accent.withOpacity(0.03),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFF2196F3).withOpacity(0.2),
+                            color: AppTokens.accent.withOpacity(0.2),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2196F3).withOpacity(0.1),
+                              color: AppTokens.accent.withOpacity(0.1),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -7510,7 +7511,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color:
-                                    const Color(0xFF2196F3).withOpacity(0.15),
+                                    AppTokens.accent.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
@@ -7519,7 +7520,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   Icon(
                                     Icons.info_outline_rounded,
                                     size: 18,
-                                    color: const Color(0xFF2196F3),
+                                    color: AppTokens.accent,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -7527,7 +7528,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF2196F3),
+                                      color: AppTokens.accent,
                                       letterSpacing: -0.2,
                                       decoration: TextDecoration.none,
                                     ),
@@ -7589,7 +7590,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                 listIndent: 32,
                                 listBullet: const TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF2196F3),
+                                  color: AppTokens.accent,
                                 ),
                                 listBulletPadding:
                                     const EdgeInsets.only(right: 8),
@@ -7612,7 +7613,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                 blockquoteDecoration: BoxDecoration(
                                   border: Border(
                                     left: BorderSide(
-                                      color: const Color(0xFF2196F3),
+                                      color: AppTokens.accent,
                                       width: 4,
                                     ),
                                   ),

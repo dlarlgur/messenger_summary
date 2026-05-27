@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/profile_image_service.dart';
+import '../theme/app_tokens.dart';
 
 /// 차단된 채팅방 관리 화면
 class BlockedRoomsScreen extends StatefulWidget {
@@ -89,7 +90,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
               Navigator.pop(context);
               await _unblockRoom(room);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.blue),
+            style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
             child: const Text('해제'),
           ),
         ],
@@ -140,7 +141,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('차단방 관리'),
-        backgroundColor: const Color(0xFF2196F3),
+        backgroundColor: AppTokens.accent,
         foregroundColor: Colors.white,
       ),
       body: _buildBody(),
@@ -240,7 +241,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
         child: const Text(
           '차단 해제',
           style: TextStyle(
-            color: Colors.blue,
+            color: AppTokens.accent,
             fontWeight: FontWeight.w500,
           ),
         ),
