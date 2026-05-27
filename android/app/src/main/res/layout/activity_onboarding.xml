@@ -251,7 +251,8 @@
 
     </LinearLayout>
 
-    <!-- 로딩 오버레이 (버튼 클릭 후 표시) -->
+    <!-- 로딩 오버레이 (버튼 클릭 후 + 약관 이미 동의 상태 첫 진입 시 표시).
+         spinner 대신 톡비서 로고로 부드러운 전환. -->
     <FrameLayout
         android:id="@+id/loadingOverlay"
         android:layout_width="match_parent"
@@ -261,11 +262,12 @@
         android:clickable="true"
         android:focusable="true">
 
-        <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+        <ImageView
+            android:layout_width="140dp"
+            android:layout_height="140dp"
             android:layout_gravity="center"
-            android:indeterminateTint="#3B6DFF" />
+            android:src="@drawable/ic_app_logo"
+            android:contentDescription="@null" />
 
     </FrameLayout>
 

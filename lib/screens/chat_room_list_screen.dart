@@ -1750,6 +1750,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                           child: Image(
                             image: AssetImage('assets/ai_talk.png'),
                             fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
                           ),
                         ),
                       );

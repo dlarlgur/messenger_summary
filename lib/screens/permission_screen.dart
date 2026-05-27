@@ -155,6 +155,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                           child: Image(
                             image: AssetImage('assets/ai_talk.png'),
                             fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
                           ),
                         ),
                       )

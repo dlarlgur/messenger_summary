@@ -124,6 +124,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 child: Image(
                   image: AssetImage('assets/ai_talk.png'),
                   fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
                 ),
               ),
             )
