@@ -20,6 +20,7 @@ import 'services/in_app_purchase_service.dart';
 import 'services/messenger_settings_service.dart';
 import 'services/ad_service.dart';
 import 'screens/chat_room_list_screen.dart';
+import 'theme/app_tokens.dart';
 import 'screens/maintenance_screen.dart';
 import 'screens/permission_screen.dart';
 import 'screens/splash_screen.dart';
@@ -131,6 +132,46 @@ void main() async {
   }());
 }
 
+/// design_handoff_soft_modern_blue (C1) 팔레트 기반 전역 테마.
+/// 모든 색·라디우스·폰트 토큰은 [AppTokens] / [AppText] 참조.
+ThemeData _buildAppTheme() {
+  final base = ColorScheme.fromSeed(
+    seedColor: AppTokens.accent,
+    primary: AppTokens.accent,
+    surface: AppTokens.surface,
+    onSurface: AppTokens.text,
+    surfaceContainerHighest: AppTokens.bg,
+  );
+  return ThemeData(
+    useMaterial3: true,
+    fontFamily: AppTokens.fontFamily,
+    scaffoldBackgroundColor: AppTokens.bg,
+    colorScheme: base,
+    // AppBar: 페이지 배경과 동일, 보더/그림자 없음, 텍스트 text 컬러
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppTokens.bg,
+      foregroundColor: AppTokens.text,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: AppText.appBarTitle,
+      iconTheme: IconThemeData(color: AppTokens.text2, size: 24),
+    ),
+    dividerTheme: const DividerThemeData(
+      color: AppTokens.hair,
+      thickness: 0.5,
+      space: 0,
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
+  );
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -150,23 +191,7 @@ class MyApp extends StatelessWidget {
         navigatorKey: navigatorKey,
         title: 'AI 톡비서',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF2196F3),
-            primary: const Color(0xFF2196F3),
-          ),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF2196F3),
-            foregroundColor: Colors.white,
-          ),
-          pageTransitionsTheme: const PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-            },
-          ),
-        ),
+        theme: _buildAppTheme(),
         home: SplashScreen(nextBuilder: (_) => const MainScreen()),
       ),
     );
