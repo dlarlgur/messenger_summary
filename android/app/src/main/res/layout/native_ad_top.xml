@@ -92,7 +92,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:textSize="12sp"
-                android:textColor="#2196F3"
+                android:textColor="#3B6DFF"
                 android:background="@drawable/bg_ad_cta"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"

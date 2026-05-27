@@ -10,19 +10,9 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      // 색·AppBar 는 global theme 사용 (AppTokens.bg + appBarTheme)
       appBar: AppBar(
-        title: const Text(
-          'AI 톡비서 란',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: _primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('AI 톡비서 란'),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -48,21 +38,18 @@ class AboutScreen extends StatelessWidget {
   Widget _buildIntroCard() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        // 톤다운 — accent → accent2 부드러운 그라데이션
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _primaryBlue,
-            _primaryBlue.withValues(alpha: 0.8),
-            AppTokens.accent,
-          ],
+          colors: [AppTokens.accent, AppTokens.accent2],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _primaryBlue.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: _primaryBlue.withValues(alpha: 0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),

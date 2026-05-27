@@ -11,19 +11,9 @@ class HowToUseScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      // 색·AppBar 는 global theme 사용
       appBar: AppBar(
-        title: const Text(
-          'AI 톡비서 사용 가이드',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: _primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('AI 톡비서 사용 가이드'),
       ),
       body: SingleChildScrollView(
         child: Padding(

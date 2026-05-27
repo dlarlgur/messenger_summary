@@ -83,7 +83,7 @@
                             android:layout_height="wrap_content"
                             android:text="펼치기 ▼"
                             android:textSize="12sp"
-                            android:textColor="#2196F3"
+                            android:textColor="#3B6DFF"
                             android:layout_marginStart="8dp" />
 
                     </LinearLayout>
@@ -127,7 +127,7 @@
                             android:layout_height="wrap_content"
                             android:text="전문 보기"
                             android:textSize="12sp"
-                            android:textColor="#2196F3"
+                            android:textColor="#3B6DFF"
                             android:background="@android:color/transparent"
                             android:layout_marginTop="8dp"
                             android:padding="8dp" />
@@ -179,7 +179,7 @@
                             android:layout_height="wrap_content"
                             android:text="펼치기 ▼"
                             android:textSize="12sp"
-                            android:textColor="#2196F3"
+                            android:textColor="#3B6DFF"
                             android:layout_marginStart="8dp" />
 
                     </LinearLayout>
@@ -223,7 +223,7 @@
                             android:layout_height="wrap_content"
                             android:text="전문 보기"
                             android:textSize="12sp"
-                            android:textColor="#2196F3"
+                            android:textColor="#3B6DFF"
                             android:background="@android:color/transparent"
                             android:layout_marginTop="8dp"
                             android:padding="8dp" />
@@ -245,7 +245,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
-            android:background="#2196F3"
+            android:background="#3B6DFF"
             android:enabled="false"
             android:stateListAnimator="@null" />
 
@@ -265,7 +265,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_gravity="center"
-            android:indeterminateTint="#2196F3" />
+            android:indeterminateTint="#3B6DFF" />
 
     </FrameLayout>
 
