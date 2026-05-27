@@ -26,7 +26,9 @@ import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
 import '../widgets/house_ad_card.dart';
 import '../widgets/top_banner_view.dart';
+import '../widgets/app_logo.dart';
 import '../services/house_ad_service.dart';
+import '../theme/app_tokens.dart';
 import 'chat_room_detail_screen.dart';
 import 'blocked_rooms_screen.dart';
 import 'notification_list_screen.dart';
@@ -1621,30 +1623,29 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final notificationService = Provider.of<NotificationSettingsService>(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor 는 global theme(AppTokens.bg) 사용
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2196F3),
-        elevation: 0,
-        title: const Text(
-          'AI 톡비서',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+        // 색·타이틀 폰트는 global appBarTheme 적용. AppLogo 만 leading 으로 주입.
+        titleSpacing: 8,
+        title: Row(
+          children: const [
+            AppLogo(),
+            SizedBox(width: 10),
+            Text('AI 톡비서'),
+          ],
         ),
         actions: [
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white),
+                icon: const Icon(Icons.notifications_none_rounded),
+                color: AppTokens.text2,
                 onPressed: () async {
                   await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const NotificationListScreen(),
                     ),
                   );
-                  // 알림 화면에서 돌아오면 배지 개수 업데이트
                   _loadNotificationCount();
                 },
               ),
@@ -1655,7 +1656,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: Colors.red,
+                      color: AppTokens.accent,
                       shape: BoxShape.circle,
                     ),
                     constraints: const BoxConstraints(
@@ -1676,7 +1677,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             ],
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.settings, color: Colors.white),
+            icon: const Icon(Icons.settings_rounded, color: AppTokens.text2),
             offset: const Offset(0, 50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -2076,15 +2077,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       },
       onLongPress: () => _showRoomContextMenu(context, room),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
+        color: AppTokens.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: const BoxDecoration(
+          color: AppTokens.surface,
           border: Border(
-            bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+            bottom: BorderSide(color: AppTokens.hair, width: 0.5),
           ),
         ),
         child: Row(
           children: [
-            // 프로필 이미지
+            // 프로필 이미지 (아바타 — 사각 라디우스 12px 로 모서리 살짝)
             Stack(
               children: [
                 Builder(
@@ -2104,25 +2107,25 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                     final isKakaoTalk = room.packageName == 'com.kakao.talk';
 
                     return CircleAvatar(
-                      radius: 24,
+                      radius: 22,
                       backgroundColor: bgImage == null
                           ? (isKakaoTalk
                               ? const Color(0xFFFFE812)
-                              : const Color(0xFF64B5F6))
-                          : const Color(0xFF64B5F6),
+                              : AppTokens.accent2)
+                          : AppTokens.accent2,
                       backgroundImage: bgImage,
                       child: bgImage == null
                           ? (isKakaoTalk
                               ? const Icon(Icons.chat_bubble_rounded,
-                                  color: Color(0xFF3C1E1E), size: 24)
+                                  color: Color(0xFF3C1E1E), size: 22)
                               : Text(
                                   room.roomName.isNotEmpty
                                       ? room.roomName[0]
                                       : '?',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ))
                           : null,
@@ -2137,7 +2140,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.grey[700],
+                        color: AppTokens.text,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -2145,7 +2148,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -2164,18 +2167,20 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                         child: Text(
                           room.roomName,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: AppTokens.text,
                             height: 1.2,
+                            letterSpacing: -0.07,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (room.pinned)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4),
                           child: Icon(Icons.push_pin,
-                              size: 14, color: const Color(0xFF2196F3)),
+                              size: 14, color: AppTokens.accent),
                         ),
                       if (room.summaryEnabled)
                         Padding(
@@ -2183,8 +2188,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              Icon(Icons.auto_awesome,
-                                  size: 16, color: Colors.amber[600]),
+                              const Icon(Icons.auto_awesome,
+                                  size: 16, color: AppTokens.accent),
                               if (room.autoSummaryEnabled)
                                 Positioned(
                                   right: -4,
@@ -2193,7 +2198,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                                     width: 10,
                                     height: 10,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF2196F3),
+                                      color: AppTokens.accent,
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                           color: Colors.white, width: 1.5),
@@ -2213,18 +2218,18 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                           ),
                         ),
                       if (isMuted)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4),
                           child: Icon(Icons.notifications_off,
-                              size: 16, color: Colors.grey[400]),
+                              size: 14, color: AppTokens.text3),
                         ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _formatLastMessage(room),
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    maxLines: 2,
+                    style: AppText.messagePreview,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     softWrap: true,
                   ),
@@ -2232,31 +2237,37 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               ),
             ),
             const SizedBox(width: 8),
-            // 시간 및 읽지 않은 메시지 수
+            // 시간 및 안 읽음 카운트
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   _formatTime(room.lastMessageTime),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: AppText.messageTime,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 if (room.unreadCount > 0)
                   Container(
+                    constraints:
+                        const BoxConstraints(minWidth: 22, minHeight: 22),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
+                        horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2196F3),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppTokens.accent,
+                      borderRadius: BorderRadius.circular(
+                          AppTokens.radiusPill),
                     ),
-                    child: Text(
-                      room.unreadCount > 999
-                          ? '999+'
-                          : '${room.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                    child: Center(
+                      child: Text(
+                        room.unreadCount > 999
+                            ? '999+'
+                            : '${room.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
@@ -2299,10 +2310,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration: const BoxDecoration(
+        color: AppTokens.bg,
         border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+          bottom: BorderSide(color: AppTokens.hair, width: 0.5),
         ),
       ),
       child: Align(
@@ -2420,75 +2431,80 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final messengerInfo = packageName != null
         ? MessengerRegistry.getByPackageName(packageName)
         : null;
-    final selectedColor = messengerInfo?.brandColor ?? const Color(0xFF2196F3);
     final messengerIcon = messengerInfo?.icon ?? Icons.chat;
-    final isKakaoTalk = packageName == 'com.kakao.talk';
-    
-    // 해당 패키지의 안 읽은 메시지 개수 계산
+
+    // 해당 패키지의 안 읽은 메시지 개수
     final unreadCount = packageName != null
         ? _chatRooms
             .where((room) => room.packageName == packageName)
             .fold<int>(0, (sum, room) => sum + room.unreadCount)
         : 0;
 
+    // 핸드오프 §7.1.3: 활성 = accentSoft 배경 + accent 보더/텍스트,
+    // 비활성 = 투명 배경 + border 보더 + text2 텍스트.
+    final bg = isSelected ? AppTokens.accentSoft : Colors.transparent;
+    final fg = isSelected ? AppTokens.accent : AppTokens.text2;
+    final borderColor = isDropTarget
+        ? AppTokens.accent
+        : (isSelected ? AppTokens.accent : AppTokens.border);
+
     return GestureDetector(
       key: itemKey,
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? selectedColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: isDropTarget
-              ? Border.all(color: selectedColor, width: 2)
-              : null,
+          color: bg,
+          borderRadius: BorderRadius.circular(AppTokens.radiusChip),
+          border: Border.all(
+            color: borderColor,
+            width: isDropTarget ? 2 : 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Icon(
-                  messengerIcon,
-                  size: 16,
-                  color: isKakaoTalk ? Colors.black87 : Colors.white,
-                ),
-              ),
+            Icon(messengerIcon, size: 14, color: fg),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected
-                    ? (isKakaoTalk ? Colors.black87 : Colors.white)
-                    : Colors.black87,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: fg,
+                fontSize: 13,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
-            // 안 읽은 메시지 배지 (N 표시)
-            if (unreadCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'N',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+            // 안 읽음 카운트: 활성 = 흰 배경 + accent, 비활성 = bg + text3
+            if (unreadCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                constraints: const BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : AppTokens.bg,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                ),
+                child: Center(
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: TextStyle(
+                      color: isSelected
+                          ? AppTokens.accent
+                          : AppTokens.text3,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
               ),
+            ],
           ],
         ),
       ),
