@@ -58,7 +58,8 @@ class NotificationListener : NotificationListenerService() {
             "com.instagram.android" to "Instagram",
             "com.Slack" to "Slack",
             "com.microsoft.teams" to "Teams",
-            "com.facebook.orca" to "Messenger"
+            "com.facebook.orca" to "Messenger",
+            "com.nhn.android.band" to "네이버 밴드"
         )
 
         // SharedPreferences 키 (활성 메신저 목록)
@@ -1240,8 +1241,42 @@ class NotificationListener : NotificationListenerService() {
             "com.Slack" -> parseSlack(title, text, subText)
             "com.microsoft.teams" -> parseTeams(title, text, subText, conversationTitle, isGroupConversation)
             "com.facebook.orca" -> parseFacebookMessenger(title, text, subText, conversationTitle, isGroupConversation)
+            "com.nhn.android.band" -> parseBand(title, text, subText, conversationTitle, isGroupConversation)
             else -> null
         }
+    }
+
+    /**
+     * 네이버 밴드 알림 파싱.
+     *
+     * 밴드는 거의 모든 채팅이 그룹 형태(밴드 채팅방 = 멤버 단톡)이고
+     * MessagingStyle 로 발송되어 conversationTitle 에 밴드명/채팅방명이 들어옴.
+     * DM(1:1) 도 있지만 동일한 구조라 isGroupConversation/conversationTitle 유무로 분기.
+     *
+     * 알림 구조 가설:
+     *  - 그룹: title="발신자", text="메시지", conversationTitle="밴드명/채팅방명"
+     *  - 그룹(prefix 형식): title="밴드명: 발신자", text="메시지"
+     *  - 개인(DM):   title="발신자", text="메시지" (conversationTitle 비어있을 수 있음)
+     */
+    private fun parseBand(
+        title: String, text: String, subText: String,
+        conversationTitle: String, isGroupConversation: Boolean
+    ): ParsedNotification {
+        val isGroup = isGroupConversation || conversationTitle.isNotEmpty() ||
+            (subText.isNotEmpty() && subText != title && subText.contains(", "))
+        if (isGroup) {
+            // 그룹: 채팅방명 = conversationTitle > subText > title
+            val roomName = conversationTitle.ifEmpty { subText.ifEmpty { title } }
+            // 발신자: "채팅방명: 발신자" prefix 형식 있으면 떼기
+            val sender = if (roomName.isNotEmpty() && title.startsWith("$roomName: ")) {
+                title.removePrefix("$roomName: ")
+            } else {
+                title
+            }
+            return ParsedNotification(roomName, sender, text, false)
+        }
+        // 개인 DM: title=발신자=대화방이름, text=메시지
+        return ParsedNotification(title, title, text, true)
     }
 
     private fun parseKakaoTalk(title: String, text: String, subText: String): ParsedNotification {
@@ -1426,6 +1461,8 @@ class NotificationListener : NotificationListenerService() {
             "com.microsoft.teams" -> false
             "com.facebook.orca" -> messageText.contains("Sticker", ignoreCase = true) ||
                                     messageText.contains("스티커", ignoreCase = true)
+            "com.nhn.android.band" -> messageText.contains("스티커", ignoreCase = true) ||
+                                       messageText.contains("이모티콘", ignoreCase = true)
             else -> false
         }
     }
@@ -1442,6 +1479,7 @@ class NotificationListener : NotificationListenerService() {
             "com.Slack" -> listOf("uploaded a file", "shared an image")
             "com.microsoft.teams" -> listOf("sent an image", "이미지를 보냈습니다", "sent a file")
             "com.facebook.orca" -> listOf("sent a photo", "sent an image", "사진을 보냈습니다", "sent a video", "sent a file", "sent a GIF")
+            "com.nhn.android.band" -> listOf("사진을 보냈습니다", "이미지를 보냈습니다", "동영상을 보냈습니다", "파일을 보냈습니다")
             else -> listOf("사진을 보냈습니다")
         }
     }

@@ -1043,6 +1043,27 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         sender = title;
         message = text;
       }
+    } else if (packageName == 'com.nhn.android.band') {
+      // 네이버 밴드 파싱 — 거의 모든 채팅이 그룹(밴드 멤버 단톡) 형태
+      final conversationTitle = data['conversationTitle'] ?? '';
+
+      if (isGroupConversation || conversationTitle.isNotEmpty) {
+        // 그룹: roomName = conversationTitle (밴드/채팅방명)
+        // title 이 "채팅방명: 발신자" 형태면 prefix 떼고 발신자만 추출
+        roomName = conversationTitle.isNotEmpty ? conversationTitle : title;
+        if (conversationTitle.isNotEmpty &&
+            title.startsWith('$conversationTitle: ')) {
+          sender = title.substring(conversationTitle.length + 2);
+        } else {
+          sender = title;
+        }
+        message = text;
+      } else {
+        // 개인 DM
+        roomName = title;
+        sender = title;
+        message = text;
+      }
     } else {
       // 기존 로직 (카카오톡 등)
       sender = title;

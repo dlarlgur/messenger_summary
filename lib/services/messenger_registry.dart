@@ -68,6 +68,12 @@ class MessengerRegistry {
       brandColor: Color(0xFF0084FF),
       icon: Icons.messenger,
     ),
+    MessengerInfo(
+      packageName: 'com.nhn.android.band',
+      alias: '네이버 밴드',
+      brandColor: Color(0xFF2EC36C),
+      icon: Icons.group_work_rounded,
+    ),
   ];
 
   static MessengerInfo? getByPackageName(String packageName) {
