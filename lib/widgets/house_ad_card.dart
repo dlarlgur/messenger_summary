@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/house_ad_service.dart';
+import '../theme/app_tokens.dart';
 
 const Color _accent = Color(0xFF2563EB);
 
@@ -23,9 +24,8 @@ class HouseAdCard extends StatefulWidget {
   const HouseAdCard({
     super.key,
     required this.ad,
-    // 채팅방 타일과 동일 간격으로 정렬 — vertical 0 으로 위/아래 갭 제거.
-    // 좌우 14 인셋은 'AD' 라벨 카드 시각을 유지.
-    this.margin = const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+    // 채팅방 타일과 같은 풀폭 hairline 구조라 외부 마진 없음.
+    this.margin = EdgeInsets.zero,
   });
 
   @override
@@ -61,29 +61,28 @@ class _HouseAdCardState extends State<HouseAdCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF12141A) : Colors.white;
-    final borderColor =
-        isDark ? const Color(0x14FFFFFF) : const Color(0xFFE2E8F0);
-
     final inner = widget.ad.isBanner
         ? _BannerAdContent(ad: widget.ad)
         : _StructuredAdContent(ad: widget.ad);
 
-    return Container(
-      margin: widget.margin,
-      height: 96,
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 0.5),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _onTap,
-          child: inner,
+    // chat tile 과 동일한 풀폭 hairline 구조 — 좌우 인셋 없이 surface 배경 +
+    // 하단 hair 보더. 외부 margin 으로 갭 추가 가능.
+    return Padding(
+      padding: widget.margin,
+      child: Container(
+        height: 96,
+        decoration: const BoxDecoration(
+          color: AppTokens.surface,
+          border: Border(
+            bottom: BorderSide(color: AppTokens.hair, width: 0.5),
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _onTap,
+            child: inner,
+          ),
         ),
       ),
     );
