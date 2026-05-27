@@ -2605,7 +2605,7 @@ class NotificationListener : NotificationListenerService() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification_tokbi)
 
             // Android 8.0 미만에서는 직접 설정
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) {
@@ -2776,7 +2776,7 @@ class NotificationListener : NotificationListenerService() {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification_tokbi)
                 .build()
 
             notificationManager.notify(("paywall_$roomId").hashCode(), notification)
