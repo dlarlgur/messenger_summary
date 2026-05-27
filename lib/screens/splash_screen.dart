@@ -115,6 +115,8 @@ class _SplashScreenState extends State<SplashScreen> {
     final isDark =
         MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     return Scaffold(
+      // 광고 디자인에 의도된 좌우 패딩(흰 공백)이 있을 수 있어 배경은 흰색.
+      // 광고 없을 때(_ad==null)도 같은 흰 배경 + 가운데 로고.
       backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
       body: _ad == null
           ? const Center(
@@ -131,10 +133,13 @@ class _SplashScreenState extends State<SplashScreen> {
           : GestureDetector(
               onTap: _onTap,
               child: SizedBox.expand(
-                // cover — 폰 풀스크린 임팩트. 1080×1920 권장 사이즈면 잘림 거의 없음.
+                // contain — 광고 이미지 비율 유지. 1080×1920(9:16) 광고를
+                // 9:19.5 폰 화면에 표시 시 cover 는 좌우를 잘라 광고주 의도
+                // 디자인(좌우 패딩)이 깨짐. contain 으로 디자인 100% 보존,
+                // 위/아래 빈 공간은 흰 배경으로 자연 연결.
                 child: Image.network(
                   DkswCore.resolveAssetUrl(_ad!.imageUrl),
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   loadingBuilder: (_, child, progress) =>
                       progress == null ? child : const SizedBox.shrink(),
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
