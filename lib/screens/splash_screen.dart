@@ -114,9 +114,16 @@ class _SplashScreenState extends State<SplashScreen> {
     // 가운데 로고를 그려 native splash 가 사라져도 시각 점프가 없음.
     final isDark =
         MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final hasAd = _ad != null;
+    // 광고가 있을 땐 contain 으로 비율 유지(디자인의 좌우 공백 보존).
+    // 폰 화면이 9:16 보다 길면 위/아래 빈 공간이 생기는데, 광고 톤과 자연스럽게
+    // 어울리도록 검정 배경 사용 (영화관 같은 풀스크린 광고 느낌).
+    final bg = hasAd
+        ? Colors.black
+        : (isDark ? const Color(0xFF0C0E13) : Colors.white);
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0C0E13) : Colors.white,
-      body: _ad == null
+      backgroundColor: bg,
+      body: !hasAd
           ? const Center(
               child: SizedBox(
                 width: 140,
@@ -131,11 +138,11 @@ class _SplashScreenState extends State<SplashScreen> {
           : GestureDetector(
               onTap: _onTap,
               child: SizedBox.expand(
-                // cover — 폰 화면을 가득 채워 임팩트 강. 광고주는 폰 세로
-                // 비율(1080×1920, 9:16)으로 올려야 잘림 없이 풀스크린.
+                // contain — 광고 이미지 비율 유지. 디자인의 좌우 공백/패딩이
+                // 잘리지 않고 광고주 의도 그대로 노출됨.
                 child: Image.network(
                   DkswCore.resolveAssetUrl(_ad!.imageUrl),
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   loadingBuilder: (_, child, progress) =>
                       progress == null ? child : const SizedBox.shrink(),
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
