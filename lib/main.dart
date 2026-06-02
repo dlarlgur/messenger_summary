@@ -105,7 +105,9 @@ void main() async {
       packageName: 'com.dksw.app',
       serverUrl: 'https://console.dksw4.com/console',
     );
-    unawaited(DkswCore.trackSession()); // fire-and-forget
+    // trackSession 은 더 이상 호출하지 않음 — bootstrap 호출이 access_log 까지 INSERT
+    // 해서 DAU 누락 없음. trackSession 의 2초 타임아웃 fire-and-forget 으로 일부
+    // 디바이스가 DAU 에서 빠지던 문제 해소.
 
     // House ad / Top banner — 디스크 캐시 즉시 로드 → 백그라운드 fetch
     // 첫 프레임부터 광고 노출 가능 (stale-while-revalidate).

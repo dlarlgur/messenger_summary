@@ -2150,7 +2150,6 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       builder: (context) {
                         final messengerInfo = MessengerRegistry.getByPackageName(widget.room.packageName);
                         final messengerName = messengerInfo?.alias ?? '메신저';
-                        final messengerIcon = messengerInfo?.icon ?? Icons.chat_bubble_rounded;
                         final brandColor = messengerInfo?.brandColor ?? AppTokens.accent;
                         final isKakaoTalk = widget.room.packageName == 'com.kakao.talk';
                         
@@ -2163,10 +2162,20 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                 color: brandColor.withOpacity(isKakaoTalk ? 0.2 : 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(
-                                messengerIcon,
-                                color: isKakaoTalk ? const Color(0xFF3C1E1E) : brandColor,
-                                size: 18,
+                              child: Center(
+                                child: messengerInfo?.buildGlyph(
+                                      color: isKakaoTalk
+                                          ? const Color(0xFF3C1E1E)
+                                          : brandColor,
+                                      size: 18,
+                                    ) ??
+                                    Icon(
+                                      Icons.chat_bubble_rounded,
+                                      color: isKakaoTalk
+                                          ? const Color(0xFF3C1E1E)
+                                          : brandColor,
+                                      size: 18,
+                                    ),
                               ),
                             ),
                             const SizedBox(width: 12),

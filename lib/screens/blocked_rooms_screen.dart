@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/profile_image_service.dart';
@@ -19,6 +20,10 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
   List<ChatRoom> _blockedRooms = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  // 선택 모드 — true 면 각 방을 체크박스로 다중 선택 후 일괄 해제 가능
+  bool _selectionMode = false;
+  final Set<int> _selectedIds = {};
 
   @override
   void initState() {
@@ -71,6 +76,100 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
           duration: Duration(seconds: 1),
         ),
       );
+    }
+  }
+
+  /// 선택 모드 시작 — 모든 선택 해제하고 진입.
+  void _enterSelectionMode() {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.clear();
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelect(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedIds.length == _blockedRooms.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds
+          ..clear()
+          ..addAll(_blockedRooms.map((r) => r.id));
+      }
+    });
+  }
+
+  /// 선택된 방들 일괄 해제 — 확인 다이얼로그 → 순회 update.
+  Future<void> _unblockSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('차단 일괄 해제'),
+        content: Text('선택한 $count개 채팅방의 차단을 해제하시겠습니까?\n\n차단 해제 후 새 메시지가 다시 저장됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
+            child: const Text('해제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    int success = 0;
+    int fail = 0;
+    for (final id in _selectedIds.toList()) {
+      final result = await _localDb.updateRoomSettings(id, blocked: false);
+      if (result != null) {
+        success++;
+      } else {
+        fail++;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _blockedRooms.removeWhere((r) => _selectedIds.contains(r.id) &&
+          // fail 한 방은 그대로 두기 위해 success 된 id 만 제거하는 로직 — 단순화 위해 전부 제거 후 fail 시 재로드.
+          true);
+      _selectedIds.clear();
+      _selectionMode = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          fail == 0
+              ? '$success개 채팅방의 차단을 해제했습니다.'
+              : '$success개 해제 / $fail개 실패. 목록을 새로고침합니다.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    if (fail > 0) {
+      await _loadBlockedRooms();
     }
   }
 
@@ -138,11 +237,73 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final allSelected =
+        _blockedRooms.isNotEmpty && _selectedIds.length == _blockedRooms.length;
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('차단방 관리'),
+        elevation: 0,
         backgroundColor: AppTokens.accent,
         foregroundColor: Colors.white,
+        title: Text(
+          _selectionMode ? '${_selectedIds.length}개 선택됨' : '차단방 관리',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          if (_selectionMode) ...[
+            TextButton(
+              onPressed: _blockedRooms.isEmpty ? null : _toggleSelectAll,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    allSelected
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    allSelected ? '전체 해제' : '전체 선택',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.lock_open_rounded,
+                color: _selectedIds.isEmpty
+                    ? Colors.white.withValues(alpha: 0.5)
+                    : Colors.white,
+              ),
+              onPressed: _selectedIds.isEmpty ? null : _unblockSelected,
+              tooltip: '선택 해제',
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: _exitSelectionMode,
+              tooltip: '선택 모드 종료',
+            ),
+          ] else if (_blockedRooms.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.white),
+              onPressed: _enterSelectionMode,
+              tooltip: '편집',
+            ),
+        ],
       ),
       body: _buildBody(),
     );
@@ -209,6 +370,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     return RefreshIndicator(
       onRefresh: _loadBlockedRooms,
       child: ListView.builder(
+        padding: const EdgeInsets.all(16),
         itemCount: _blockedRooms.length,
         itemBuilder: (context, index) {
           final room = _blockedRooms[index];
@@ -219,34 +381,109 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
   }
 
   Widget _buildRoomItem(ChatRoom room) {
-    return ListTile(
-      leading: _buildRoomProfile(room),
-      title: Text(
-        room.roomName,
-        style: const TextStyle(
-          fontWeight: FontWeight.w500,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        room.packageAlias,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
-      ),
-      trailing: TextButton(
-        onPressed: () => _showUnblockConfirmDialog(room),
-        child: const Text(
-          '차단 해제',
-          style: TextStyle(
-            color: AppTokens.accent,
-            fontWeight: FontWeight.w500,
+    final selected = _selectedIds.contains(room.id);
+    return GestureDetector(
+      onTap: _selectionMode
+          ? () {
+              _toggleSelect(room.id);
+              HapticFeedback.selectionClick();
+            }
+          : () => _showUnblockConfirmDialog(room),
+      onLongPress: _selectionMode
+          ? null
+          : () {
+              _enterSelectionMode();
+              _toggleSelect(room.id);
+              HapticFeedback.mediumImpact();
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppTokens.accent : Colors.transparent,
+            width: selected ? 2 : 0,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: selected ? 0.10 : 0.06),
+              blurRadius: selected ? 12 : 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // 선택 모드 — 동그란 체크 표시 (요약 히스토리와 동일 패턴)
+            if (_selectionMode) ...[
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? AppTokens.accent : Colors.transparent,
+                  border: Border.all(
+                    color: selected ? AppTokens.accent : Colors.grey[400]!,
+                    width: 2,
+                  ),
+                ),
+                child: selected
+                    ? const Icon(Icons.check, color: Colors.white, size: 16)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+            ],
+            _buildRoomProfile(room),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    room.roomName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    room.packageAlias,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 선택 모드 아닐 때만 개별 해제 버튼
+            if (!_selectionMode)
+              TextButton(
+                onPressed: () => _showUnblockConfirmDialog(room),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  '차단 해제',
+                  style: TextStyle(
+                    color: AppTokens.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
-      onTap: () => _showUnblockConfirmDialog(room),
     );
   }
 }

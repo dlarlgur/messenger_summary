@@ -1,11 +1,20 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 하루 1회 첫 접속 시 Google Play 인앱 평점 UI 표시.
-/// 인앱 확인 다이얼로그 없이 Google 네이티브 리뷰 시트를 바로 띄운다.
+import '../widgets/rating_dialog.dart';
+
+/// 하루 1회 진입 시 평점 안내 다이얼로그 노출.
+///
+/// 흐름:
+///  1. shouldShowToday() — 이미 평점 처리됐거나 오늘 이미 띄웠으면 false
+///  2. 커스텀 RatingDialog ("앱이 마음에 드시나요?") 표시
+///  3. 평점 남기기 → Google In-App Review 시트 시도 → 없으면 Play Store 페이지
+///  4. 나중에 / X → 오늘은 미노출 (내일 다시)
 class RatingPromptService {
   static const String _keyRated = 'rating_rated';
   static const String _keyLastShownDate = 'rating_last_shown_date';
@@ -13,32 +22,55 @@ class RatingPromptService {
 
   static final InAppReview _review = InAppReview.instance;
 
-  /// 평점 UI를 띄워야 하는지 여부 (이미 평가했으면 false, 아니면 매 진입마다 시도)
+  /// 오늘 다이얼로그를 띄울지 결정.
+  /// - 이미 평점 완료 → 영구 false
+  /// - 오늘 이미 띄움 → false
+  /// - 그 외 → true
   static Future<bool> shouldShowToday() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool(_keyRated) ?? false) return false;
+      final lastShown = prefs.getString(_keyLastShownDate);
+      if (lastShown == _todayString()) return false;
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  /// 인앱 리뷰 시트를 바로 띄움. 장치·스토어에서 지원하지 않으면 Play Store 페이지 오픈.
-  static Future<void> maybeShow() async {
+  /// 평점 안내 다이얼로그를 띄움. 안드로이드 외에는 no-op.
+  static Future<void> maybeShow(BuildContext context) async {
     debugPrint('⭐ RatingPromptService.maybeShow() 진입');
     if (kIsWeb || !Platform.isAndroid) {
-      debugPrint('⭐ 스킵 - 안드로이드 아님 (kIsWeb=$kIsWeb, isAndroid=${!kIsWeb && Platform.isAndroid})');
+      debugPrint('⭐ 스킵 - 안드로이드 아님');
       return;
     }
     final canShow = await shouldShowToday();
     if (!canShow) {
       final prefs = await SharedPreferences.getInstance();
-      debugPrint('⭐ 스킵 - shouldShowToday=false (rated=${prefs.getBool(_keyRated)}, lastShown=${prefs.getString(_keyLastShownDate)}, today=${_todayString()})');
+      debugPrint(
+          '⭐ 스킵 - shouldShowToday=false (rated=${prefs.getBool(_keyRated)}, lastShown=${prefs.getString(_keyLastShownDate)}, today=${_todayString()})');
       return;
     }
 
     await _markShownToday();
+    if (!context.mounted) return;
+
+    await RatingDialog.show(
+      context: context,
+      onConfirm: () async {
+        debugPrint('⭐ 평점 남기기 클릭 → Play 인앱 리뷰/스토어 이동');
+        await _openPlayReviewOrStore();
+        await markRated();
+      },
+      onLater: () {
+        debugPrint('⭐ 나중에 / 닫기 — 오늘은 미노출, 내일 재시도');
+      },
+    );
+  }
+
+  /// Google 인앱 리뷰 시트 → 안 되면 Play Store 페이지.
+  static Future<void> _openPlayReviewOrStore() async {
     try {
       final available = await _review.isAvailable();
       debugPrint('⭐ InAppReview.isAvailable()=$available');
@@ -62,7 +94,7 @@ class RatingPromptService {
     debugPrint('⭐ debugReset 완료');
   }
 
-  /// 사용자가 평점을 완료했을 가능성이 높을 때 호출 (외부에서 필요 시)
+  /// 사용자가 평점을 완료했을 가능성이 높을 때 호출 (영구 미노출).
   static Future<void> markRated() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyRated, true);

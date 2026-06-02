@@ -20,6 +20,29 @@ class MessengerInfo {
     'packageName': packageName,
     'alias': alias,
   };
+
+  /// 메신저 로고 위젯. 대부분은 [icon] 을 그대로 렌더하지만,
+  /// 네이버 밴드처럼 적합한 머티리얼 아이콘이 없는 메신저는 글리프 텍스트로 표시.
+  Widget buildGlyph({required Color color, required double size}) {
+    if (packageName == 'com.nhn.android.band') {
+      // 실제 BAND 로고 — 작은 사이즈는 'B' 한 글자, 큰 사이즈는 'BAND' 풀 텍스트.
+      final isCompact = size < 20;
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          isCompact ? 'B' : 'BAND',
+          style: TextStyle(
+            color: color,
+            fontSize: size * (isCompact ? 0.85 : 0.5),
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+            height: 1.0,
+          ),
+        ),
+      );
+    }
+    return Icon(icon, color: color, size: size);
+  }
 }
 
 /// 모든 메신저 정보의 중앙 레지스트리
@@ -73,6 +96,7 @@ class MessengerRegistry {
       alias: '네이버 밴드',
       brandColor: Color(0xFF2EC36C),
       icon: Icons.group_work_rounded,
+      enabledByDefault: true,
     ),
   ];
 

@@ -83,6 +83,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   final PageController _pageController = PageController();
   final ScrollController _tabScrollController = ScrollController();
   final Map<String, GlobalKey> _tabKeys = {};
+  // 탭 드래그 중 좌/우 끝에서 자동 스크롤
+  Timer? _tabAutoScrollTimer;
+  static const double _tabAutoScrollEdge = 60.0;   // 가장자리 감지 영역
+  static const double _tabAutoScrollSpeed = 10.0;  // 16ms 당 픽셀
 
   // 설정 버튼 클릭 카운터 (5번 누르면 플랜 선택)
   int _settingsClickCount = 0;
@@ -122,8 +126,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   final Map<String, NativeAd> _listNativeAds = {};
   final Map<String, bool> _listNativeAdLoaded = {};
   final Map<String, Timer> _listNativeAdTimeoutTimers = {};
-  // AdSlotResolver의 admob 슬롯과 동일하게 4·8.
-  static const List<int> _admobListSlots = [4, 8];
+  // AdSlotResolver의 admob 슬롯과 동일하게 4·8·12·16.
+  static const List<int> _admobListSlots = [4, 8, 12, 16];
   String _listAdKey(String pkg, int slot) => '$pkg|$slot';
   // AdMob 콜드 스타트(네트워크 초기화 + 미디에이션 웨이터폴)는 3~7초까지 걸릴 수
   // 있음. 2.5초처럼 짧게 끊으면 AdMob이 사실상 준비 중이어도 AdFit으로 전환되어
@@ -320,6 +324,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     _listNativeAds.clear();
     _pageController.dispose();
     _tabScrollController.dispose();
+    _tabAutoScrollTimer?.cancel();
     super.dispose();
   }
 
@@ -442,8 +447,16 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   void _startNativeAdLoadAfterInit() {
     final adService = AdService();
 
+    // 콘솔 등록 top banner가 bypass=true 면 AdMob 요청 자체를 skip.
+    // "loaded but not shown" 패턴은 AdMob 정책상 invalid impression 으로
+    // 분류될 수 있어 요청 단계에서 막는다.
+    final topBypassActive = TopBannerCache.current?.bypassAdmob == true;
+    if (topBypassActive) {
+      debugPrint('⏭️ 상단 — TopBanner bypass=true, AdMob 요청 skip');
+    }
+
     // 상단 광고 - 이미 존재하면 재생성 금지
-    if (_topNativeAd == null && !adService.useAdFitForTop) {
+    if (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive) {
       _topNativeAd = NativeAd(
         adUnitId: AdService.nativeTopFixedId,
         factoryId: AdService.nativeTopAdFactoryId,
@@ -514,6 +527,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         final key = _listAdKey(firstPkg, slot);
         if (_listNativeAds.containsKey(key)) continue;
         if (adService.useAdFitForListSlot(slot)) continue;
+
+        // 콘솔 등록 house ad가 bypass=true 면 AdMob 요청 자체를 skip.
+        // "loaded but not shown" 패턴은 AdMob 정책상 invalid impression 으로
+        // 분류될 수 있어 요청 단계에서 막는다.
+        final houseOverride = HouseAdCache.at(slot);
+        if (houseOverride != null && houseOverride.bypassAdmob) {
+          debugPrint('⏭️ 슬롯 $slot — house ad bypass=true, AdMob 요청 skip');
+          continue;
+        }
 
         final ad = NativeAd(
           adUnitId: AdService.nativeChatListId,
@@ -814,14 +836,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         _isLoading = false;
       });
       
-      // 최초 진입 시 알림 권한 요청 → 평점 요청 순서로 처리 (대화방 목록 로드 완료 후)
+      // 최초 진입 시 알림 권한 요청 → 평점 안내 순서로 처리 (대화방 목록 로드 완료 후)
       if (!silent && _isLoading == false) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           debugPrint('⭐ 알림/평점 시퀀스 시작 (silent=$silent)');
           await _showNotificationDialogIfNeeded();
           if (!mounted) return;
-          // 알림 권한 처리가 끝난 뒤에 평점 요청 (다이얼로그 겹침 방지)
-          await RatingPromptService.maybeShow();
+          // 알림 권한 처리가 끝난 뒤에 평점 안내 (다이얼로그 겹침 방지)
+          await RatingPromptService.maybeShow(context);
         });
       } else {
         debugPrint('⭐ 알림/평점 시퀀스 스킵 (silent=$silent, isLoading=$_isLoading)');
@@ -1117,23 +1139,23 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Divider(height: 1, color: Colors.grey[200]),
               ),
-              // 채팅방 차단
+              // 채팅방 차단 — 톤 통일 (절제된 회색)
               _buildMenuItem(
                 icon: Icons.block_outlined,
                 title: '채팅방 차단',
-                textColor: Colors.orange,
-                iconColor: Colors.orange,
+                textColor: AppTokens.text2,
+                iconColor: AppTokens.text2,
                 onTap: () {
                   Navigator.pop(context);
                   _showBlockConfirmDialog(room);
                 },
               ),
-              // 대화방 삭제
+              // 대화방 삭제 — 톤 통일 (절제된 회색, confirm 단계에서만 warn 강조)
               _buildMenuItem(
                 icon: Icons.delete_outline,
                 title: '대화방 삭제',
-                textColor: Colors.red,
-                iconColor: Colors.red,
+                textColor: AppTokens.text2,
+                iconColor: AppTokens.text2,
                 onTap: () {
                   Navigator.pop(context);
                   _showDeleteConfirmDialog(room);
@@ -1499,7 +1521,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               Navigator.pop(context);
               await _blockRoom(room);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
             child: const Text('차단'),
           ),
         ],
@@ -1570,7 +1592,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 );
               }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
             child: const Text('삭제'),
           ),
         ],
@@ -2006,7 +2028,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     return merged;
   }
 
-  /// AdMob 슬롯(4 또는 8) 렌더.
+  /// AdMob 슬롯(4·8·12·16) 렌더.
   /// 우선순위: AdMob(단가↑) > AdFit 폴백 > placeholder.
   Widget _buildAdMobListSlot(int slot, String? packageName) {
     if (packageName == null) return const SizedBox.shrink();
@@ -2335,6 +2357,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               return LongPressDraggable<int>(
                 data: index,
                 axis: Axis.horizontal,
+                onDragUpdate: (d) => _handleTabDragUpdate(d.globalPosition),
+                onDragEnd: (_) => _stopTabAutoScroll(),
+                onDraggableCanceled: (_, __) => _stopTabAutoScroll(),
+                onDragCompleted: () => _stopTabAutoScroll(),
                 feedback: Material(
                   elevation: 4,
                   borderRadius: BorderRadius.circular(20),
@@ -2411,6 +2437,49 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     });
   }
 
+  /// 탭 드래그 중 좌/우 가장자리면 SingleChildScrollView 를 자동 스크롤.
+  /// _tabScrollController.position 의 viewport 좌표로 손가락 위치 환산.
+  void _handleTabDragUpdate(Offset globalPosition) {
+    if (!_tabScrollController.hasClients) return;
+    final renderObject =
+        _tabScrollController.position.context.notificationContext?.findRenderObject();
+    if (renderObject is! RenderBox) return;
+
+    final localX = renderObject.globalToLocal(globalPosition).dx;
+    final viewportWidth = renderObject.size.width;
+
+    double? dir;
+    if (localX < _tabAutoScrollEdge) {
+      dir = -1.0;
+    } else if (localX > viewportWidth - _tabAutoScrollEdge) {
+      dir = 1.0;
+    }
+
+    if (dir == null) {
+      _stopTabAutoScroll();
+      return;
+    }
+    if (_tabAutoScrollTimer != null) return; // 이미 동작 중
+
+    final direction = dir;
+    _tabAutoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_tabScrollController.hasClients) {
+        _stopTabAutoScroll();
+        return;
+      }
+      final pos = _tabScrollController.position;
+      final next = (pos.pixels + direction * _tabAutoScrollSpeed)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (next == pos.pixels) return; // 끝 도달
+      _tabScrollController.jumpTo(next);
+    });
+  }
+
+  void _stopTabAutoScroll() {
+    _tabAutoScrollTimer?.cancel();
+    _tabAutoScrollTimer = null;
+  }
+
   /// 탭 순서 변경
   void _reorderTab(int oldIndex, int newIndex) {
     if (oldIndex == newIndex) return;
@@ -2431,7 +2500,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final messengerInfo = packageName != null
         ? MessengerRegistry.getByPackageName(packageName)
         : null;
-    final messengerIcon = messengerInfo?.icon ?? Icons.chat;
 
     // 해당 패키지의 안 읽은 메시지 개수
     final unreadCount = packageName != null
@@ -2465,7 +2533,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(messengerIcon, size: 14, color: fg),
+            messengerInfo?.buildGlyph(color: fg, size: 14) ??
+                Icon(Icons.chat, size: 14, color: fg),
             const SizedBox(width: 6),
             Text(
               label,

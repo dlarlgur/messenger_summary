@@ -42,6 +42,16 @@ class MessengerSettingsService {
       if (json != null) {
         final List<dynamic> list = jsonDecode(json);
         _cachedEnabledPackages = list.cast<String>();
+        // 새로 추가된 enabledByDefault 메신저가 기존 prefs 에 없으면 자동 머지.
+        // (밴드처럼 후속 릴리즈에서 추가된 메신저가 기존 유저에게도 활성화되도록)
+        final missingDefaults = MessengerRegistry.allMessengers
+            .where((m) => m.enabledByDefault && !_cachedEnabledPackages!.contains(m.packageName))
+            .map((m) => m.packageName)
+            .toList();
+        if (missingDefaults.isNotEmpty) {
+          _cachedEnabledPackages!.addAll(missingDefaults);
+          await _saveToPrefs();
+        }
       } else {
         // 기본값: 전체 메신저
         _cachedEnabledPackages = MessengerRegistry.allMessengers.map((m) => m.packageName).toList();
@@ -65,7 +75,7 @@ class MessengerSettingsService {
   /// 활성 메신저 목록 반환 (플랜 제한 적용, 순서 유지)
   List<MessengerInfo> getEnabledMessengers() {
     final planType = _planService.getCachedPlanTypeSync();
-    final packages = _cachedEnabledPackages ?? ['com.kakao.talk'];
+    final packages = _cachedEnabledPackages ?? const <String>[];
 
     // 테스트를 위해 Free 플랜도 모든 메신저 사용 가능
     // TODO: 테스트 완료 후 Free 플랜 제한 복구
@@ -101,9 +111,8 @@ class MessengerSettingsService {
     }
   }
 
-  /// 메신저 비활성화 (카카오톡은 비활성화 불가)
+  /// 메신저 비활성화 — 카톡 포함 어떤 메신저든 사용자가 끌 수 있음.
   Future<void> disableMessenger(String packageName) async {
-    if (packageName == 'com.kakao.talk') return;
     _cachedEnabledPackages?.remove(packageName);
     await _saveToPrefs();
   }
@@ -119,17 +128,12 @@ class MessengerSettingsService {
 
   /// 전체 목록 설정 (순서 포함)
   Future<void> setEnabledMessengers(List<String> packageNames) async {
-    // 카카오톡이 반드시 포함되어야 함
-    if (!packageNames.contains('com.kakao.talk')) {
-      packageNames.insert(0, 'com.kakao.talk');
-    }
     _cachedEnabledPackages = packageNames;
     await _saveToPrefs();
   }
 
   /// 특정 메신저가 활성화되어 있는지 확인
   bool isEnabled(String packageName) {
-    return _cachedEnabledPackages?.contains(packageName) ??
-           (packageName == 'com.kakao.talk');
+    return _cachedEnabledPackages?.contains(packageName) ?? false;
   }
 }

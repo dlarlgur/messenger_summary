@@ -61,8 +61,13 @@ class AdService {
   bool _useAdFitForTop = false;
   bool _useAdFitForExit = false;
   bool _useAdFitForChatDetail = false;
-  // 리스트 광고는 슬롯별(4·8)로 폴백 상태 분리
-  final Map<int, bool> _useAdFitForListSlot = {4: false, 8: false};
+  // 리스트 광고는 슬롯별(4·8·12·16)로 폴백 상태 분리
+  final Map<int, bool> _useAdFitForListSlot = {
+    4: false,
+    8: false,
+    12: false,
+    16: false,
+  };
 
   // SharedPreferences 키
   static const String _keyRewardDate = 'ad_reward_date';

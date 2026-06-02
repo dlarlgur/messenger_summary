@@ -151,8 +151,6 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
           final info = MessengerRegistry.getByPackageName(packageName);
           if (info == null) return const SizedBox.shrink(key: ValueKey('unknown'));
 
-          final isKakao = packageName == 'com.kakao.talk';
-
           return Container(
             key: ValueKey(packageName),
             decoration: BoxDecoration(
@@ -169,21 +167,13 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              subtitle: isKakao
-                  ? Text(
-                      '기본 메신저 (비활성화 불가)',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    )
-                  : null,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // 토글 스위치
                   Switch(
                     value: true,
-                    onChanged: isKakao
-                        ? null
-                        : (value) => _toggleMessenger(packageName, value),
+                    onChanged: (value) => _toggleMessenger(packageName, value),
                     activeColor: _primaryBlue,
                   ),
                   // 드래그 핸들
@@ -287,12 +277,13 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
         color: disabled ? Colors.grey[300] : info.brandColor,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(
-        info.icon,
-        color: disabled
-            ? Colors.grey[500]
-            : (info.packageName == 'com.kakao.talk' ? Colors.black87 : Colors.white),
-        size: 22,
+      child: Center(
+        child: info.buildGlyph(
+          color: disabled
+              ? Colors.grey[500]!
+              : (info.packageName == 'com.kakao.talk' ? Colors.black87 : Colors.white),
+          size: 22,
+        ),
       ),
     );
   }

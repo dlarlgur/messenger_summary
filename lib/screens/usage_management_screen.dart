@@ -912,7 +912,6 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         ? MessengerRegistry.getByPackageName(packageName)
         : null;
     final selectedColor = messengerInfo?.brandColor ?? AppTokens.accent;
-    final messengerIcon = messengerInfo?.icon ?? Icons.chat;
     final isKakaoTalk = packageName == 'com.kakao.talk';
 
     return GestureDetector(
@@ -930,11 +929,15 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             if (isSelected)
               Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: Icon(
-                  messengerIcon,
-                  size: 16,
-                  color: isKakaoTalk ? Colors.black87 : Colors.white,
-                ),
+                child: messengerInfo?.buildGlyph(
+                      color: isKakaoTalk ? Colors.black87 : Colors.white,
+                      size: 16,
+                    ) ??
+                    Icon(
+                      Icons.chat,
+                      size: 16,
+                      color: isKakaoTalk ? Colors.black87 : Colors.white,
+                    ),
               ),
             Text(
               label,
