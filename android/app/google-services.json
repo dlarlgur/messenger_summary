@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "464224403623",
+    "project_id": "talkmanagement-9923e",
+    "storage_bucket": "talkmanagement-9923e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464224403623:android:1a112560194566cc751b82",
+        "android_client_info": {
+          "package_name": "com.dksw.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1druxHch4aW9YMeNkVTued4zZhUz3-zY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

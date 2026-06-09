@@ -59,6 +59,10 @@ dependencies:
   # 광고 (AdMob)
   google_mobile_ads: ^5.3.0
 
+  # 푸시 알림 (FCM) — 1:1 문의 답변 알림
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+
   # 인앱 평점 (Google Play In-App Review)
   in_app_review: ^2.0.10
 

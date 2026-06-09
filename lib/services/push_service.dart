@@ -1,0 +1,26 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'support_service.dart';
+
+/// 백그라운드/종료 상태 메시지 핸들러.
+/// notification 페이로드는 시스템이 자동으로 트레이에 표시하므로 여기선 데이터 처리만.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // 필요 시 데이터 메시지 처리. 현재는 시스템 표시에 위임.
+}
+
+/// FCM 초기화 + 토큰 등록. DkswCore 초기화 이후(deviceId 확정) 호출해야 함.
+class PushService {
+  static Future<void> initialize() async {
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission();
+      final token = await messaging.getToken();
+      if (token != null) await SupportService.registerFcm(token);
+      messaging.onTokenRefresh.listen(SupportService.registerFcm);
+    } catch (_) {
+      // 푸시 셋업 실패가 앱 부팅을 막지 않도록 무시
+    }
+  }
+}

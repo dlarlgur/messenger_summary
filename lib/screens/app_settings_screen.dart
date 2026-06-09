@@ -12,6 +12,7 @@ import 'about_screen.dart';
 import 'notices_screen.dart';
 import 'events_screen.dart';
 import 'faq_screen.dart';
+import 'inquiry_screen.dart';
 import 'policies_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
@@ -212,6 +213,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const FaqScreen()),
+              );
+            },
+          ),
+          _buildStyledMenuItem(
+            icon: Icons.support_agent_rounded,
+            title: '1:1 문의하기',
+            subtitle: '궁금한 점을 남기면 답변을 드려요',
+            iconColor: const Color(0xFF3B82F6),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const InquiryScreen()),
               );
             },
             isLast: true,

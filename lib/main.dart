@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'services/push_service.dart';
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/auto_summary_settings_service.dart';
@@ -19,6 +21,7 @@ import 'services/plan_service.dart';
 import 'services/in_app_purchase_service.dart';
 import 'services/messenger_settings_service.dart';
 import 'services/ad_service.dart';
+import 'services/admob_warmup.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'theme/app_tokens.dart';
 import 'screens/maintenance_screen.dart';
@@ -95,7 +98,9 @@ void main() async {
   unawaited(LocalDbService().initialize());
   unawaited(MessengerSettingsService().initialize());
   unawaited(ProfileImageService().initialize());
-  unawaited(AdService().initialize());
+  // AdMob SDK 초기화 완료 후 목록 광고 워밍업 — 리스트 진입 시 첫 광고가 빨리 뜨도록
+  // SDK 응답 캐시를 미리 데운다.
+  unawaited(AdService().initialize().then((_) => AdMobWarmup.run()));
 
   // DKSW 통합 어드민 초기화 + 부트스트랩 + 광고 캐시
   // 결과는 _MainScreenState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
@@ -108,6 +113,14 @@ void main() async {
     // trackSession 은 더 이상 호출하지 않음 — bootstrap 호출이 access_log 까지 INSERT
     // 해서 DAU 누락 없음. trackSession 의 2초 타임아웃 fire-and-forget 으로 일부
     // 디바이스가 DAU 에서 빠지던 문제 해소.
+
+    // FCM 푸시 (1:1 문의 답변 알림) — DkswCore.deviceId 확정 후 토큰 등록.
+    unawaited(() async {
+      try {
+        await Firebase.initializeApp();
+        await PushService.initialize();
+      } catch (_) {}
+    }());
 
     // House ad / Top banner — 디스크 캐시 즉시 로드 → 백그라운드 fetch
     // 첫 프레임부터 광고 노출 가능 (stale-while-revalidate).
