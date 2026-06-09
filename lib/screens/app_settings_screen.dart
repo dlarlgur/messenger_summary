@@ -12,7 +12,7 @@ import 'about_screen.dart';
 import 'notices_screen.dart';
 import 'events_screen.dart';
 import 'faq_screen.dart';
-import 'inquiry_screen.dart';
+import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen;
 import 'policies_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
