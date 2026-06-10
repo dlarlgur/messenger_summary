@@ -82,19 +82,50 @@ class RatingPromptService {
     );
   }
 
-  /// Play Store 평점 페이지로 직행.
+  /// Google In-App Review 시트 우선 → 무반응이면 Play Store 페이지로 자동 fallback.
   ///
-  /// 과거엔 InAppReview.requestReview() 의 인앱 시트 → 실패 시 Play Store 로
-  /// fallback 했는데, requestReview() 는 Google 쿼터/디버그 빌드/미배포 빌드 등에서
-  /// 무반응 + 에러도 안 남기는 경우가 잦아 사용자 입장에선 "아무 일도 안 일어남"
-  /// 으로 보임. 명시적으로 "평점 남기기" 를 누른 시점이라 의도가 명확하므로
-  /// Play Store 평점 페이지로 곧장 이동한다.
+  /// requestReview() 는 Play Store 정식 배포본(internal/closed/open/production
+  /// 트랙) + Play Services + Google 쿼터 OK 일 때 인앱 시트가 뜸. 디버그 빌드 /
+  /// sideload / 쿼터 차단 시엔 무반응 + 에러도 안 남김.
+  ///
+  /// 무반응을 감지하기 위해 lifecycle observer 등록 후 1.5초 안에 paused/inactive
+  /// 가 안 잡히면 시트가 안 뜬 것으로 간주하고 openStoreListing 으로 자동 빠짐.
   static Future<void> _openPlayReviewOrStore() async {
+    // 1) lifecycle 감시 시작
+    final shown = Completer<bool>();
+    final observer = _SheetShownObserver(() {
+      if (!shown.isCompleted) shown.complete(true);
+    });
+    WidgetsBinding.instance.addObserver(observer);
+
     try {
-      await _review.openStoreListing(appStoreId: _androidPackageId);
-      debugPrint('⭐ Play Store 평점 페이지 오픈');
-    } catch (e) {
-      debugPrint('⚠️ Play Store 오픈 실패: $e');
+      // 2) 인앱 시트 시도
+      try {
+        await _review.requestReview();
+      } catch (e) {
+        debugPrint('⚠️ requestReview 호출 실패: $e');
+      }
+
+      // 3) 1.5초 안에 paused/inactive 잡히면 시트 떴거나 Play 앱 열린 것
+      final wasShown = await Future.any<bool>([
+        shown.future,
+        Future<bool>.delayed(const Duration(milliseconds: 1500), () => false),
+      ]);
+
+      if (wasShown) {
+        debugPrint('⭐ 인앱 리뷰 시트 표시됨');
+        return;
+      }
+
+      // 4) 무반응 → Play Store 페이지로 fallback
+      debugPrint('⭐ 인앱 시트 무반응 → Play Store 페이지 fallback');
+      try {
+        await _review.openStoreListing(appStoreId: _androidPackageId);
+      } catch (e) {
+        debugPrint('⚠️ Play Store 오픈 실패: $e');
+      }
+    } finally {
+      WidgetsBinding.instance.removeObserver(observer);
     }
   }
 
@@ -122,5 +153,19 @@ class RatingPromptService {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-'
         '${now.day.toString().padLeft(2, '0')}';
+  }
+}
+
+/// 인앱 리뷰 시트가 떴는지(앱이 paused/inactive 됐는지) 감지하는 짧은 수명 옵저버.
+class _SheetShownObserver with WidgetsBindingObserver {
+  final VoidCallback onShown;
+  _SheetShownObserver(this.onShown);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      onShown();
+    }
   }
 }
