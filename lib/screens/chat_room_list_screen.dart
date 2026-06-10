@@ -73,6 +73,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   List<ChatRoom> _chatRooms = [];
   bool _isLoading = true;
   String? _error;
+  /// 한 앱 세션 안에서 알림/평점 시퀀스 한 번만 호출 (이걸 안 두면
+  /// _loadChatRooms 재호출마다 entry count 증가 + 다이얼로그 즉시 노출 문제).
+  bool _ratingSequenceTriggered = false;
   // roomId -> 최신 메시지 텍스트 (내가 보낸 메시지가 최신이면 그것, 아니면 lastMessage)
   final Map<int, String> _lastMessageCache = {};
 
@@ -126,8 +129,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   final Map<String, NativeAd> _listNativeAds = {};
   final Map<String, bool> _listNativeAdLoaded = {};
   final Map<String, Timer> _listNativeAdTimeoutTimers = {};
-  // AdSlotResolver의 admob 슬롯과 동일하게 4·8·12·16.
-  static const List<int> _admobListSlots = [4, 8, 12, 16];
+  // AdSlotResolver의 admob 슬롯과 동일하게 4·8·12·16·20·24·28·32 (slot별 별개 unit ID).
+  static const List<int> _admobListSlots = [4, 8, 12, 16, 20, 24, 28, 32];
   String _listAdKey(String pkg, int slot) => '$pkg|$slot';
   // AdMob 콜드 스타트(네트워크 초기화 + 미디에이션 웨이터폴)는 3~7초까지 걸릴 수
   // 있음. 2.5초처럼 짧게 끊으면 AdMob이 사실상 준비 중이어도 AdFit으로 전환되어
@@ -517,7 +520,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       }
     }
 
-    // 채팅방 목록 광고 — charge_app과 동일하게 슬롯 4·8 각각 별도 NativeAd 인스턴스.
+    // 채팅방 목록 광고 — charge_app과 동일하게 슬롯 4·8·12·16·20·24·28·32 각각 별도 NativeAd 인스턴스.
     // AdWidget(PlatformView)은 한 위젯 트리에 한 번만 그려야 하므로 첫 번째 탭에만 표시.
     // 슬롯별로 AdFit 폴백 플래그가 분리돼 있어 한쪽이 폴백돼도 다른 쪽은 AdMob 유지.
     final messengers = MessengerSettingsService().getEnabledMessengers();
@@ -538,7 +541,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         }
 
         final ad = NativeAd(
-          adUnitId: AdService.nativeChatListId,
+          adUnitId: AdService.listAdUnitId(slot),
           factoryId: AdService.nativeAdFactoryId,
           listener: NativeAdListener(
             onAdLoaded: (ad) {
@@ -837,7 +840,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       });
       
       // 최초 진입 시 알림 권한 요청 → 평점 안내 순서로 처리 (대화방 목록 로드 완료 후)
-      if (!silent && _isLoading == false) {
+      // _loadChatRooms 가 한 세션에 여러 번 호출돼도 시퀀스는 한 번만 (entry count 부풀림 방지).
+      if (!silent && _isLoading == false && !_ratingSequenceTriggered) {
+        _ratingSequenceTriggered = true;
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           debugPrint('⭐ 알림/평점 시퀀스 시작 (silent=$silent)');
           await _showNotificationDialogIfNeeded();
@@ -846,7 +851,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           await RatingPromptService.maybeShow(context);
         });
       } else {
-        debugPrint('⭐ 알림/평점 시퀀스 스킵 (silent=$silent, isLoading=$_isLoading)');
+        debugPrint('⭐ 알림/평점 시퀀스 스킵 (silent=$silent, isLoading=$_isLoading, triggered=$_ratingSequenceTriggered)');
       }
       
       // ⚠️ 보수적 수정: silent 모드에서도 로그 출력 (대화목록 동기화 확인용)
@@ -2028,7 +2033,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     return merged;
   }
 
-  /// AdMob 슬롯(4·8·12·16) 렌더.
+  /// AdMob 슬롯(4·8·12·16·20·24·28·32) 렌더 — slot별 별개 unit ID.
   /// 우선순위: AdMob(단가↑) > AdFit 폴백 > placeholder.
   Widget _buildAdMobListSlot(int slot, String? packageName) {
     if (packageName == null) return const SizedBox.shrink();
@@ -2048,18 +2053,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     if (useAdFit) {
       return _buildMidListAdFitChrome(packageName);
     }
-    // 로드 전 placeholder
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-        ),
-      ),
-      height: 96,
-      child: Container(color: Colors.grey[100]),
-    );
+    // 로드 전에는 슬롯을 접어 둔다(회색 플레이스홀더 미표시) → 광고가 준비되면
+    // 그때 끼어들어 노출. 빈 회색 "버퍼"가 보이지 않게 함(레이아웃 점프 감수).
+    return const SizedBox.shrink();
   }
 
   /// 채팅방 리스트 아이템 위젯
