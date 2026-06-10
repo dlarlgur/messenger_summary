@@ -35,6 +35,15 @@ class PlanService {
   DateTime? _lastFetchTime;
   static const Duration _cacheExpiry = Duration(minutes: 5);
 
+  // 원격설정 cap 캐시 (getUsage 응답에서 추출)
+  int? _cachedFreeMsgCap;
+  int? _cachedBasicMsgCap;
+
+  /// 캐시된 한 번 요약 메시지 cap (동기 — 캐시 없으면 null)
+  int? getCachedMsgCapSync({required bool isBasic}) {
+    return isBasic ? _cachedBasicMsgCap : _cachedFreeMsgCap;
+  }
+
   /// 플랜 타입 변경 알림 (구독 화면, 채팅방 목록 등에서 실시간 감지용)
   final ValueNotifier<String> planTypeNotifier = ValueNotifier('free');
 
@@ -93,6 +102,8 @@ class PlanService {
   void invalidateCache() {
     _cachedPlanType = null;
     _lastFetchTime = null;
+    _cachedFreeMsgCap = null;
+    _cachedBasicMsgCap = null;
   }
 
   void _initDio() {
@@ -313,6 +324,11 @@ class PlanService {
       if (response.statusCode == 200) {
         final data = Map<String, dynamic>.from(response.data);
         // debugPrint('📊 [getUsage] 사용량 조회 완료: limit=${data['limit']}, currentUsage=${data['currentUsage']}, maxLimit=${data['maxLimit']}');
+        // cap 자동 캐시 (응답에 있을 때만)
+        final freeCap = data['summaryMaxMessagesFree'] as int?;
+        final basicCap = data['summaryMaxMessagesBasic'] as int?;
+        if (freeCap != null && freeCap > 0) _cachedFreeMsgCap = freeCap;
+        if (basicCap != null && basicCap > 0) _cachedBasicMsgCap = basicCap;
         return data;
       } else {
         debugPrint('❌ 사용량 조회 실패: ${response.statusCode}');

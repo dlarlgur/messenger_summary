@@ -82,6 +82,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       _checkAndEnableNotification();
+      // 백그라운드에서 돌아올 때마다 원격설정 / 사용량 새로 가져옴
+      // (console 에서 한도 바꿔도 화면 새로고침 위해 다시 진입 불필요)
+      _loadCurrentPlan();
     }
   }
 

@@ -57,10 +57,24 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   final PlanService _planService = PlanService();
 
   /// 플랜에 따른 최대 메시지 선택 개수 반환
-  /// 무료 플랜: 50개, Basic 플랜: 200개
+  /// 원격설정(plan.{free,basic}.summary_messages_per_request) → fallback 50/200
   Future<int> _getMaxMessageCount() async {
     final isBasic = await _planService.isBasicPlan();
-    return isBasic ? 200 : 50;
+    // 1) 이미 캐시된 cap (다른 화면이 호출하며 채워둔 값)
+    final cached = _planService.getCachedMsgCapSync(isBasic: isBasic);
+    if (cached != null && cached > 0) return cached;
+    // 2) 없으면 getUsage 호출해 캐시 채움 + 응답에서 직접 추출
+    try {
+      final usage = await _planService.getUsage();
+      if (usage != null) {
+        final key = isBasic ? 'summaryMaxMessagesBasic' : 'summaryMaxMessagesFree';
+        final cap = usage[key] as int?;
+        if (cap != null && cap > 0) return cap;
+      }
+    } catch (_) { /* fallback */ }
+    return isBasic
+        ? UsageConstants.basicSummaryMessagesPerRequestFallback
+        : UsageConstants.freeSummaryMessagesPerRequestFallback;
   }
 
   /// 마크다운 전처리 (서버에서 받은 마크다운을 올바르게 파싱하도록 정리)
@@ -4047,7 +4061,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     final hasUnreadMessages = unreadCount >= 5;
     final planType = _planService.getCachedPlanTypeSync();
     final isFree = planType != 'basic';
-    final maxCount = isFree ? 50 : 200;
+    // 원격설정 cap 캐시 우선, 없으면 fallback
+    final cachedCap = _planService.getCachedMsgCapSync(isBasic: !isFree);
+    final maxCount = cachedCap ??
+        (isFree
+            ? UsageConstants.freeSummaryMessagesPerRequestFallback
+            : UsageConstants.basicSummaryMessagesPerRequestFallback);
 
     if (hasUnreadMessages) {
       // 읽지 않은 메시지 5개 이상: 눈에 띄는 AI 요약하기 버튼 (그라데이션 + 애니메이션)
