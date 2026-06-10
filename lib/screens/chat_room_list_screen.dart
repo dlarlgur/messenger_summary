@@ -164,14 +164,24 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         if (!mounted) return;
         // chat_llm 은 PlanService 가 있으니 plan 전달 — 베이직 구독자에게는
         // hide_for_subscribers=1 광고가 서버에서 자동 제외됨.
-        // cta_type='internal' 광고 클릭 시 앱 내부 SubscriptionScreen 으로 직행.
+        // cta_type='internal' 광고 클릭 시 cta_url 식별자 보고 라우팅 분기.
         await PopupAdDialog.showIfEligible(
           context,
           plan: PlanService().getCachedPlanTypeSync(),
-          onInternalTap: (ctx, _) {
-            Navigator.of(ctx).push(
-              MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-            );
+          onInternalTap: (ctx, url) {
+            Widget target;
+            switch (url) {
+              case '/subscribe':
+                target = const SubscriptionScreen();
+                break;
+              // 미래 확장 자리 — 새 내부 화면 추가 시 case 한 줄만:
+              // case '/events':
+              //   target = const EventListScreen();
+              //   break;
+              default:
+                target = const SubscriptionScreen(); // 알 수 없는 식별자는 구독으로
+            }
+            Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => target));
           },
         );
       });
