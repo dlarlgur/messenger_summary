@@ -18,6 +18,10 @@ import '../widgets/rating_dialog.dart';
 class RatingPromptService {
   static const String _keyRated = 'rating_rated';
   static const String _keyLastShownDate = 'rating_last_shown_date';
+  static const String _keyEntryCount = 'rating_entry_count';
+  /// 평점 노출 후보가 되기 위한 최소 진입 횟수.
+  /// 첫 설치 직후엔 거부감 크니까 2번째 진입부터 후보.
+  static const int _minEntryCount = 2;
   static const String _androidPackageId = 'com.dksw.app';
 
   static final InAppReview _review = InAppReview.instance;
@@ -45,9 +49,18 @@ class RatingPromptService {
       debugPrint('⭐ 스킵 - 안드로이드 아님');
       return;
     }
+
+    // 진입 카운터 증가 (첫 설치 직후 거부감 방지)
+    final prefs = await SharedPreferences.getInstance();
+    final entryCount = (prefs.getInt(_keyEntryCount) ?? 0) + 1;
+    await prefs.setInt(_keyEntryCount, entryCount);
+    if (entryCount < _minEntryCount) {
+      debugPrint('⭐ 스킵 - 진입 횟수 부족 ($entryCount/$_minEntryCount)');
+      return;
+    }
+
     final canShow = await shouldShowToday();
     if (!canShow) {
-      final prefs = await SharedPreferences.getInstance();
       debugPrint(
           '⭐ 스킵 - shouldShowToday=false (rated=${prefs.getBool(_keyRated)}, lastShown=${prefs.getString(_keyLastShownDate)}, today=${_todayString()})');
       return;
@@ -90,6 +103,7 @@ class RatingPromptService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyRated);
     await prefs.remove(_keyLastShownDate);
+    await prefs.remove(_keyEntryCount);
     debugPrint('⭐ debugReset 완료');
   }
 
