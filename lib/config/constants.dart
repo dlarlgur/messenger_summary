@@ -7,6 +7,9 @@ class UsageConstants {
   static const int freePlanMaxLimitFallback = 5;
   /// 서버 maxLimit 없을 때 리워드 광고 최대 횟수 디폴트 3회
   static const int freePlanMaxAdRewardsFallback = 3;
+  /// 서버 summaryMaxMessages 미제공 시 한 번 요약 가능한 메시지 수 fallback
+  static const int freeSummaryMessagesPerRequestFallback = 50;
+  static const int basicSummaryMessagesPerRequestFallback = 200;
 }
 
 // API 서버 설정

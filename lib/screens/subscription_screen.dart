@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../config/constants.dart';
 import '../services/in_app_purchase_service.dart';
 import '../services/plan_service.dart';
 import '../theme/app_tokens.dart';
@@ -23,6 +24,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String? _currentPlanType;
   bool _isPurchasing = false;
   StreamSubscription<PurchaseVerificationResult>? _verificationSubscription;
+  /// 베이직 플랜 한 번 요약 메시지 cap (원격설정, fallback 200)
+  int? _basicMsgCap;
 
   @override
   void initState() {
@@ -87,8 +90,22 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     // 현재 플랜 조회 (캐시)
     _loadCurrentPlan();
 
+    // 원격설정 cap 조회 (실패해도 fallback 으로 표시되므로 무시)
+    unawaited(_loadMsgCaps());
+
     // 인앱 결제 초기화 및 상품 조회
     await _loadProducts();
+  }
+
+  Future<void> _loadMsgCaps() async {
+    try {
+      final usage = await _planService.getUsage();
+      if (mounted && usage != null) {
+        setState(() {
+          _basicMsgCap = usage['summaryMaxMessagesBasic'] as int?;
+        });
+      }
+    } catch (_) { /* fallback 사용 */ }
   }
 
   Future<void> _loadProducts() async {
@@ -455,7 +472,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 const SizedBox(height: 8),
                 _buildBenefitItem('월 150회 요약 가능'),
                 const SizedBox(height: 4),
-                _buildBenefitItem('메시지 최대 200개까지 요약'),
+                _buildBenefitItem('메시지 최대 ${_basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback}개까지 요약'),
                 const SizedBox(height: 4),
                 _buildBenefitItem('자동 요약 기능 사용 가능'),
               ],

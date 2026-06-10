@@ -48,6 +48,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
   /// 서버에서 받은 무료 플랜 maxLimit (요약관리와 동일하게 usage API 사용)
   int? _freePlanMaxLimit;
+  /// 서버에서 받은 한 번 요약 가능한 메시지 수 cap (플랜별)
+  int? _freeMsgCap;
+  int? _basicMsgCap;
 
   Future<void> _loadCurrentPlan() async {
     try {
@@ -59,6 +62,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         setState(() {
           _currentPlanType = planType;
           _freePlanMaxLimit = usage?['maxLimit'] as int?;
+          _freeMsgCap = usage?['summaryMaxMessagesFree'] as int?;
+          _basicMsgCap = usage?['summaryMaxMessagesBasic'] as int?;
         });
       }
     } catch (e) {
@@ -487,10 +492,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   List<Widget> _buildPlanFeatureItems() {
     switch (_currentPlanType) {
       case 'basic':
+        final basicMsg = _basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback;
         return [
           _buildFeatureItem('월 150회 대화 요약 (자동+수동)'),
           const SizedBox(height: 8),
-          _buildFeatureItem('메시지 최대 200개까지 요약'),
+          _buildFeatureItem('메시지 최대 ${basicMsg}개까지 요약'),
           const SizedBox(height: 8),
           _buildFeatureItem('자동요약 + 푸시 알림'),
           const SizedBox(height: 8),
@@ -499,10 +505,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       default: // free
         final maxLimit = _freePlanMaxLimit ?? UsageConstants.freePlanMaxLimitFallback;
         final adRewards = _freePlanMaxLimit != null ? (_freePlanMaxLimit! - 2) : UsageConstants.freePlanMaxAdRewardsFallback;
+        final freeMsg = _freeMsgCap ?? UsageConstants.freeSummaryMessagesPerRequestFallback;
         return [
           _buildFeatureItem('하루 최대 ${maxLimit}회 무료 요약'),
           const SizedBox(height: 8),
-          _buildFeatureItem('메시지 최대 50개 요약'),
+          _buildFeatureItem('메시지 최대 ${freeMsg}개 요약'),
           const SizedBox(height: 8),
           _buildFeatureItem('$adRewards회는 광고 시청 시 제공'),
         ];
