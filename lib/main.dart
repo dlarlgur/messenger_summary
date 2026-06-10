@@ -11,6 +11,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/push_service.dart';
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
@@ -119,6 +120,9 @@ void main() async {
       try {
         await Firebase.initializeApp();
         await PushService.initialize();
+        // 새 공지/이벤트 FCM 토픽 자동 구독 — 콘솔에서 등록 시 알림 받음.
+        await FirebaseMessaging.instance.subscribeToTopic(DkswCore.noticesTopic());
+        await FirebaseMessaging.instance.subscribeToTopic(DkswCore.eventsTopic());
       } catch (_) {}
     }());
 
