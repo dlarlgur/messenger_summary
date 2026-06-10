@@ -69,20 +69,19 @@ class RatingPromptService {
     );
   }
 
-  /// Google 인앱 리뷰 시트 → 안 되면 Play Store 페이지.
+  /// Play Store 평점 페이지로 직행.
+  ///
+  /// 과거엔 InAppReview.requestReview() 의 인앱 시트 → 실패 시 Play Store 로
+  /// fallback 했는데, requestReview() 는 Google 쿼터/디버그 빌드/미배포 빌드 등에서
+  /// 무반응 + 에러도 안 남기는 경우가 잦아 사용자 입장에선 "아무 일도 안 일어남"
+  /// 으로 보임. 명시적으로 "평점 남기기" 를 누른 시점이라 의도가 명확하므로
+  /// Play Store 평점 페이지로 곧장 이동한다.
   static Future<void> _openPlayReviewOrStore() async {
     try {
-      final available = await _review.isAvailable();
-      debugPrint('⭐ InAppReview.isAvailable()=$available');
-      if (available) {
-        await _review.requestReview();
-        debugPrint('⭐ requestReview() 호출 완료 (실제 표시 여부는 Play 쿼터 결정)');
-      } else {
-        debugPrint('⭐ isAvailable=false → Play Store 페이지 오픈');
-        await _review.openStoreListing(appStoreId: _androidPackageId);
-      }
+      await _review.openStoreListing(appStoreId: _androidPackageId);
+      debugPrint('⭐ Play Store 평점 페이지 오픈');
     } catch (e) {
-      debugPrint('⚠️ 인앱 평점 요청 실패: $e');
+      debugPrint('⚠️ Play Store 오픈 실패: $e');
     }
   }
 
