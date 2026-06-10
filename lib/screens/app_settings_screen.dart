@@ -503,7 +503,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           const SizedBox(height: 8),
           _buildFeatureItem('자동요약 + 푸시 알림'),
           const SizedBox(height: 8),
-          _buildFeatureItem('광고 완전 제거'),
+          _buildFeatureItem('방해 광고 제거 (전면·리워드 X)'),
         ];
       default: // free
         final maxLimit = _freePlanMaxLimit ?? UsageConstants.freePlanMaxLimitFallback;
