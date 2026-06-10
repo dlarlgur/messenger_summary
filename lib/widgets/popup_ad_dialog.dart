@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/plan_service.dart';
 import '../services/popup_ad_cache.dart';
 
 /// 콘솔에 등록된 팝업 광고를 진입 시 1회 표시.
@@ -45,8 +46,8 @@ class PopupAdDialog extends StatelessWidget {
       return;
     }
 
-    // 캐시 miss → 네트워크 fetch.
-    final fresh = await DkswCore.fetchPopup();
+    // 캐시 miss → 네트워크 fetch. 현재 플랜 전달해 구독자 미노출 광고 서버 필터.
+    final fresh = await DkswCore.fetchPopup(plan: PlanService().getCachedPlanTypeSync());
     if (fresh == null) {
       // 서버에 광고 없음 — 이전 캐시가 stale 한 경우 대비해 비움.
       unawaited(PopupAdCache.clear());
@@ -66,7 +67,7 @@ class PopupAdDialog extends StatelessWidget {
   /// 응답이 없으면 캐시를 비워 다음 진입에 더 이상 노출되지 않게 한다.
   static Future<void> _refreshInBackground() async {
     try {
-      final fresh = await DkswCore.fetchPopup();
+      final fresh = await DkswCore.fetchPopup(plan: PlanService().getCachedPlanTypeSync());
       if (fresh == null) {
         await PopupAdCache.clear();
         return;
