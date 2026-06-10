@@ -18,6 +18,7 @@ import '../services/plan_service.dart';
 import '../services/messenger_registry.dart';
 import '../services/messenger_settings_service.dart';
 import '../services/ad_service.dart';
+import '../services/push_service.dart';
 import '../services/rating_prompt_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/popup_notice_dialog.dart';
@@ -845,6 +846,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         _ratingSequenceTriggered = true;
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           debugPrint('⭐ 알림/평점 시퀀스 시작 (silent=$silent)');
+          // OS 알림(POST_NOTIFICATIONS) 권한 요청 — 권한 화면/온보딩 끝난 뒤
+          // 채팅방 목록 첫 진입 시점에서 자연스러운 동선.
+          await PushService.requestNotificationPermission();
+          if (!mounted) return;
           await _showNotificationDialogIfNeeded();
           if (!mounted) return;
           // 알림 권한 처리가 끝난 뒤에 평점 안내 (다이얼로그 겹침 방지)
