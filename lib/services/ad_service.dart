@@ -97,7 +97,18 @@ class AdService {
   static const String _keyFreeSummaryUsed = 'ad_free_summary_used';
   static const String _keyChatDetailExitCount = 'ad_chat_detail_exit_count';
   static const String _keyChatDetailLastAdTime = 'ad_chat_detail_last_time';
-  static const int _chatDetailAdCooldownMinutes = 4; // AdMob 설정과 동일한 쿨다운
+  // 원격설정 키 없을 때 fallback. console 의 app_remote_config 에서
+  // chat_detail_ad.cooldown_minutes / show_every_n 으로 조정 가능.
+  static const int _chatDetailAdCooldownMinutesFallback = 4;
+  static const int _chatDetailAdShowEveryNFallback = 4;
+  static int get _chatDetailAdCooldownMinutes =>
+      DkswCore.config<num>('chat_detail_ad.cooldown_minutes',
+              fallback: _chatDetailAdCooldownMinutesFallback)!
+          .toInt();
+  static int get _chatDetailAdShowEveryN =>
+      DkswCore.config<num>('chat_detail_ad.show_every_n',
+              fallback: _chatDetailAdShowEveryNFallback)!
+          .toInt();
   // 전면광고 표시 중 앱 종료 감지용 키 (부분 로딩 → 강제 종료 → 재시작 시 블랙화면 방지)
   static const String _keyExitAdShowing = 'ad_exit_showing';
   // ✅ 광고 캐싱 키 (public으로 변경하여 ChatRoomListScreen에서 접근 가능)
@@ -459,9 +470,10 @@ class AdService {
     final count = (prefs.getInt(_keyChatDetailExitCount) ?? 0) + 1;
     await prefs.setInt(_keyChatDetailExitCount, count);
 
-    // 4번에 1번만 광고 표시
-    if (count % 4 != 0) {
-      debugPrint('📊 채팅방 나가기 $count회 - 광고 건너뜀 (다음 광고: ${4 - (count % 4)}회 후)');
+    // N번에 1번만 광고 표시 (N = 원격설정 chat_detail_ad.show_every_n, fallback 4)
+    final everyN = _chatDetailAdShowEveryN;
+    if (everyN > 0 && count % everyN != 0) {
+      debugPrint('📊 채팅방 나가기 $count회 - 광고 건너뜀 (다음 광고: ${everyN - (count % everyN)}회 후, every $everyN)');
       return false;
     }
 
