@@ -20,6 +20,24 @@ class AdService {
   // 실제 광고 ID
   static const String _nativeTopFixedId = 'ca-app-pub-8640148276009977/5771138057';
   static const String _nativeChatListId = 'ca-app-pub-8640148276009977/4210644377';
+  // 목록 인-피드 네이티브 — 슬롯(위치)별 별개 unit ID.
+  // 같은 unit을 한 화면에 동시 노출하면 AdMob이 invalid impression 으로 볼 수 있어
+  // 동시에 뜰 수 있는 앞 4칸(4·8·12·16)은 서로 다른 ID를 쓴다.
+  // 뒤 4칸(20·24·28·32)은 채팅방 33개+ 인 극소수만 보는 자리라 앞 ID를 순환 재사용
+  //   (16칸 떨어져 있어 동시 노출 없음 → 재사용해도 안전, 수익은 정상 합산).
+  static const String _nativeChatList2Id = 'ca-app-pub-8640148276009977/2002145670';
+  static const String _nativeChatList3Id = 'ca-app-pub-8640148276009977/7669068611';
+  static const String _nativeChatList4Id = 'ca-app-pub-8640148276009977/9689064005';
+  static const Map<int, String> _listAdUnitIds = {
+    4: _nativeChatListId,   // banner1 (기존)
+    8: _nativeChatList2Id,  // banner2
+    12: _nativeChatList3Id, // banner3
+    16: _nativeChatList4Id, // banner4
+    20: _nativeChatListId,  // ↻ 슬롯4 재사용
+    24: _nativeChatList2Id, // ↻ 슬롯8 재사용
+    28: _nativeChatList3Id, // ↻ 슬롯12 재사용
+    32: _nativeChatList4Id, // ↻ 슬롯16 재사용
+  };
   static const String _exitAdFullId = 'ca-app-pub-8640148276009977/2877381405';
   static const String _rewardSummaryChargeId = 'ca-app-pub-8640148276009977/7938136398';
   static const String _chatDetailExitAdId = 'ca-app-pub-8640148276009977/4943784306';
@@ -61,12 +79,16 @@ class AdService {
   bool _useAdFitForTop = false;
   bool _useAdFitForExit = false;
   bool _useAdFitForChatDetail = false;
-  // 리스트 광고는 슬롯별(4·8·12·16)로 폴백 상태 분리
+  // 리스트 광고는 슬롯별(4·8·12·16·20·24·28·32)로 폴백 상태 분리
   final Map<int, bool> _useAdFitForListSlot = {
     4: false,
     8: false,
     12: false,
     16: false,
+    20: false,
+    24: false,
+    28: false,
+    32: false,
   };
 
   // SharedPreferences 키
@@ -200,8 +222,13 @@ class AdService {
   /// 상단 고정 네이티브 광고 ID
   static String get nativeTopFixedId => _nativeTopFixedId;
 
-  /// 채팅방 목록 네이티브 광고 ID
+  /// 채팅방 목록 네이티브 광고 ID (하위 호환 — 슬롯 4 기본 ID)
   static String get nativeChatListId => _nativeChatListId;
+
+  /// 슬롯(위치)에 매핑된 목록 네이티브 광고 unit ID.
+  /// 매핑에 없는 위치는 슬롯 4 ID로 폴백. (charge_app `AdUnitIds.forPosition` 패턴)
+  static String listAdUnitId(int slot) =>
+      _listAdUnitIds[slot] ?? _nativeChatListId;
 
   /// 애드핏 광고 코드 (fallback용)
   static String get adFitTopNativeCode => _adFitTopNativeCode;

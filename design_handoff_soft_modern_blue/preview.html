@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>AI 톡비서 · C1 소프트 모던 블루 · 디자인 프리뷰</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"/>
+  <style>
+    html, body { margin: 0; padding: 0; min-height: 100%; background: #eef1f7; }
+    body { font-family: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif; padding: 32px 16px; box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+    .head { max-width: 1500px; margin: 0 auto 28px; padding: 0 12px; }
+    .head .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #5b6280; }
+    .head h1 { margin: 6px 0 0; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: #0f1430; }
+    .head p { margin: 4px 0 0; color: #5b6280; font-size: 14px; }
+    .grid { max-width: 1500px; margin: 0 auto; display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+    .cell { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .cell .lbl { font-size: 13px; font-weight: 600; color: #0f1430; letter-spacing: -0.005em; }
+    .cell .sub { font-size: 12px; color: #5b6280; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <div class="eyebrow">Design preview</div>
+    <h1>AI 톡비서 · C1 소프트 모던 블루</h1>
+    <p>메인 / 앱 설정 상단 / 앱 설정 하단 — 412×892 Android frame · Pretendard</p>
+  </div>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="android-frame.jsx"></script>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="logos.jsx"></script>
+  <script type="text/babel" src="screens-c.jsx"></script>
+
+  <script type="text/babel">
+    function PreviewApp() {
+      const screens = [
+        { lbl: '메인',          sub: 'Today summary',  Cmp: C1.Main },
+        { lbl: '앱 설정 · 상단', sub: 'Settings · top',  Cmp: C1.SettingsTop },
+        { lbl: '앱 설정 · 하단', sub: 'Settings · bottom', Cmp: C1.SettingsBot },
+      ];
+      return (
+        <div className="grid">
+          {screens.map(s => (
+            <div className="cell" key={s.lbl}>
+              <AndroidDevice width={412} height={892}><s.Cmp/></AndroidDevice>
+              <div className="lbl">{s.lbl}</div>
+              <div className="sub">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<PreviewApp/>);
+  </script>
+</body>
+</html>

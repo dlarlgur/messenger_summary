@@ -22,7 +22,7 @@ import '../services/push_service.dart';
 import '../services/rating_prompt_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/popup_notice_dialog.dart';
-import '../widgets/popup_ad_dialog.dart';
+// popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
 import '../widgets/adfit_native_top_ad_widget.dart';
 import '../widgets/adfit_native_list_ad_widget.dart';
 import '../widgets/house_ad_card.dart';
@@ -162,7 +162,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         if (!mounted) return;
         await PopupNoticeDialog.showIfEligible(context);
         if (!mounted) return;
-        await PopupAdDialog.showIfEligible(context);
+        // chat_llm 은 PlanService 가 있으니 plan 전달 — 베이직 구독자에게는
+        // hide_for_subscribers=1 광고가 서버에서 자동 제외됨.
+        await PopupAdDialog.showIfEligible(
+          context,
+          plan: PlanService().getCachedPlanTypeSync(),
+        );
       });
     });
   }

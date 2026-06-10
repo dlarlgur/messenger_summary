@@ -279,13 +279,14 @@ class HouseAdCache {
 
 /// 리스트 슬롯 결정 — 앱이 호출.
 ///
-/// AdMob 기본 슬롯: 4, 8, 12, 16 (최대 4개, 정책·품질 안전 구간).
+/// AdMob 기본 슬롯: 4, 8, 12, 16, 20, 24, 28, 32 (위치별 별개 unit ID).
+/// 앞 4칸(4·8·12·16)은 서로 다른 ID, 뒤 4칸(20·24·28·32)은 앞 ID 순환 재사용.
 /// 같은 위치 house ad 가 있고 bypass_admob=true 면 house 가 대체.
-/// 슬롯 20+ 는 house ad 만.
+/// 슬롯 36+ 는 house ad 만.
 class AdSlotResolver {
   AdSlotResolver._();
 
-  static const Set<int> admobSlots = {4, 8, 12, 16};
+  static const Set<int> admobSlots = {4, 8, 12, 16, 20, 24, 28, 32};
 
   /// 슬롯이 광고 위치인지 (AdMob 또는 house ad).
   /// 광고 자체가 없으면 false → 다음 일반 아이템이 그 자리에 채워짐.
@@ -309,7 +310,7 @@ class AdSlotResolver {
 
   /// 화면에 등장할 가장 먼 광고 슬롯 (스크롤 끝까지 그릴 필요 X 한정용).
   static int get maxAdSlot {
-    int m = 16; // AdMob 기본 네 자리 (4·8·12·16)
+    int m = 32; // AdMob 기본 여덟 자리 (4·8·12·16·20·24·28·32)
     for (final a in HouseAdCache.ads) {
       if (a.listPosition > m) m = a.listPosition;
     }
