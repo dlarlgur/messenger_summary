@@ -307,8 +307,10 @@ class AdService {
 
   Future<void> _initializeOnce() async {
     try {
-      // Android + AdFit 전용: 무료 플랜에서 AdMob을 전혀 쓰지 않으면 SDK 초기화 생략
-      final freeTierEarly = await _isFreeTier();
+      // 광고 빨리 뜨게 — 네트워크 플랜 확인(최대 2초)을 기다리지 말고 캐시 플랜으로 판단.
+      // 낙관적: 캐시가 'basic'(유료)만 아니면 무료로 보고 즉시 SDK 초기화·preload 시작.
+      // 실제 유료여도 채팅목록 진입 시 authoritative 체크가 광고를 dispose 함(기존 안전망).
+      final freeTierEarly = _planService.getCachedPlanTypeSync() != 'basic';
       final skipMobileAdsEntirelyOnAndroid = _androidAdFitOnly &&
           freeTierEarly &&
           useAdFitRewardInsteadOfAdMob &&
@@ -355,21 +357,17 @@ class AdService {
         _loadChatDetailInterstitialAd();
       }
 
-      // 무료 사용자 한정 네이티브 광고 preload (스플래시 동안 백그라운드 로드).
-      // 채팅방 목록 / 1:1 문의 진입 시점에 광고 이미 준비 → 빈 칸 깜빡임 X.
-      if (await _isFreeTier()) {
-        _preloadInquiryNativeAd();
-        if (!_androidAdFitOnly) {
-          _preloadTopNativeAd();
-          // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload.
-          // 광고는 슬롯 4 = 4번째, 슬롯 8 = 8번째 위치. 방이 부족하면 그 슬롯은
-          // 사용되지 않으니 preload 할 필요 X (메모리 낭비 방지).
-          try {
-            final rooms = await LocalDbService().getChatRooms();
-            if (rooms.length >= 4) _preloadListNativeAd(4);
-            if (rooms.length >= 8) _preloadListNativeAd(8);
-          } catch (_) {}
-        }
+      // 네이티브 광고 preload — 위 early-return(유료) 통과했으니 무료.
+      // 네트워크 재확인(await) 없이 SDK 초기화 직후 즉시 시작 → 상단 배너 ~2초 빨리 준비.
+      _preloadInquiryNativeAd();
+      if (!_androidAdFitOnly) {
+        _preloadTopNativeAd(); // 상단 배너 — 가장 먼저, await 앞에서 시작
+        // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload (top 뒤, 비핵심).
+        try {
+          final rooms = await LocalDbService().getChatRooms();
+          if (rooms.length >= 4) _preloadListNativeAd(4);
+          if (rooms.length >= 8) _preloadListNativeAd(8);
+        } catch (_) {}
       }
 
       // 리워드: AdFit 전면 모드면 AdMob 리워드 로드 생략
