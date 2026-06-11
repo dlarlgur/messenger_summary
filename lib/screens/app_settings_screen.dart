@@ -236,7 +236,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => InquiryScreen(
-                    bottomBanner: isFree ? const InquiryNativeAdBanner() : null,
+                    topBanner: isFree ? const InquiryNativeAdBanner() : null,
                   ),
                 ),
               );
