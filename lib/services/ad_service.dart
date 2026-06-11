@@ -197,6 +197,47 @@ class AdService {
     return ad;
   }
 
+  // ── 채팅방 목록 상단 네이티브 광고 preload ────────────────────
+  /// 앱 시작 시(스플래시 동안) 미리 로드 → 채팅방 목록 첫 진입에서 즉시 표시.
+  NativeAd? _preloadedTopAd;
+  bool _preloadedTopReady = false;
+
+  void _preloadTopNativeAd() {
+    if (_preloadedTopAd != null) return;
+    final ad = NativeAd(
+      adUnitId: _nativeTopFixedId,
+      factoryId: nativeTopAdFactoryId,
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          _preloadedTopReady = true;
+          debugPrint('✅ 상단 네이티브 광고 preload 완료');
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _preloadedTopAd = null;
+          _preloadedTopReady = false;
+          debugPrint('❌ 상단 네이티브 광고 preload 실패: ${error.message}');
+        },
+      ),
+    );
+    _preloadedTopAd = ad;
+    ad.load();
+  }
+
+  /// 위젯이 호출 — 로드 완료된 광고만 반환.
+  /// 아직 로딩 중이면 그 광고는 dispose 하고 null 반환 → 위젯이 자체 새 ad 생성.
+  NativeAd? takePreloadedTopAd() {
+    if (!_preloadedTopReady) {
+      _preloadedTopAd?.dispose();
+      _preloadedTopAd = null;
+      return null;
+    }
+    final ad = _preloadedTopAd;
+    _preloadedTopAd = null;
+    _preloadedTopReady = false;
+    return ad;
+  }
+
   /// 초기화 (`main()`과 채팅 목록 등에서 동시 호출 가능 — 한 번만 실행)
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -254,9 +295,10 @@ class AdService {
         _loadChatDetailInterstitialAd();
       }
 
-      // AdMob 1:1 문의 네이티브 광고 preload — 무료 사용자만 미리 로드.
-      // 사용자가 InquiryScreen 진입 시점에 즉시 표시 → 광고 빈 칸 깜빡임 X.
+      // 무료 사용자 한정 네이티브 광고 preload (스플래시 동안 백그라운드 로드).
+      // 채팅방 목록 / 1:1 문의 진입 시점에 광고 이미 준비 → 빈 칸 깜빡임 X.
       if (await _isFreeTier()) {
+        if (!_androidAdFitOnly) _preloadTopNativeAd();
         _preloadInquiryNativeAd();
       }
 

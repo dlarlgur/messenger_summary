@@ -481,7 +481,23 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     // 상단 광고 - 이미 존재하면 재생성 금지
-    if (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive) {
+    final preloadedTop = (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive)
+        ? adService.takePreloadedTopAd()
+        : null;
+    if (preloadedTop != null) {
+      // 스플래시 동안 preload 된 광고 — 즉시 사용 (깜빡임 X)
+      _topNativeAd = preloadedTop;
+      _topNativeAdTimeoutTimer?.cancel();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _showTopAdSlot = true;
+            _isTopNativeLoaded = true;
+          });
+        }
+      });
+      debugPrint('🎯 상단 네이티브 광고 — preload 즉시 사용');
+    } else if (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive) {
       _topNativeAd = NativeAd(
         adUnitId: AdService.nativeTopFixedId,
         factoryId: AdService.nativeTopAdFactoryId,

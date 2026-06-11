@@ -470,6 +470,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               if (product.id == InAppPurchaseService.basicPlanMonthly) ...[
                 const Divider(),
                 const SizedBox(height: 8),
+                _buildBenefitItem('방해 광고 제거 (전면·리워드 X)'),
+                const SizedBox(height: 4),
                 _buildBenefitItem('월 150회 요약 가능'),
                 const SizedBox(height: 4),
                 _buildBenefitItem('메시지 최대 ${_basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback}개까지 요약'),
