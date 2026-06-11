@@ -10,6 +10,7 @@ import '../config/constants.dart';
 import 'adfit_native.dart';
 import 'auth_service.dart';
 import 'llm_service.dart';
+import 'local_db_service.dart';
 import 'plan_service.dart';
 
 /// 광고 서비스 (무료 플랜: Android는 Kakao AdFit 위주, AdMob은 iOS·폴백용으로 코드 유지)
@@ -207,6 +208,7 @@ class AdService {
     final ad = NativeAd(
       adUnitId: _nativeTopFixedId,
       factoryId: nativeTopAdFactoryId,
+      request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
           _preloadedTopReady = true;
@@ -247,6 +249,7 @@ class AdService {
     final ad = NativeAd(
       adUnitId: listAdUnitId(slot),
       factoryId: nativeAdFactoryId,
+      request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (_) {
           _preloadedListReady[slot] = true;
