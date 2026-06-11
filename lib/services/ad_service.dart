@@ -337,19 +337,24 @@ class AdService {
       }
 
       // 무료 사용자 한정 네이티브 광고 preload (스플래시 동안 백그라운드 로드).
-      // 채팅방 목록 / 1:1 문의 진입 시점에 광고 이미 준비 → 빈 칸 깜빡임 X.
-      if (await _isFreeTier()) {
+      final freeTier = await _isFreeTier();
+      debugPrint('🔍 preload 분기 진입 — freeTier=$freeTier, androidAdFitOnly=$_androidAdFitOnly');
+      if (freeTier) {
         _preloadInquiryNativeAd();
+        debugPrint('🔍 inquiry preload 호출 — 다음 top/list 분기 시작');
         if (!_androidAdFitOnly) {
+          debugPrint('🔍 androidAdFitOnly=false 분기 진입 — top preload 호출');
           _preloadTopNativeAd();
-          // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload.
-          // 광고는 슬롯 4 = 4번째, 슬롯 8 = 8번째 위치. 방이 부족하면 그 슬롯은
-          // 사용되지 않으니 preload 할 필요 X (메모리 낭비 방지).
           try {
             final rooms = await LocalDbService().getChatRooms();
+            debugPrint('🔍 채팅방 수=${rooms.length} — 슬롯 4·8 preload 검토');
             if (rooms.length >= 4) _preloadListNativeAd(4);
             if (rooms.length >= 8) _preloadListNativeAd(8);
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('🔍 LocalDbService 실패: $e');
+          }
+        } else {
+          debugPrint('🔍 androidAdFitOnly=true 라 top/list preload SKIP');
         }
       }
 
