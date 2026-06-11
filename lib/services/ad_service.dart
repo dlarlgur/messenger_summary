@@ -159,6 +159,44 @@ class AdService {
   /// 앱 종료/무료 광고 흐름 여부 (외부에서 동기 전제 깨지지 않게 조회)
   Future<bool> isFreeTierForExitAd() => _isFreeTier();
 
+  // ── 1:1 문의 네이티브 광고 preload ───────────────────────────────
+  /// 앱 시작 시 _initializeOnce 안에서 무료 사용자에게 한해 미리 로드.
+  /// InquiryScreen 진입 시 takePreloadedInquiryAd() 로 즉시 받음.
+  NativeAd? _preloadedInquiryAd;
+  bool _inquiryAdLoading = false;
+
+  void _preloadInquiryNativeAd() {
+    if (_preloadedInquiryAd != null || _inquiryAdLoading) return;
+    _inquiryAdLoading = true;
+    final ad = NativeAd(
+      adUnitId: 'ca-app-pub-8640148276009977/9903585372',
+      request: const AdRequest(),
+      nativeTemplateStyle: NativeTemplateStyle(templateType: TemplateType.small),
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          _inquiryAdLoading = false;
+          debugPrint('✅ 1:1 문의 네이티브 광고 preload 완료');
+        },
+        onAdFailedToLoad: (ad, error) {
+          _inquiryAdLoading = false;
+          _preloadedInquiryAd = null;
+          ad.dispose();
+          debugPrint('❌ 1:1 문의 네이티브 광고 preload 실패: ${error.message}');
+        },
+      ),
+    );
+    _preloadedInquiryAd = ad;
+    ad.load();
+  }
+
+  /// InquiryScreen 의 banner 위젯이 호출 — preload 된 ad 가져가고 슬롯 비움.
+  /// 받은 측에서 dispose 책임 (위젯이 자기 dispose 에서 정리).
+  NativeAd? takePreloadedInquiryAd() {
+    final ad = _preloadedInquiryAd;
+    _preloadedInquiryAd = null;
+    return ad;
+  }
+
   /// 초기화 (`main()`과 채팅 목록 등에서 동시 호출 가능 — 한 번만 실행)
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -214,6 +252,12 @@ class AdService {
       // AdMob 채팅방 나가기 전면
       if (!_androidAdFitOnly) {
         _loadChatDetailInterstitialAd();
+      }
+
+      // AdMob 1:1 문의 네이티브 광고 preload — 무료 사용자만 미리 로드.
+      // 사용자가 InquiryScreen 진입 시점에 즉시 표시 → 광고 빈 칸 깜빡임 X.
+      if (await _isFreeTier()) {
+        _preloadInquiryNativeAd();
       }
 
       // 리워드: AdFit 전면 모드면 AdMob 리워드 로드 생략

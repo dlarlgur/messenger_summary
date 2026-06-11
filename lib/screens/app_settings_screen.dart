@@ -13,6 +13,7 @@ import 'notices_screen.dart';
 import 'events_screen.dart';
 import 'faq_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart' show InquiryScreen;
+import '../widgets/inquiry_native_ad_banner.dart';
 import 'policies_screen.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../config/constants.dart';
@@ -230,8 +231,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             subtitle: '궁금한 점을 남기면 답변을 드려요',
             iconColor: const Color(0xFF3B82F6),
             onTap: () {
+              // 무료 사용자에만 1:1 문의 하단 네이티브 광고 노출.
+              final isFree = (_currentPlanType ?? 'free') != 'basic';
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const InquiryScreen()),
+                MaterialPageRoute(
+                  builder: (_) => InquiryScreen(
+                    bottomBanner: isFree ? const InquiryNativeAdBanner() : null,
+                  ),
+                ),
               );
             },
             isLast: true,
