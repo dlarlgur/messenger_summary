@@ -197,8 +197,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.4.2"
-      resolved-ref: dd2a5dbb701431cfd2d9b7a2dd82308d5cf69498
+      ref: "v0.4.5"
+      resolved-ref: "78eda9bf8d52bb4fe45387712539c7417be730b3"
       url: "https://github.com/dlarlgur/dksw_app_core.git"
     source: git
     version: "0.4.2"

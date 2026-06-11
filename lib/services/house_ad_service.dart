@@ -178,7 +178,11 @@ class HouseAdCache {
     try {
       final res = await Dio().get(
         '$_serverBaseUrl/api/house-ads',
-        queryParameters: {'package': _packageName},
+        queryParameters: {
+          'package': _packageName,
+          // 서버 test_device_ids 화이트리스트 매칭용 — 콘솔 기록 device_id 와 동일.
+          if (DkswCore.deviceId.isNotEmpty) 'device_id': DkswCore.deviceId,
+        },
         options: Options(receiveTimeout: const Duration(seconds: 5)),
       );
       final data = res.data;
@@ -399,7 +403,11 @@ class TopBannerCache {
     try {
       final res = await Dio().get(
         '$_serverBaseUrl/api/top-banner',
-        queryParameters: {'package': _packageName},
+        queryParameters: {
+          'package': _packageName,
+          // 서버 test_device_ids 화이트리스트 매칭용 — 콘솔 기록 device_id 와 동일.
+          if (DkswCore.deviceId.isNotEmpty) 'device_id': DkswCore.deviceId,
+        },
         options: Options(receiveTimeout: const Duration(seconds: 5)),
       );
       final data = res.data;

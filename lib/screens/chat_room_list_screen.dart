@@ -133,10 +133,6 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // AdSlotResolver의 admob 슬롯과 동일하게 4·8·12·16·20·24·28·32 (slot별 별개 unit ID).
   static const List<int> _admobListSlots = [4, 8, 12, 16, 20, 24, 28, 32];
   String _listAdKey(String pkg, int slot) => '$pkg|$slot';
-  // AdMob 콜드 스타트(네트워크 초기화 + 미디에이션 웨이터폴)는 3~7초까지 걸릴 수
-  // 있음. 2.5초처럼 짧게 끊으면 AdMob이 사실상 준비 중이어도 AdFit으로 전환되어
-  // 단가 높은 AdMob 노출을 잃게 된다. → 여유 있게 6초로 설정.
-  static const Duration _nativeAdLoadTimeout = Duration(seconds: 6);
 
   @override
   void initState() {
@@ -497,6 +493,40 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         }
       });
       debugPrint('🎯 상단 네이티브 광고 — preload 즉시 사용');
+    } else if (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive &&
+        adService.isTopPreloadInFlight) {
+      // preload 가 아직 로딩 중 — 새 ad 를 만들지 말고(중복 로드 방지) 완료를 기다린다.
+      // 완료되면 그 광고를 그대로 꽂아 정상 노출 → AdMob 정책상 깨끗한 1요청·1노출.
+      debugPrint('⏳ 상단 — preload 로딩 중, 완료 대기 (중복 로드 안 함)');
+      if (!_showTopAdSlot) {
+        setState(() => _showTopAdSlot = true);
+      }
+      adService.onTopPreloadReady = () {
+        if (!mounted) return;
+        final ad = adService.takePreloadedTopAd();
+        if (ad != null) {
+          _topNativeAd = ad;
+          _topNativeAdTimeoutTimer?.cancel();
+          // 타임아웃으로 AdFit 이 임시 표시 중이어도 단가 높은 AdMob 우선.
+          adService.resetTopAdFallback();
+          setState(() {
+            _showTopAdSlot = true;
+            _isTopNativeLoaded = true;
+          });
+          debugPrint('🎯 상단 네이티브 광고 — preload 완료 후 사용');
+        } else {
+          // preload 실패 → AdFit 폴백 (타임아웃 기다리지 않고 즉시)
+          _topNativeAdTimeoutTimer?.cancel();
+          adService.switchTopAdToAdFit();
+          setState(() {
+            _showTopAdSlot = true;
+            _isTopNativeLoaded = false;
+          });
+          debugPrint('❌ 상단 preload 실패 → AdFit 폴백');
+        }
+      };
+      // 타임아웃→AdFit 제거: preload 완료/실패 콜백(onTopPreloadReady)만 기다린다.
+      // 로딩 동안은 고정높이 placeholder 가 자리를 지키고, 실패 시에만 위에서 AdFit 폴백.
     } else if (_topNativeAd == null && !adService.useAdFitForTop && !topBypassActive) {
       _topNativeAd = NativeAd(
         adUnitId: AdService.nativeTopFixedId,
@@ -536,19 +566,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         request: const AdRequest(),
       );
       unawaited(_topNativeAd!.load());
-      // 타임아웃: 일정 시간 내 콜백 없으면 일단 AdFit을 "임시 표시"하되,
-      // AdMob 광고 객체는 dispose하지 않고 계속 로드를 기다린다. 뒤늦게라도
-      // onAdLoaded가 오면 render 우선순위에 따라 AdMob으로 자동 교체됨.
-      _topNativeAdTimeoutTimer?.cancel();
-      _topNativeAdTimeoutTimer = Timer(_nativeAdLoadTimeout, () {
-        if (!mounted) return;
-        if (_isTopNativeLoaded || _topNativeAd == null) return;
-        debugPrint('⏱️ 상단 네이티브 AdMob 타임아웃 → AdFit 임시 표시 (AdMob 계속 대기)');
-        adService.switchTopAdToAdFit();
-        setState(() {
-          _showTopAdSlot = true;
-        });
-      });
+      // 타임아웃→AdFit 제거: AdMob 콜백만 기다린다. 로딩 중엔 고정높이 placeholder 가
+      // 자리를 지키고, onAdFailedToLoad(진짜 실패) 때만 위에서 AdFit 폴백으로 전환.
+      // → AdFit 먼저 떴다 AdMob 으로 갈아치우는 더블 PlatformView mount 제거.
     } else if (adService.useAdFitForTop) {
       // 이미 애드핏으로 전환된 경우 슬롯 표시
       if (mounted) {
@@ -599,6 +619,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               _listNativeAdTimeoutTimers.remove(key)?.cancel();
               if (mounted && _listNativeAds[key] == ad) {
                 adService.resetListAdFallback(slot);
+                // 고정 높이 슬롯이라 mount 해도 레이아웃 점프 없음 → 즉시 표시.
                 setState(() => _listNativeAdLoaded[key] = true);
               }
               debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $firstPkg)');
@@ -619,18 +640,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         );
         _listNativeAds[key] = ad;
         unawaited(ad.load());
-        // 타임아웃: AdMob 인스턴스는 dispose하지 않고 계속 대기.
-        // 뒤늦게 onAdLoaded가 오면 render 우선순위에 따라 자동 교체.
-        _listNativeAdTimeoutTimers[key]?.cancel();
-        _listNativeAdTimeoutTimers[key] = Timer(_nativeAdLoadTimeout, () {
-          if (!mounted) return;
-          if (_listNativeAdLoaded[key] == true) return;
-          if (!_listNativeAds.containsKey(key)) return;
-          debugPrint(
-              '⏱️ 목록 네이티브 AdMob 타임아웃 (slot=$slot, $firstPkg) → AdFit 임시 표시');
-          adService.switchListAdToAdFit(slot);
-          setState(() {});
-        });
+        // 타임아웃→AdFit 제거: AdMob 콜백만 기다린다. 로딩 중엔 고정높이(96dp) 슬롯이
+        // 자리를 지키고, onAdFailedToLoad(진짜 실패) 때만 AdFit 폴백.
+        // → AdFit 먼저 떴다 AdMob 으로 갈아치우는 더블 mount 끊김 제거.
       }
     }
 
@@ -1980,7 +1992,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: SizedBox(
           height: 116,
-          child: AdWidget(key: ObjectKey(ad), ad: ad),
+          // PlatformView(AdWidget) 컴포지팅을 형제 위젯과 격리 → 스크롤 시 주변 재페인트 차단.
+          child: RepaintBoundary(
+            child: AdWidget(key: ObjectKey(ad), ad: ad),
+          ),
         ),
       );
     }
@@ -2102,15 +2117,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       return SizedBox(
         width: double.infinity,
         height: 96,
-        child: AdWidget(key: ObjectKey(ad), ad: ad),
+        // PlatformView(AdWidget) 컴포지팅을 형제 타일과 격리 → 스크롤 시 주변 재페인트 차단.
+        child: RepaintBoundary(child: AdWidget(key: ObjectKey(ad), ad: ad)),
       );
     }
     if (useAdFit) {
       return _buildMidListAdFitChrome(packageName);
     }
-    // 로드 전에는 슬롯을 접어 둔다(회색 플레이스홀더 미표시) → 광고가 준비되면
-    // 그때 끼어들어 노출. 빈 회색 "버퍼"가 보이지 않게 함(레이아웃 점프 감수).
-    return const SizedBox.shrink();
+    // charge_app 방식: 로딩 중엔 고정 높이(96dp)로 자리만 예약 → AdMob 이 뜰 때
+    // 레이아웃 점프 없이 그 자리에 매끄럽게 들어참. (실패 시 위 useAdFit 분기로 AdFit,
+    // 그것도 없으면 다음 빌드에서 0높이로 collapse.)
+    return const SizedBox(width: double.infinity, height: 96);
   }
 
   /// 채팅방 리스트 아이템 위젯

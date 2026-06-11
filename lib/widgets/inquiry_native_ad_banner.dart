@@ -1,10 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/ad_service.dart';
 
-/// 1:1 문의 화면 하단에 노출되는 AdMob 네이티브 광고 (small template).
+/// 1:1 문의 화면에 노출되는 AdMob 네이티브 광고.
+/// 채팅방 목록 상단 배너와 동일한 커스텀 네이티브 팩토리(topNativeAd, 풀폭 CTA 카드)로
+/// 렌더해 앱 디자인과 통일.
 ///
 /// 베이직 구독자에겐 호출 측에서 미노출 분기 (이 위젯은 분기 X — 받으면 로드).
 /// 광고 preload 가 [AdService.preloadInquiryNativeAd] 로 미리 호출돼 있으면
@@ -43,12 +44,8 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
     final ad = NativeAd(
       adUnitId: InquiryNativeAdBanner.adUnitId,
       request: const AdRequest(),
-      nativeTemplateStyle: NativeTemplateStyle(
-        templateType: TemplateType.small,
-        mainBackgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF0E121A)
-            : Colors.white,
-      ),
+      // 채팅방 목록 상단 배너와 동일한 커스텀 네이티브 팩토리(풀폭 CTA 카드).
+      factoryId: AdService.nativeTopAdFactoryId,
       listener: NativeAdListener(
         onAdLoaded: (_) {
           if (mounted) setState(() => _loaded = true);
@@ -79,9 +76,9 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
       return const SizedBox.shrink();
     }
     return SizedBox(
-      height: 90, // small native template 권장 높이
+      height: 116, // 채팅방 상단 배너(topNativeAd 팩토리)와 동일 높이
       width: double.infinity,
-      child: AdWidget(ad: ad),
+      child: RepaintBoundary(child: AdWidget(ad: ad)),
     );
   }
 }

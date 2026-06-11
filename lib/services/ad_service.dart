@@ -172,7 +172,8 @@ class AdService {
     final ad = NativeAd(
       adUnitId: 'ca-app-pub-8640148276009977/9903585372',
       request: const AdRequest(),
-      nativeTemplateStyle: NativeTemplateStyle(templateType: TemplateType.small),
+      // 채팅방 목록 상단 배너와 동일한 커스텀 네이티브 팩토리(풀폭 CTA 카드)로 렌더.
+      factoryId: nativeTopAdFactoryId,
       listener: NativeAdListener(
         onAdLoaded: (_) {
           _inquiryAdLoading = false;
@@ -202,6 +203,22 @@ class AdService {
   /// 앱 시작 시(스플래시 동안) 미리 로드 → 채팅방 목록 첫 진입에서 즉시 표시.
   NativeAd? _preloadedTopAd;
   bool _preloadedTopReady = false;
+  // preload 로딩이 끝나면(성공/실패) 한 번 호출되는 콜백. 목록 화면이 등록해서
+  // "로딩 중이라 아직 못 받음" 상황에서 중복 로드 없이 완료를 기다리는 데 쓴다.
+  VoidCallback? _onTopPreloadReady;
+
+  /// preload 인스턴스는 떴지만 아직 로드 완료 전(=로딩 중)인지.
+  /// 목록 화면이 true 면 새 ad 를 만들지 않고 [onTopPreloadReady] 로 기다린다.
+  bool get isTopPreloadInFlight => _preloadedTopAd != null && !_preloadedTopReady;
+
+  /// preload 로딩 완료/실패 시 한 번 호출될 콜백 등록.
+  set onTopPreloadReady(VoidCallback? cb) => _onTopPreloadReady = cb;
+
+  void _notifyTopPreloadDone() {
+    final cb = _onTopPreloadReady;
+    _onTopPreloadReady = null;
+    cb?.call();
+  }
 
   void _preloadTopNativeAd() {
     if (_preloadedTopAd != null) return;
@@ -213,12 +230,14 @@ class AdService {
         onAdLoaded: (_) {
           _preloadedTopReady = true;
           debugPrint('✅ 상단 네이티브 광고 preload 완료');
+          _notifyTopPreloadDone();
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           _preloadedTopAd = null;
           _preloadedTopReady = false;
           debugPrint('❌ 상단 네이티브 광고 preload 실패: ${error.message}');
+          _notifyTopPreloadDone();
         },
       ),
     );
@@ -227,11 +246,11 @@ class AdService {
   }
 
   /// 위젯이 호출 — 로드 완료된 광고만 반환.
-  /// 아직 로딩 중이면 그 광고는 dispose 하고 null 반환 → 위젯이 자체 새 ad 생성.
+  /// 아직 로딩 중이면 **버리지 않고** null 만 반환한다. (예전엔 dispose 후 null →
+  /// 목록이 새 ad 를 0초부터 재로드 = 진행 중인 preload 통째로 낭비 + 배너 더 늦게 뜸)
+  /// 로딩 중일 땐 호출처가 [isTopPreloadInFlight] 로 감지해 [onTopPreloadReady] 로 기다린다.
   NativeAd? takePreloadedTopAd() {
     if (!_preloadedTopReady) {
-      _preloadedTopAd?.dispose();
-      _preloadedTopAd = null;
       return null;
     }
     final ad = _preloadedTopAd;
@@ -603,8 +622,9 @@ class AdService {
   /// - 그 후 → count % N + 쿨다운 둘 다 체크
   /// 반환: true면 광고 표시됨 (광고 닫힐 때까지 대기 후 [onAdDismissed] 호출)
   Future<bool> showChatDetailAd({VoidCallback? onAdDismissed}) async {
-    if (!await _isFreeTier()) {
-      debugPrint('✅ 유료 플랜 - 채팅방 나갈 때 광고 건너뜀');
+    // 나가기 경로는 네트워크 대기 금지 — 캐시된 플랜으로 즉시 판단(최대 2초 지연 제거).
+    if (_planService.getCachedPlanTypeSync() != 'free') {
+      debugPrint('✅ 유료 플랜(캐시) - 채팅방 나갈 때 광고 건너뜀');
       return false;
     }
 
@@ -633,12 +653,12 @@ class AdService {
       return false;
     }
 
-    // 광고 표시 시각 기록 (쿨다운 계산용 - AdMob/애드핏 공통)
-await prefs.setInt(_keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
-    _chatDetailAdShownThisSession = true;
-
     // AdMob 광고가 준비되어 있으면 AdMob 표시
     if (_isChatDetailAdLoaded && _chatDetailInterstitialAd != null && !_useAdFitForChatDetail) {
+      // 실제 표시 확정 시점에만 쿨다운/세션 플래그 기록 (노출 없이 쿨다운 소모 방지)
+      await prefs.setInt(
+          _keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
+      _chatDetailAdShownThisSession = true;
       _chatDetailInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           debugPrint('채팅방 전면 광고 닫힘');
@@ -666,14 +686,20 @@ await prefs.setInt(_keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpo
       return true;
     }
 
-    // AdMob 실패 또는 애드핏 사용 설정된 경우
-    // 애드핏 웹뷰 전면 광고는 UI에서 직접 표시
-    if (_useAdFitForChatDetail || (!_isChatDetailAdLoaded && _chatDetailInterstitialAd == null)) {
+    // 애드핏 모드 — UI(detail screen)에서 직접 전면 표시.
+    if (_useAdFitForChatDetail) {
+      await prefs.setInt(
+          _keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
+      _chatDetailAdShownThisSession = true;
       debugPrint('🔄 애드핏 채팅방 나갈 때 광고 사용 (AdMob 대신)');
       return true; // UI에서 애드핏 광고 표시하도록 true 반환
     }
 
-    debugPrint('⚠️ 채팅방 전면 광고 미준비 - 건너뜀');
+    // AdMob 모드인데 아직 전면이 로드 안 됨 → 예전엔 여기서 true 를 반환해
+    // "광고 떴다" 가정하에 detail 화면이 강제 pop 대기(최대 7초)에 걸려 나가기가
+    // 지연됐다. 이제 즉시 false → 바로 pop. 쿨다운/세션 플래그도 기록 안 해서
+    // 다음 진입 때 (로드 완료됐으면) 정상 노출. 다음을 위해 백그라운드 로드만 트리거.
+    debugPrint('⚠️ 채팅방 전면 광고 미준비 - 즉시 건너뜀(매달림 방지)');
     if (!_androidAdFitOnly) {
       _loadChatDetailInterstitialAd();
     }

@@ -237,6 +237,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 MaterialPageRoute(
                   builder: (_) => InquiryScreen(
                     topBanner: isFree ? const InquiryNativeAdBanner() : null,
+                    bannerAboveHeader: true, // '내 문의 N건' 헤더 위에 배치
                   ),
                 ),
               );

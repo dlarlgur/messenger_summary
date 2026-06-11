@@ -4,19 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@android:color/transparent"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
+    android:paddingStart="0dp"
+    android:paddingEnd="0dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp">
 
-    <!-- 둥근 카드 컨테이너 -->
+    <!-- 둥근 카드 컨테이너 (풀폭 — 옆 페이지 카드와 같은 너비) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:orientation="horizontal"
         android:background="@drawable/bg_ad_top_card"
-        android:clipToOutline="true"
-        android:elevation="2dp">
+        android:clipToOutline="true">
 
         <!-- 왼쪽: 아이콘 + 헤드라인 + 본문 + CTA -->
         <LinearLayout
@@ -92,12 +91,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:textSize="12sp"
-                android:textColor="#3B6DFF"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
                 android:background="@drawable/bg_ad_cta"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="5dp"
-                android:paddingBottom="5dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
