@@ -238,6 +238,44 @@ class AdService {
     return ad;
   }
 
+  // ── 채팅방 목록 리스트 슬롯(4, 8) 네이티브 광고 preload ────────
+  final Map<int, NativeAd?> _preloadedListAds = {};
+  final Map<int, bool> _preloadedListReady = {};
+
+  void _preloadListNativeAd(int slot) {
+    if (_preloadedListAds[slot] != null) return;
+    final ad = NativeAd(
+      adUnitId: listAdUnitId(slot),
+      factoryId: nativeAdFactoryId,
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          _preloadedListReady[slot] = true;
+          debugPrint('✅ 리스트 슬롯$slot preload 완료');
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _preloadedListAds[slot] = null;
+          _preloadedListReady[slot] = false;
+          debugPrint('❌ 리스트 슬롯$slot preload 실패: ${error.message}');
+        },
+      ),
+    );
+    _preloadedListAds[slot] = ad;
+    ad.load();
+  }
+
+  NativeAd? takePreloadedListAd(int slot) {
+    if (_preloadedListReady[slot] != true) {
+      _preloadedListAds[slot]?.dispose();
+      _preloadedListAds[slot] = null;
+      return null;
+    }
+    final ad = _preloadedListAds[slot];
+    _preloadedListAds[slot] = null;
+    _preloadedListReady[slot] = false;
+    return ad;
+  }
+
   /// 초기화 (`main()`과 채팅 목록 등에서 동시 호출 가능 — 한 번만 실행)
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -298,8 +336,18 @@ class AdService {
       // 무료 사용자 한정 네이티브 광고 preload (스플래시 동안 백그라운드 로드).
       // 채팅방 목록 / 1:1 문의 진입 시점에 광고 이미 준비 → 빈 칸 깜빡임 X.
       if (await _isFreeTier()) {
-        if (!_androidAdFitOnly) _preloadTopNativeAd();
         _preloadInquiryNativeAd();
+        if (!_androidAdFitOnly) {
+          _preloadTopNativeAd();
+          // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload.
+          // 광고는 슬롯 4 = 4번째, 슬롯 8 = 8번째 위치. 방이 부족하면 그 슬롯은
+          // 사용되지 않으니 preload 할 필요 X (메모리 낭비 방지).
+          try {
+            final rooms = await LocalDbService().getChatRooms();
+            if (rooms.length >= 4) _preloadListNativeAd(4);
+            if (rooms.length >= 8) _preloadListNativeAd(8);
+          } catch (_) {}
+        }
       }
 
       // 리워드: AdFit 전면 모드면 AdMob 리워드 로드 생략

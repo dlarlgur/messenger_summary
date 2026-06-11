@@ -578,6 +578,19 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           continue;
         }
 
+        // 스플래시 동안 preload 된 광고가 있으면 즉시 사용 (깜빡임 X)
+        final preloadedList = adService.takePreloadedListAd(slot);
+        if (preloadedList != null) {
+          _listNativeAds[key] = preloadedList;
+          _listNativeAdTimeoutTimers.remove(key)?.cancel();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _listNativeAdLoaded[key] = true);
+            }
+          });
+          debugPrint('🎯 목록 네이티브 광고 — preload 즉시 사용 (slot=$slot, $firstPkg)');
+          continue;
+        }
         final ad = NativeAd(
           adUnitId: AdService.listAdUnitId(slot),
           factoryId: AdService.nativeAdFactoryId,
