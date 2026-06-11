@@ -231,12 +231,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             subtitle: '궁금한 점을 남기면 답변을 드려요',
             iconColor: const Color(0xFF3B82F6),
             onTap: () {
-              // 무료 사용자에만 1:1 문의 하단 네이티브 광고 노출.
-              final isFree = (_currentPlanType ?? 'free') != 'basic';
+              // 네이티브 배너는 플랜 무관 항상 노출 (구독자도 유지 — 주 수익원).
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => InquiryScreen(
-                    topBanner: isFree ? const InquiryNativeAdBanner() : null,
+                    topBanner: const InquiryNativeAdBanner(),
                     bannerAboveHeader: true, // '내 문의 N건' 헤더 위에 배치
                   ),
                 ),

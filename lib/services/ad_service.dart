@@ -161,7 +161,7 @@ class AdService {
   Future<bool> isFreeTierForExitAd() => _isFreeTier();
 
   // ── 1:1 문의 네이티브 광고 preload ───────────────────────────────
-  /// 앱 시작 시 _initializeOnce 안에서 무료 사용자에게 한해 미리 로드.
+  /// 앱 시작 시 _initializeOnce 안에서 플랜 무관 미리 로드 (배너는 구독자도 유지).
   /// InquiryScreen 진입 시 takePreloadedInquiryAd() 로 즉시 받음.
   NativeAd? _preloadedInquiryAd;
   bool _inquiryAdLoading = false;
@@ -330,21 +330,37 @@ class AdService {
       }
       _isInitialized = true;
 
-      // Free 티어만 광고 로드
       final freeTier = freeTierEarly;
-      if (!freeTier) {
-        debugPrint('✅ 유료 플랜 - 광고 로드 건너뜀');
-        return;
-      }
 
-      // Android: 목록/상단/채팅 전면을 처음부터 AdFit으로 (AdMob 네이티브·전면 로드 안 함)
+      // ── 배너 네이티브(상단·목록·1:1문의) preload — 플랜 무관 항상 노출 ──
+      // 네이티브 배너는 카톡 톤의 주 수익원이라 구독(유료)자에게도 유지한다.
       if (_androidAdFitOnly) {
         switchTopAdToAdFit();
         for (final slot in _useAdFitForListSlot.keys) {
           switchListAdToAdFit(slot);
         }
+        debugPrint('✅ Android — 상단·목록 배너 AdMob 생략, AdFit 사용');
+      }
+      _preloadInquiryNativeAd();
+      if (!_androidAdFitOnly) {
+        _preloadTopNativeAd(); // 상단 배너 — 가장 먼저, await 앞에서 시작
+        // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload (top 뒤, 비핵심).
+        try {
+          final rooms = await LocalDbService().getChatRooms();
+          if (rooms.length >= 4) _preloadListNativeAd(4);
+          if (rooms.length >= 8) _preloadListNativeAd(8);
+        } catch (_) {}
+      }
+
+      // ── 리워드 + 전면광고 — **무료 전용** (구독자 제외) ──
+      if (!freeTier) {
+        debugPrint('✅ 유료 플랜 - 리워드/전면광고 건너뜀 (배너는 유지)');
+        return;
+      }
+
+      // Android AdFit 전용 모드: 채팅 전면도 AdFit으로
+      if (_androidAdFitOnly) {
         switchChatDetailAdToAdFit();
-        debugPrint('✅ Android — 상단·목록·채팅 전면 AdMob 로드 생략, AdFit 사용');
       }
 
       // AdMob 앱 종료 전면 (비활성 권장 — AdFit 종료 팝업)
@@ -355,19 +371,6 @@ class AdService {
       // AdMob 채팅방 나가기 전면
       if (!_androidAdFitOnly) {
         _loadChatDetailInterstitialAd();
-      }
-
-      // 네이티브 광고 preload — 위 early-return(유료) 통과했으니 무료.
-      // 네트워크 재확인(await) 없이 SDK 초기화 직후 즉시 시작 → 상단 배너 ~2초 빨리 준비.
-      _preloadInquiryNativeAd();
-      if (!_androidAdFitOnly) {
-        _preloadTopNativeAd(); // 상단 배너 — 가장 먼저, await 앞에서 시작
-        // 채팅방 수에 따라 리스트 슬롯 4, 8 선택적 preload (top 뒤, 비핵심).
-        try {
-          final rooms = await LocalDbService().getChatRooms();
-          if (rooms.length >= 4) _preloadListNativeAd(4);
-          if (rooms.length >= 8) _preloadListNativeAd(8);
-        } catch (_) {}
       }
 
       // 리워드: AdFit 전면 모드면 AdMob 리워드 로드 생략

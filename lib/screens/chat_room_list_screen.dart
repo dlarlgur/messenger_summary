@@ -124,6 +124,14 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // 콘솔 TopBanner 이미지 로딩 실패 시 AdMob/AdFit 폴백 트리거
   bool _topBannerImageFailed = false;
 
+  // 비-첫탭 상단 AdMob 광고 — 탭(패키지)별 별도 인스턴스.
+  // 첫 탭은 위 _topNativeAd(preload 등 정교한 흐름)를 그대로 쓰고,
+  // 나머지 탭은 "그 탭이 실제로 보일 때만" 단순 로드 → 모든 탭에서 상단 배너 노출.
+  // 상단 광고는 탭 전환 시 한 번에 한 화면만 보이므로(동시 노출 X) 같은 unit ID 재사용해도
+  // invalid impression 우려 없음. 로드는 노출 직전(active tab)에만 → "loaded but not shown" 회피.
+  final Map<String, NativeAd> _tabTopAds = {};
+  final Map<String, bool> _tabTopAdLoaded = {};
+
   // 채팅방 목록 네이티브 광고 — 슬롯 4·8 두 개를 탭별 인스턴스로 관리.
   // 키: "$pkg|$slot" (예: "com.kakao.talk|4"). AdWidget 단일 인스턴스 보장은
   // 첫 번째 탭에만 광고를 그려서 유지함.
@@ -339,6 +347,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
     _listNativeAdTimeoutTimers.clear();
     _topNativeAd?.dispose();
+    for (final ad in _tabTopAds.values) {
+      ad.dispose();
+    }
+    _tabTopAds.clear();
     for (final ad in _listNativeAds.values) {
       ad.dispose();
     }
@@ -349,28 +361,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     super.dispose();
   }
 
-  /// 광고 슬롯 표시 여부 재확인 (포그라운드 복귀 시 플랜 전환 반영)
+  /// 광고 슬롯 표시 여부 재확인 (포그라운드 복귀 시).
+  /// 배너(상단 + 목록) 네이티브 광고는 플랜과 무관하게 항상 노출하므로
+  /// 유료 전환 시에도 제거하지 않는다. 아직 로드 전이면 로드만 보장.
   Future<void> _refreshAdSlotVisibility() async {
-    final planType = await _planService.getCurrentPlanType();
-    if (planType != 'free' && _showTopAdSlot) {
-      // 무료→유료: 광고 제거
-      _topNativeAd?.dispose();
-      _topNativeAd = null;
-      for (final ad in _listNativeAds.values) {
-        ad.dispose();
-      }
-      _listNativeAds.clear();
-      _listNativeAdLoaded.clear();
-      if (mounted) {
-        setState(() {
-          _showTopAdSlot = false;
-          _isTopNativeLoaded = false;
-        });
-      }
-      debugPrint('✅ 유료 플랜 감지 - 광고 슬롯 숨김');
-    } else if (planType == 'free' && !_showTopAdSlot) {
-      // 유료→무료: 광고 재로드
-      debugPrint('🔄 무료 플랜 전환 감지 - 네이티브 광고 재로드');
+    if (!_showTopAdSlot) {
       _loadNativeAds();
     }
   }
@@ -402,7 +397,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
     if (needRetry) {
       debugPrint('🔁 포그라운드 복귀 - AdMob 재시도');
-      _startNativeAdLoadAfterInit();
+      _startNativeAdLoadAfterInit(); // 상단 재시도
+      // 목록 슬롯은 폴백 해제 후 리빌드 시 _ensureListAdLoaded 가 지연 재로드한다.
+      if (mounted) setState(() {});
     }
   }
 
@@ -412,30 +409,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     // AdMob 네이티브(iOS 등)는 MobileAds.initialize 이후에 로드해야 AdWidget 플랫폼 뷰 오류를 줄임
     await AdService().initialize();
 
-    // 캐시된 플랜 확인
-    final cachedPlan = _planService.getCachedPlanTypeSync();
-    final bool isFreeFromCache = cachedPlan == 'free';
-
-    if (isFreeFromCache) {
-      _startNativeAdLoad(); // 바로 광고 로드 시작 (슬롯 예약 없음)
-    }
-
-    // 서버에서 실제 플랜 확인 (병렬)
-    final planType = await _planService.getCurrentPlanType();
-    if (planType != 'free') {
-      // 유료 플랜 확정 → 로드된 광고 취소
-      _topNativeAd?.dispose();
-      _topNativeAd = null;
-      for (final ad in _listNativeAds.values) ad.dispose();
-      _listNativeAds.clear();
-      _listNativeAdLoaded.clear();
-      if (mounted) setState(() { _showTopAdSlot = false; _isTopNativeLoaded = false; });
-      debugPrint('✅ 유료 플랜 확정 - 네이티브 광고 취소');
-      return;
-    }
-
-    // Free 티어 서버 확정
-    if (!isFreeFromCache) _startNativeAdLoad(); // 캐시에 없었던 경우 여기서 시작
+    // 배너(상단 + 채팅방 사이 목록) 네이티브 광고는 **플랜과 무관하게 항상 노출**한다.
+    // 구독(유료)자도 배너는 유지 — 유료에서 빠지는 건 리워드/전면광고뿐이며,
+    // 그 제외는 AdService.showRewardedAd / showExitAd / showChatDetailAd 에서 처리된다.
+    _startNativeAdLoad();
   }
 
   /// ✅ 캐시된 광고 초기화 (제거됨 - 슬롯 미리 예약 안 함)
@@ -578,78 +555,110 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       }
     }
 
-    // 채팅방 목록 광고 — charge_app과 동일하게 슬롯 4·8·12·16·20·24·28·32 각각 별도 NativeAd 인스턴스.
-    // AdWidget(PlatformView)은 한 위젯 트리에 한 번만 그려야 하므로 첫 번째 탭에만 표시.
-    // 슬롯별로 AdFit 폴백 플래그가 분리돼 있어 한쪽이 폴백돼도 다른 쪽은 AdMob 유지.
-    final messengers = MessengerSettingsService().getEnabledMessengers();
-    final firstPkg = messengers.firstOrNull?.packageName;
-    if (firstPkg != null) {
-      for (final slot in _admobListSlots) {
-        final key = _listAdKey(firstPkg, slot);
-        if (_listNativeAds.containsKey(key)) continue;
-        if (adService.useAdFitForListSlot(slot)) continue;
-
-        // 콘솔 등록 house ad가 bypass=true 면 AdMob 요청 자체를 skip.
-        // "loaded but not shown" 패턴은 AdMob 정책상 invalid impression 으로
-        // 분류될 수 있어 요청 단계에서 막는다.
-        final houseOverride = HouseAdCache.at(slot);
-        if (houseOverride != null && houseOverride.bypassAdmob) {
-          debugPrint('⏭️ 슬롯 $slot — house ad bypass=true, AdMob 요청 skip');
-          continue;
-        }
-
-        // 스플래시 동안 preload 된 광고가 있으면 즉시 사용 (깜빡임 X)
-        final preloadedList = adService.takePreloadedListAd(slot);
-        if (preloadedList != null) {
-          _listNativeAds[key] = preloadedList;
-          _listNativeAdTimeoutTimers.remove(key)?.cancel();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() => _listNativeAdLoaded[key] = true);
-            }
-          });
-          debugPrint('🎯 목록 네이티브 광고 — preload 즉시 사용 (slot=$slot, $firstPkg)');
-          continue;
-        }
-        final ad = NativeAd(
-          adUnitId: AdService.listAdUnitId(slot),
-          factoryId: AdService.nativeAdFactoryId,
-          listener: NativeAdListener(
-            onAdLoaded: (ad) {
-              _listNativeAdTimeoutTimers.remove(key)?.cancel();
-              if (mounted && _listNativeAds[key] == ad) {
-                adService.resetListAdFallback(slot);
-                // 고정 높이 슬롯이라 mount 해도 레이아웃 점프 없음 → 즉시 표시.
-                setState(() => _listNativeAdLoaded[key] = true);
-              }
-              debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $firstPkg)');
-            },
-            onAdFailedToLoad: (ad, error) {
-              _listNativeAdTimeoutTimers.remove(key)?.cancel();
-              debugPrint(
-                  '❌ 목록 네이티브 광고 로드 실패 (slot=$slot, $firstPkg): ${error.message}');
-              if (_listNativeAds[key] == ad) {
-                ad.dispose();
-                _listNativeAds.remove(key);
-                adService.switchListAdToAdFit(slot);
-                if (mounted) setState(() => _listNativeAdLoaded[key] = false);
-              }
-            },
-          ),
-          request: const AdRequest(),
-        );
-        _listNativeAds[key] = ad;
-        unawaited(ad.load());
-        // 타임아웃→AdFit 제거: AdMob 콜백만 기다린다. 로딩 중엔 고정높이(96dp) 슬롯이
-        // 자리를 지키고, onAdFailedToLoad(진짜 실패) 때만 AdFit 폴백.
-        // → AdFit 먼저 떴다 AdMob 으로 갈아치우는 더블 mount 끊김 제거.
-      }
-    }
+    // 채팅방 목록 광고는 **지연 로드**한다 — 8개를 마운트 시점에 한꺼번에 로드·마운트하면
+    // PlatformView(AdWidget) 생성이 한 프레임에 몰려 스크롤이 버벅인다. 그래서 각 슬롯은
+    // 화면 근처에서 빌드될 때(_buildAdMobListSlot → _ensureListAdLoaded) 비로소 로드해
+    // PlatformView 생성을 스크롤 진행에 따라 분산시킨다.
+    // (slot별 별도 NativeAd 인스턴스, AdFit 폴백 플래그도 slot별 분리 — _ensureListAdLoaded 참조)
 
     // 어떤 슬롯이라도 AdFit 폴백 상태면 UI 갱신
     if (adService.anyListSlotInAdFitFallback && mounted) {
       setState(() {});
     }
+  }
+
+  /// 목록 슬롯의 AdMob 네이티브를 **그 슬롯이 화면 근처에 올 때 1회** 로드.
+  /// PlatformView mount 가 스크롤에 따라 분산되어 버벅임이 줄어든다.
+  /// preload 된 광고가 있으면 즉시 사용. AdFit 폴백/​house bypass 슬롯은 skip.
+  void _ensureListAdLoaded(int slot) {
+    final adService = AdService();
+    final firstPkg =
+        MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
+    if (firstPkg == null) return;
+    final key = _listAdKey(firstPkg, slot);
+    if (_listNativeAds.containsKey(key)) return; // 이미 로드/로딩 중
+    if (adService.useAdFitForListSlot(slot)) return; // AdFit 모드 → 위젯이 렌더
+
+    // 콘솔 house ad bypass=true 면 AdMob 요청 자체 skip ("loaded but not shown" 회피).
+    final houseOverride = HouseAdCache.at(slot);
+    if (houseOverride != null && houseOverride.bypassAdmob) return;
+
+    // 스플래시 동안 preload 된 광고가 있으면 즉시 사용 (깜빡임 X)
+    final preloadedList = adService.takePreloadedListAd(slot);
+    if (preloadedList != null) {
+      _listNativeAds[key] = preloadedList;
+      _listNativeAdTimeoutTimers.remove(key)?.cancel();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _listNativeAdLoaded[key] = true);
+      });
+      debugPrint('🎯 목록 네이티브 광고 — preload 즉시 사용 (slot=$slot, $firstPkg)');
+      return;
+    }
+    final ad = NativeAd(
+      adUnitId: AdService.listAdUnitId(slot),
+      factoryId: AdService.nativeAdFactoryId,
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          _listNativeAdTimeoutTimers.remove(key)?.cancel();
+          if (mounted && _listNativeAds[key] == ad) {
+            adService.resetListAdFallback(slot);
+            setState(() => _listNativeAdLoaded[key] = true);
+          }
+          debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $firstPkg)');
+        },
+        onAdFailedToLoad: (ad, error) {
+          _listNativeAdTimeoutTimers.remove(key)?.cancel();
+          debugPrint(
+              '❌ 목록 네이티브 광고 로드 실패 (slot=$slot, $firstPkg): ${error.message}');
+          if (_listNativeAds[key] == ad) {
+            ad.dispose();
+            _listNativeAds.remove(key);
+            adService.switchListAdToAdFit(slot);
+            if (mounted) setState(() => _listNativeAdLoaded[key] = false);
+          }
+        },
+      ),
+      request: const AdRequest(),
+    );
+    _listNativeAds[key] = ad;
+    unawaited(ad.load());
+  }
+
+  /// 비-첫탭 상단 AdMob 광고 로드 — 해당 탭이 실제로 보일 때(active) 1회만.
+  /// 같은 unit ID(_nativeTopFixedId)를 쓰지만 상단은 한 번에 한 탭만 보이므로 동시 노출 없음.
+  void _loadTabTopAd(String pkg) {
+    final adService = AdService();
+    if (_tabTopAds.containsKey(pkg)) return; // 이미 로드/로딩 중
+    if (adService.useAdFitForTop) return; // AdMob 불가 → AdFit 위젯이 렌더 (로드 불필요)
+    if (TopBannerCache.current?.bypassAdmob == true) return; // 콘솔 TopBanner 대체 중
+    if (kIsWeb || !Platform.isAndroid) {
+      // iOS 등은 첫 탭과 동일 정책 — 단순화를 위해 비-첫탭 AdMob 생략(첫 탭 광고 유지).
+    }
+    final ad = NativeAd(
+      adUnitId: AdService.nativeTopFixedId,
+      factoryId: AdService.nativeTopAdFactoryId,
+      listener: NativeAdListener(
+        onAdLoaded: (loaded) {
+          if (mounted && _tabTopAds[pkg] == loaded) {
+            setState(() => _tabTopAdLoaded[pkg] = true);
+          }
+          debugPrint('✅ 탭 상단 네이티브 광고 로드 완료 ($pkg)');
+        },
+        onAdFailedToLoad: (failed, error) {
+          debugPrint('❌ 탭 상단 네이티브 광고 로드 실패 ($pkg): ${error.message}');
+          if (_tabTopAds[pkg] == failed) {
+            failed.dispose();
+            _tabTopAds.remove(pkg);
+            // 실패 시 AdFit 폴백을 그 탭에 노출 (전역 플래그 전환)
+            adService.switchTopAdToAdFit();
+            if (mounted) setState(() => _tabTopAdLoaded[pkg] = false);
+          }
+        },
+      ),
+      request: const AdRequest(),
+    );
+    _tabTopAds[pkg] = ad;
+    unawaited(ad.load());
   }
 
   /// ✅ 핵심 수정: DB Observer 시작 (EventChannel 대신)
@@ -1911,7 +1920,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   }
 
   /// 상단 AdFit 네이티브 — 카드 전폭 (Flutter 쪽 ⓘ/AD 오버레이 없음, 「광고」 문구는 XML 내)
-  Widget _buildTopAdFitChatListChrome() {
+  /// [keySuffix]: 탭(패키지)별 별도 PlatformView 인스턴스를 위해 위젯 키 분리.
+  Widget _buildTopAdFitChatListChrome({String? keySuffix}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1922,6 +1932,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: AdFitNativeTopAdWidget(
+        key: ValueKey<String>('adfit_native_top_${keySuffix ?? 'first'}'),
         adCode: AdService.adFitTopNativeCode,
       ),
     );
@@ -1980,24 +1991,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     }
 
     if (_isTopNativeLoaded && _topNativeAd != null) {
-      final ad = _topNativeAd!;
-      return Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: SizedBox(
-          height: 116,
-          // PlatformView(AdWidget) 컴포지팅을 형제 위젯과 격리 → 스크롤 시 주변 재페인트 차단.
-          child: RepaintBoundary(
-            child: AdWidget(key: ObjectKey(ad), ad: ad),
-          ),
-        ),
-      );
+      return _buildTopAdContainer(_topNativeAd!);
     }
     if (adService.useAdFitForTop) {
       return _buildTopAdFitChatListChrome();
@@ -2014,6 +2008,53 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: const SizedBox(height: 116),
     );
+  }
+
+  /// 상단 AdMob 네이티브를 카드 크롬(흰 배경·하단 구분선·높이 116)으로 감싼다.
+  /// 첫 탭(_topNativeAd)·비-첫탭(_tabTopAds[pkg]) 모두 동일 외형 공유.
+  Widget _buildTopAdContainer(NativeAd ad) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: SizedBox(
+        height: 116,
+        // PlatformView(AdWidget) 컴포지팅을 형제 위젯과 격리 → 스크롤 시 주변 재페인트 차단.
+        child: RepaintBoundary(child: AdWidget(key: ObjectKey(ad), ad: ad)),
+      ),
+    );
+  }
+
+  /// 해당 페이지(탭)에 표시할 상단 광고 위젯. null이면 슬롯 미표시(접힘).
+  ///   - 첫 탭: 기존 _buildSharedTopAd (preload·bypass·AdFit 폴백 정교 흐름)
+  ///   - 비-첫탭: 콘솔 TopBanner 대체 > 탭별 AdMob > AdFit 폴백 > (로딩 중) 접힘
+  Widget? _buildTopAdFor(String? packageName, bool isFirstPage) {
+    if (!_showTopAdSlot) return null;
+    if (isFirstPage) return _buildSharedTopAd();
+
+    final adService = AdService();
+    // 콘솔 TopBanner + bypass → 첫 탭과 동일 이미지 노출 (탭 무관 단일 이미지 위젯)
+    final topBanner = TopBannerCache.current;
+    if (topBanner != null && topBanner.bypassAdmob && !_topBannerImageFailed) {
+      return _buildSharedTopAd();
+    }
+
+    final pkg = packageName;
+    // 탭별 AdMob 로드 완료 → AdMob
+    if (pkg != null && _tabTopAdLoaded[pkg] == true && _tabTopAds[pkg] != null) {
+      return _buildTopAdContainer(_tabTopAds[pkg]!);
+    }
+    // AdMob 불가/실패 → AdFit 상단 (탭별 키)
+    if (adService.useAdFitForTop) {
+      return _buildTopAdFitChatListChrome(keySuffix: pkg);
+    }
+    // 로딩 중 → 접어둠 (회색 버퍼 미표시, 광고 준비되면 끼어듦)
+    return null;
   }
 
   /// 채팅방 목록 + 리스트 네이티브 광고 빌드.
@@ -2034,6 +2075,19 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final firstPackageName =
         MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
     final isFirstPage = packageName == null || packageName == firstPackageName;
+    final isActivePage = packageName == _selectedPackageName ||
+        (_selectedPackageName == null && isFirstPage);
+
+    // 비-첫탭이 실제 보이는 순간(active)에만 그 탭 상단 AdMob 로드.
+    // (노출 직전 로드 → "loaded but not shown" invalid impression 회피, 이웃 탭 선로드 방지)
+    if (!isFirstPage && isActivePage && _showTopAdSlot && packageName != null) {
+      final String pkg = packageName;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadTabTopAd(pkg);
+      });
+    }
+
+    final Widget? topAd = _buildTopAdFor(packageName, isFirstPage);
 
     // 첫 탭에서만 광고 슬롯 머지. 그 외 탭은 룸만.
     final List<Object> merged =
@@ -2043,9 +2097,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       physics: const AlwaysScrollableScrollPhysics(),
       cacheExtent: 280,
       slivers: [
-        // 상단 네이티브 광고 — 첫 번째 탭에서만, 목록과 함께 스크롤됨.
-        if (isFirstPage && _showTopAdSlot)
-          SliverToBoxAdapter(child: _buildSharedTopAd()),
+        // 상단 네이티브 광고 — 모든 탭, 목록과 함께 스크롤됨.
+        if (topAd != null) SliverToBoxAdapter(child: topAd),
         SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) {
@@ -2109,6 +2162,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     if (packageName == null) return const SizedBox.shrink();
     final adService = AdService();
     final key = _listAdKey(packageName, slot);
+    // 이 슬롯이 화면 근처에서 빌드되는 시점에 비로소 로드 → PlatformView mount 분산(버벅임↓).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _ensureListAdLoaded(slot);
+    });
     final ad = _listNativeAds[key];
     final isLoaded = _listNativeAdLoaded[key] == true;
     final useAdFit = adService.useAdFitForListSlot(slot);
