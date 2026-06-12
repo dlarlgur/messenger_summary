@@ -477,3 +477,43 @@ class TopBannerCache {
     return File('${dir.path}/$_imageFileName');
   }
 }
+
+/// 1:1 문의 상단 배너 — 콘솔 등록 광고(placement=inquiry_top) 인메모리 캐시.
+/// bypassAdmob=true 면 그 house ad 를 InquiryNativeAdBanner 가 AdMob 대신 노출.
+/// (문의 화면은 핫패스 아니라 디스크 캐시 없이 앱 시작 시 1회 fetch 로 충분.)
+class InquiryBannerCache {
+  InquiryBannerCache._();
+
+  static const String _packageName = 'com.dksw.app';
+  static const String _serverBaseUrl = 'https://dksw4.com/console';
+
+  static HouseAd? _ad;
+  static bool _fetched = false;
+
+  static HouseAd? get current => _ad;
+  static bool get fetched => _fetched;
+
+  static Future<void> fetch() async {
+    try {
+      final res = await Dio().get(
+        '$_serverBaseUrl/api/top-banner',
+        queryParameters: {
+          'package': _packageName,
+          'placement': 'inquiry_top',
+          if (DkswCore.deviceId.isNotEmpty) 'device_id': DkswCore.deviceId,
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 5)),
+      );
+      _fetched = true;
+      final data = res.data;
+      if (data is! Map || data['ok'] != true) return;
+      final adRaw = data['ad'];
+      _ad = adRaw is Map
+          ? HouseAd.fromJson(Map<String, dynamic>.from(adRaw))
+          : null;
+    } catch (e) {
+      _fetched = true;
+      debugPrint('[InquiryBannerCache] fetch 실패: $e');
+    }
+  }
+}

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/ad_service.dart';
+import '../services/house_ad_service.dart';
+import 'top_banner_view.dart';
 
 /// 1:1 문의 화면에 노출되는 AdMob 네이티브 광고.
 /// 채팅방 목록 상단 배너와 동일한 커스텀 네이티브 팩토리(topNativeAd, 풀폭 CTA 카드)로
@@ -28,6 +30,11 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
   @override
   void initState() {
     super.initState();
+    // 0. 콘솔 등록 1:1 문의 배너(bypass)가 있으면 그걸 우선 노출 → AdMob 로드 skip.
+    final house = InquiryBannerCache.current;
+    if (house != null && house.bypassAdmob) {
+      return;
+    }
     // 1. AdService 가 미리 로드해둔 광고가 있으면 즉시 사용
     final preloaded = AdService().takePreloadedInquiryAd();
     if (preloaded != null) {
@@ -70,6 +77,11 @@ class _InquiryNativeAdBannerState extends State<InquiryNativeAdBanner> {
 
   @override
   Widget build(BuildContext context) {
+    // 콘솔 등록 배너(bypass) 우선 — 내 광고를 AdMob 대신 노출.
+    final house = InquiryBannerCache.current;
+    if (house != null && house.bypassAdmob) {
+      return TopBannerView(ad: house);
+    }
     final ad = _ad;
     if (!_loaded || ad == null) {
       // 로딩 중엔 자리 차지 안 함 (높이 0)

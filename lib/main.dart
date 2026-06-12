@@ -136,6 +136,7 @@ void main() async {
       // 둘 다 같은 도메인이라 직렬보다 병렬이 빠름
       unawaited(HouseAdCache.fetch());
       unawaited(TopBannerCache.fetch());
+      unawaited(InquiryBannerCache.fetch());
     }());
 
     final boot = await DkswCore.bootstrap();
