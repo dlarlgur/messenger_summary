@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/subscription_screen.dart';
+import '../services/plan_service.dart';
 import '../theme/app_tokens.dart';
 
 /// 구독 유도 페이월 바텀시트
@@ -281,14 +282,15 @@ class PaywallBottomSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.workspace_premium, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.workspace_premium, size: 20),
+                  const SizedBox(width: 8),
                   Text(
-                    'BASIC 구독하기 · 월 2,900원',
-                    style: TextStyle(
+                    // 안내 가격은 원격설정(plan.basic.price_label) 동적, 캐시 없으면 fallback "2,900"
+                    'BASIC 구독하기 · 월 ${PlanService().getBasicPriceLabelSync()}원',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),

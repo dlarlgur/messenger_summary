@@ -6182,11 +6182,21 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                         ),
                       // 텍스트가 있으면 말풍선으로 표시
-                      // 이미지가 있으면 "사진을 보냈습니다"/"이모티콘을 보냈습니다" 숨김
-                      // 이미지가 없으면 텍스트 그대로 표시
-                      if (message.message.isNotEmpty &&
-                          !((message.message == '사진을 보냈습니다' || message.message == '이모티콘을 보냈습니다') && message.imagePath != null) &&
-                          message.message.trim().isNotEmpty)
+                      // 이미지가 있으면 placeholder 캡션 숨김 (중복 제거):
+                      //  - 전체 문장형("사진을 보냈습니다" 등)은 시스템 placeholder라 모든 메신저에서 숨김(오탐 X)
+                      //  - 짧은 단어("이미지"/"사진"/"이모티콘")는 사용자가 캡션으로 쓸 수도 있어
+                      //    SMS/MMS 방에서만 숨김(문자앱이 캡션없는 사진에 붙이는 placeholder)
+                      if (message.message.trim().isNotEmpty &&
+                          !(message.imagePath != null &&
+                              (const {
+                                    '사진을 보냈습니다',
+                                    '사진을 보냈습니다.',
+                                    '이모티콘을 보냈습니다',
+                                    '이모티콘을 보냈습니다.',
+                                  }.contains(message.message.trim()) ||
+                                  (widget.room.packageName == 'sms' &&
+                                      const {'이미지', '사진', '이모티콘'}
+                                          .contains(message.message.trim())))))
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisAlignment: isSentByMe

@@ -249,6 +249,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // MainScreen 이 화면에 올라왔음을 알림 — 푸시 딥링크가 스플래시 전환에 덮이지 않도록.
+    WidgetsBinding.instance.addPostFrameCallback((_) => PushService.signalAppReady());
     _fastInitialize();
     _setupMainMethodChannel();
     _checkPendingSummaryId();

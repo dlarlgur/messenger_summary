@@ -26,6 +26,7 @@ import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.EventChannel
+import android.provider.Telephony
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
 import java.util.UUID
@@ -703,7 +704,14 @@ class MainActivity : FlutterFragmentActivity() {
      * 4. 실패 시 https fallback
      * 5. 실패 시 Play Store fallback
      */
-    private fun openApp(packageName: String, scheme: String?, httpsUrl: String?): Boolean {
+    private fun openApp(packageNameRaw: String, scheme: String?, httpsUrl: String?): Boolean {
+        // 가상 패키지 "sms" → 기기 기본 문자앱으로 매핑 (설치 체크·실행 모두 실제 앱 기준).
+        val packageName = if (packageNameRaw == "sms") {
+            (try { Telephony.Sms.getDefaultSmsPackage(this) } catch (e: Exception) { null })
+                ?: return false
+        } else {
+            packageNameRaw
+        }
         // 1. 앱 설치 여부 체크
         val isAppInstalled = try {
             packageManager.getPackageInfo(packageName, 0)

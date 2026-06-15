@@ -39,10 +39,17 @@ class PlanService {
   int? _cachedFreeMsgCap;
   int? _cachedBasicMsgCap;
 
+  // 원격설정 BASIC 안내 가격 라벨 캐시 (getUsage 응답에서 추출). 단위 "원"은 UI 에서 붙임.
+  String? _cachedBasicPriceLabel;
+
   /// 캐시된 한 번 요약 메시지 cap (동기 — 캐시 없으면 null)
   int? getCachedMsgCapSync({required bool isBasic}) {
     return isBasic ? _cachedBasicMsgCap : _cachedFreeMsgCap;
   }
+
+  /// 캐시된 BASIC 안내 가격 라벨 (동기 — 캐시 없으면 하드코딩 fallback "2,900")
+  /// 실제 결제가는 스토어가 결정하며, 이 값은 안내 표시용일 뿐이다.
+  String getBasicPriceLabelSync() => _cachedBasicPriceLabel ?? '2,900';
 
   /// 플랜 타입 변경 알림 (구독 화면, 채팅방 목록 등에서 실시간 감지용)
   final ValueNotifier<String> planTypeNotifier = ValueNotifier('free');
@@ -329,6 +336,11 @@ class PlanService {
         final basicCap = data['summaryMaxMessagesBasic'] as int?;
         if (freeCap != null && freeCap > 0) _cachedFreeMsgCap = freeCap;
         if (basicCap != null && basicCap > 0) _cachedBasicMsgCap = basicCap;
+        // BASIC 안내 가격 라벨 캐시 (응답에 있을 때만)
+        final priceLabel = data['basicPriceLabel'] as String?;
+        if (priceLabel != null && priceLabel.trim().isNotEmpty) {
+          _cachedBasicPriceLabel = priceLabel.trim();
+        }
         return data;
       } else {
         debugPrint('❌ 사용량 조회 실패: ${response.statusCode}');

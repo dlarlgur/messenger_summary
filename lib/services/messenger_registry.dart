@@ -98,6 +98,16 @@ class MessengerRegistry {
       icon: Icons.group_work_rounded,
       enabledByDefault: true,
     ),
+    // 문자(SMS) — 가상 패키지. 네이티브가 기기 기본 문자앱 알림을 "sms" 로 정규화해 캡처.
+    // 기본 ON: 신규 유저는 첫 실행 시 전체 활성, 기존 유저는 enabledByDefault 머지로 자동 추가.
+    // 설정 화면(messenger_settings)에서 다른 메신저처럼 On/Off 토글 가능.
+    MessengerInfo(
+      packageName: 'sms',
+      alias: '문자메시지',
+      brandColor: Color(0xFF1E88E5),
+      icon: Icons.sms,
+      enabledByDefault: true,
+    ),
   ];
 
   static MessengerInfo? getByPackageName(String packageName) {

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'subscription_screen.dart';
+
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
   @override
@@ -158,19 +160,22 @@ class EventDetailScreen extends StatelessWidget {
     final primary = isDark ? Colors.white : const Color(0xFF1F2937);
     final secondary = isDark ? Colors.white70 : const Color(0xFF6B7280);
     final imageUrl = event.imageUrl;
+    // 본문의 링크(<a>)는 네이티브 CTA 버튼으로 분리해 예쁘게 렌더.
+    final split = _splitEventCtas(event.bodyHtml);
     return Scaffold(
       appBar: AppBar(title: const Text('이벤트')),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
+          // 상세에서는 대표 이미지를 크롭하지 않고 원본 비율 전체(가로맞춤)로 표시.
+          // (flutter_html 은 이미지 확장 미설정이라 본문 <img> 를 렌더하지 않으므로
+          //  이미지는 대표 이미지 슬롯으로만 노출한다.)
           if (imageUrl != null && imageUrl.isNotEmpty)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: CachedNetworkImage(
-                imageUrl: DkswCore.resolveAssetUrl(imageUrl),
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
-              ),
+            CachedNetworkImage(
+              imageUrl: DkswCore.resolveAssetUrl(imageUrl),
+              fit: BoxFit.fitWidth,
+              width: double.infinity,
+              errorWidget: (_, __, ___) => const SizedBox.shrink(),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -198,16 +203,14 @@ class EventDetailScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 18),
-                Html(
-                  data: event.bodyHtml,
-                  onLinkTap: (url, _, __) async {
-                    if (url == null) return;
-                    await launchUrl(
-                      Uri.parse(url),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                ),
+                if (split.body.replaceAll(RegExp(r'<[^>]*>|&nbsp;|\s'), '').isNotEmpty)
+                  Html(
+                    data: split.body,
+                    onLinkTap: (url, _, __) async {
+                      if (url != null) await _openEventLink(context, url);
+                    },
+                  ),
+                ...split.ctas.map((c) => _eventCtaButton(context, c)),
               ],
             ),
           ),
@@ -236,6 +239,80 @@ Widget _empty({
         const SizedBox(height: 6),
         Text(description, style: TextStyle(fontSize: 13, color: muted)),
       ],
+    ),
+  );
+}
+
+// 본문 HTML 에서 링크(<a href>)를 추출해 네이티브 CTA 버튼으로 분리.
+// 반환: (링크 제거된 본문, [(href,label)...])
+({String body, List<({String href, String label})> ctas}) _splitEventCtas(String html) {
+  final ctas = <({String href, String label})>[];
+  final re = RegExp(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+      caseSensitive: false, dotAll: true);
+  final body = html.replaceAllMapped(re, (m) {
+    final href = (m.group(1) ?? '').trim();
+    final label = _cleanLabel(m.group(2) ?? '');
+    if (href.isNotEmpty) {
+      ctas.add((href: href, label: label.isEmpty ? '바로가기' : label));
+    }
+    return '';
+  });
+  return (body: body, ctas: ctas);
+}
+
+// 버튼 라벨 정리: 태그 제거 + 화살표(→ / &rarr;) 제거 + 기본 엔티티 디코드.
+String _cleanLabel(String raw) {
+  return raw
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&rarr;', '')
+      .replaceAll('&#8594;', '')
+      .replaceAll('→', '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
+}
+
+// CTA 링크 열기: app://subscription → 구독 화면(내부), 그 외(http 등) → 외부 브라우저.
+// 광고 CTA 와 동일 규칙: http(s) = 외부 브라우저, 그 외(식별자 /subscribe 등) = 앱 내부 화면.
+Future<void> _openEventLink(BuildContext context, String url) async {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+    return;
+  }
+  // 내부 식별자(/subscribe 등) → 앱 화면. http 가 아니면 절대 launchUrl 로 보내지 않는다(검정화면 방지).
+  Widget target;
+  switch (url) {
+    case '/subscribe':
+      target = const SubscriptionScreen();
+      break;
+    default:
+      target = const SubscriptionScreen(); // 알 수 없는 식별자는 구독으로 (광고와 동일)
+  }
+  Navigator.of(context).push(MaterialPageRoute(builder: (_) => target));
+}
+
+// 예쁜 네이티브 CTA 버튼 (둥근 초록, 풀폭).
+Widget _eventCtaButton(BuildContext context, ({String href, String label}) cta) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () { _openEventLink(context, cta.href); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4CAF50),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: Text(
+          cta.label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
     ),
   );
 }

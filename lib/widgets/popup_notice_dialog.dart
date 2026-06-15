@@ -5,6 +5,8 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../screens/subscription_screen.dart';
+
 /// 콘솔에 등록된 type=popup 공지를 진입 시 1회 표시.
 /// "오늘 보지 않기" 누르면 해당 공지 id가 다음 자정까지 스킵.
 class PopupNoticeDialog extends StatelessWidget {
@@ -40,11 +42,17 @@ class PopupNoticeDialog extends StatelessWidget {
   Future<void> _skipToday(BuildContext context) async {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    await _putSkip(context, tomorrow.millisecondsSinceEpoch);
+  }
+
+  Future<void> _skipMonth(BuildContext context) async {
+    final until = DateTime.now().add(const Duration(days: 30));
+    await _putSkip(context, until.millisecondsSinceEpoch);
+  }
+
+  Future<void> _putSkip(BuildContext context, int untilMs) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(
-      '$_skipPrefix${notice.id}',
-      tomorrow.millisecondsSinceEpoch,
-    );
+    await prefs.setInt('$_skipPrefix${notice.id}', untilMs);
     if (context.mounted) Navigator.pop(context);
   }
 
@@ -91,25 +99,12 @@ class PopupNoticeDialog extends StatelessWidget {
                     if (hasImage)
                       CachedNetworkImage(
                         imageUrl: DkswCore.resolveAssetUrl(notice.imageUrl!),
-                        fit: BoxFit.cover,
+                        fit: BoxFit.fitWidth,
+                        width: double.infinity,
                         errorWidget: (_, __, ___) =>
                             const SizedBox.shrink(),
                       ),
-                    if (notice.body.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                            20, hasImage ? 14 : 0, 20, 16),
-                        child: Html(
-                          data: notice.body,
-                          onLinkTap: (url, _, __) async {
-                            if (url == null) return;
-                            await launchUrl(
-                              Uri.parse(url),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                        ),
-                      ),
+                    ..._popupBodyWidgets(context, notice.body, hasImage),
                   ],
                 ),
               ),
@@ -125,33 +120,132 @@ class PopupNoticeDialog extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: const RoundedRectangleBorder(),
                     ),
-                    child: const Text('오늘 보지 않기',
-                        style: TextStyle(fontSize: 14)),
+                    child: const Text('오늘 하루 안 보기',
+                        style: TextStyle(fontSize: 13.5)),
                   ),
                 ),
                 Container(width: 1, height: 20, color: divider),
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => _skipMonth(context),
                     style: TextButton.styleFrom(
-                      foregroundColor: accent,
+                      foregroundColor: secondary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: const RoundedRectangleBorder(),
                     ),
-                    child: const Text(
-                      '닫기',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: const Text('한 달 안 보기',
+                        style: TextStyle(fontSize: 13.5)),
                   ),
                 ),
               ],
+            ),
+            Divider(height: 1, color: divider),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: accent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: const RoundedRectangleBorder(),
+              ),
+              child: const Text(
+                '닫기',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+// 팝업 본문 — 링크(<a>)를 네이티브 CTA 버튼으로 분리해 렌더 (이벤트/공지 상세와 동일).
+List<Widget> _popupBodyWidgets(BuildContext context, String body, bool hasImage) {
+  final split = _splitCtas(body);
+  final hasText = split.body.replaceAll(RegExp(r'<[^>]*>|&nbsp;|\s'), '').isNotEmpty;
+  if (!hasText && split.ctas.isEmpty) return const [];
+  return [
+    Padding(
+      padding: EdgeInsets.fromLTRB(20, hasImage ? 14 : 16, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasText)
+            Html(
+              data: split.body,
+              onLinkTap: (url, _, __) async {
+                if (url != null) await _openPopupLink(context, url);
+              },
+            ),
+          ...split.ctas.map((c) => _popupCtaButton(context, c)),
+        ],
+      ),
+    ),
+  ];
+}
+
+({String body, List<({String href, String label})> ctas}) _splitCtas(String html) {
+  final ctas = <({String href, String label})>[];
+  final re = RegExp(r'<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+      caseSensitive: false, dotAll: true);
+  final body = html.replaceAllMapped(re, (m) {
+    final href = (m.group(1) ?? '').trim();
+    final label = _cleanLabel(m.group(2) ?? '');
+    if (href.isNotEmpty) {
+      ctas.add((href: href, label: label.isEmpty ? '바로가기' : label));
+    }
+    return '';
+  });
+  return (body: body, ctas: ctas);
+}
+
+String _cleanLabel(String raw) {
+  return raw
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&rarr;', '')
+      .replaceAll('&#8594;', '')
+      .replaceAll('→', '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&nbsp;', ' ')
+      .trim();
+}
+
+// 팝업은 먼저 닫고 이동. 광고 CTA 와 동일 규칙: http(s)=외부, 그 외 식별자(/subscribe)=내부 화면.
+Future<void> _openPopupLink(BuildContext context, String url) async {
+  final nav = Navigator.of(context);
+  nav.pop();
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return;
+  }
+  switch (url) {
+    case '/subscribe':
+      nav.push(MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+      break;
+    default:
+      nav.push(MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+  }
+}
+
+Widget _popupCtaButton(BuildContext context, ({String href, String label}) cta) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () { _openPopupLink(context, cta.href); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4CAF50),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          cta.label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ),
+  );
 }

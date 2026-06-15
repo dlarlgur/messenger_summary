@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.PowerManager
+import android.provider.Telephony
 import android.provider.MediaStore
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -59,7 +60,10 @@ class NotificationListener : NotificationListenerService() {
             "com.Slack" to "Slack",
             "com.microsoft.teams" to "Teams",
             "com.facebook.orca" to "Messenger",
-            "com.nhn.android.band" to "네이버 밴드"
+            "com.nhn.android.band" to "네이버 밴드",
+            // 문자(SMS) — 가상 패키지. 실제 알림은 기기 기본 문자앱(삼성·구글 등)에서 오고,
+            // onNotificationPosted 에서 normalizePackage() 가 기본 문자앱 패키지를 "sms" 로 정규화.
+            "sms" to "문자메시지"
         )
 
         // SharedPreferences 키 (활성 메신저 목록)
@@ -1205,6 +1209,33 @@ class NotificationListener : NotificationListenerService() {
         val isPrivateChat: Boolean
     )
 
+    // 기본 문자앱 패키지 캐시 (기기마다 다름: 삼성·구글·LG…). 60초 TTL.
+    @Volatile private var cachedDefaultSmsPkg: String? = null
+    private var cachedDefaultSmsPkgAt: Long = 0L
+
+    private fun defaultSmsPackage(): String? {
+        val now = System.currentTimeMillis()
+        if (cachedDefaultSmsPkg == null || now - cachedDefaultSmsPkgAt > 60_000L) {
+            cachedDefaultSmsPkg = try {
+                Telephony.Sms.getDefaultSmsPackage(applicationContext)
+            } catch (e: Exception) {
+                null
+            }
+            cachedDefaultSmsPkgAt = now
+        }
+        return cachedDefaultSmsPkg
+    }
+
+    /**
+     * 실제 알림 패키지를 논리 메신저 패키지로 정규화.
+     * 기기 기본 문자앱 패키지(삼성/구글 메시지 등) → 가상 패키지 "sms" 로 통일.
+     * 이미 알려진 메신저(카톡 등)는 빠른 경로로 그대로 반환.
+     */
+    private fun normalizePackage(raw: String): String {
+        if (ALL_MESSENGERS.containsKey(raw)) return raw // 알려진 메신저 (Telephony 조회 회피)
+        return if (raw == defaultSmsPackage()) "sms" else raw
+    }
+
     /**
      * 메신저가 활성화되어 있는지 확인 (SharedPreferences에서 동적으로)
      */
@@ -1242,8 +1273,36 @@ class NotificationListener : NotificationListenerService() {
             "com.microsoft.teams" -> parseTeams(title, text, subText, conversationTitle, isGroupConversation)
             "com.facebook.orca" -> parseFacebookMessenger(title, text, subText, conversationTitle, isGroupConversation)
             "com.nhn.android.band" -> parseBand(title, text, subText, conversationTitle, isGroupConversation)
+            "sms" -> parseSms(title, text, subText, conversationTitle)
             else -> null
         }
+    }
+
+    /**
+     * 문자메시지(SMS/MMS/RCS) 알림 파싱.
+     *
+     * 기본 문자앱(삼성·구글 메시지 등)의 알림 구조:
+     *  - 개인: title=발신자(이름/번호), text=본문, subText 비어있음
+     *  - 그룹 MMS/RCS: conversationTitle 에 그룹명이 올 수 있음
+     * → roomName 을 발신자(또는 그룹명)로 잡아 발신자별 방이 자동 생성됨.
+     *
+     * 요약 알림("새 메시지 N개")은 본문이 카운트 문구라 방을 오염시키므로 skip.
+     */
+    private fun parseSms(
+        title: String, text: String, subText: String, conversationTitle: String
+    ): ParsedNotification? {
+        if (title.isBlank() && conversationTitle.isBlank()) return null
+        // 요약/카운트 알림 필터 (앱마다 문구 상이 — 대표 패턴만)
+        val summaryPattern = Regex("""^\s*\d+\s*(개의 새 메시지|new messages?|messages?)\s*$""")
+        if (summaryPattern.containsMatchIn(text)) return null
+
+        val isGroup = conversationTitle.isNotBlank()
+        val roomName = when {
+            isGroup -> conversationTitle           // 그룹: 그룹명이 방
+            subText.isNotEmpty() -> subText
+            else -> title                          // 개인: 발신자가 방
+        }
+        return ParsedNotification(roomName, title, text, !isGroup)
     }
 
     /**
@@ -1547,8 +1606,9 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         sbn?.let { notification ->
-            val packageName = notification.packageName
-            
+            // 기기 기본 문자앱 → "sms" 로 정규화 (이후 모든 로직이 하나의 메신저로 처리)
+            val packageName = normalizePackage(notification.packageName)
+
             // 지원하는 메신저인지 확인 (가장 빠른 체크)
             val isSupportedMessenger = isMessengerEnabled(packageName)
 
@@ -2241,16 +2301,23 @@ class NotificationListener : NotificationListenerService() {
         try {
             val activeNotifications = activeNotifications
             for (sbn in activeNotifications) {
+                // 기기 기본 문자앱도 "sms" 로 정규화해 함께 처리
+                val pkg = normalizePackage(sbn.packageName)
                 // 지원하는 모든 메신저에서 해당 채팅방 알림 취소
-                if (ALL_MESSENGERS.containsKey(sbn.packageName)) {
+                if (ALL_MESSENGERS.containsKey(pkg)) {
                     val extras = sbn.notification.extras
                     val subText = extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
                     val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
-                    // 개인톡은 subText가 비어있고 title이 채팅방 이름
-                    val notificationRoomName = if (subText.isEmpty()) title else subText
+                    val conversationTitle = extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString() ?: ""
+                    // 개인톡은 subText가 비어있고 title이 채팅방 이름. SMS 그룹은 conversationTitle.
+                    val notificationRoomName = when {
+                        pkg == "sms" && conversationTitle.isNotEmpty() -> conversationTitle
+                        subText.isEmpty() -> title
+                        else -> subText
+                    }
                     if (notificationRoomName == roomName) {
                         cancelNotification(sbn.key)
-                        val messengerName = ALL_MESSENGERS[sbn.packageName] ?: sbn.packageName
+                        val messengerName = ALL_MESSENGERS[pkg] ?: pkg
                         Log.d(TAG, "[$messengerName] 채팅방 알림 취소됨: $roomName, key: ${sbn.key}")
                     }
                 }
@@ -2808,7 +2875,7 @@ class NotificationListener : NotificationListenerService() {
                 .setContentText("메시지 ${unreadCount}개 쌓임 · 자동 분석은 BASIC에서 제공됩니다")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("${unreadCount}개의 메시지가 쌓였습니다.\n자동 분석 및 최대 200개 요약은 BASIC 플랜(월 2,900원)에서 이용 가능합니다.")
+                        .bigText("${unreadCount}개의 메시지가 쌓였습니다.\n자동 분석 및 더 많은 메시지 요약은 BASIC 플랜에서 이용 가능합니다.")
                         .setSummaryText("BASIC으로 업그레이드")
                 )
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)

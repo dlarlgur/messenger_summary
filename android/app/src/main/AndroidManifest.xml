@@ -35,7 +35,7 @@
         <!-- MainActivity: 메인 화면 (Flutter) -->
         <activity
             android:name=".MainActivity"
-            android:exported="false"
+            android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/NormalTheme"
             android:resizeableActivity="true"
@@ -50,6 +50,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- FCM 알림 탭 시 (런처가 OnboardingActivity 라서) MainActivity(Flutter)를
+                 직접 열어 getInitialMessage/onMessageOpenedApp 으로 딥링크가 전달되게 한다.
+                 콘솔 푸시의 android.notification.click_action='FLUTTER_NOTIFICATION_CLICK' 와 매칭. -->
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- NotificationListenerService 등록 -->

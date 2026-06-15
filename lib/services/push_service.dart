@@ -1,6 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import '../main.dart';
+import '../screens/events_screen.dart';
+import '../screens/notices_screen.dart';
+import '../widgets/inquiry_native_ad_banner.dart';
 
 /// 백그라운드/종료 상태 메시지 핸들러.
 /// notification 페이로드는 시스템이 자동으로 트레이에 표시하므로 여기선 데이터 처리만.
@@ -27,9 +36,18 @@ const AndroidNotificationChannel _generalChannel = AndroidNotificationChannel(
 /// 동선이 자연스러움 (그 전에 호출하면 권한 화면 위에 OS 다이얼로그 겹침).
 class PushService {
   static int _notifId = 2000;
+  static bool _tapHandlersRegistered = false;
+
+  // 딥링크 push 가 SplashScreen→MainScreen 전환에 덮어써지지 않도록, MainScreen 이
+  // 올라온 뒤에만 라우팅한다. MainScreen.initState 에서 signalAppReady() 호출.
+  static final Completer<void> _appReady = Completer<void>();
+  static void signalAppReady() {
+    if (!_appReady.isCompleted) _appReady.complete();
+  }
 
   static Future<void> initialize() async {
     try {
+      debugPrint('[PUSH] initialize 시작');
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       final messaging = FirebaseMessaging.instance;
 
@@ -39,6 +57,8 @@ class PushService {
         const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         ),
+        // 포그라운드에서 띄운 로컬 알림 탭 → 딥링크 라우팅
+        onDidReceiveNotificationResponse: _handleLocalTap,
       );
       await _localNotifications
           .resolvePlatformSpecificImplementation<
@@ -48,17 +68,33 @@ class PushService {
       // 포그라운드 수신 — 시스템이 자동 표시 안 하므로 직접 띄움.
       FirebaseMessaging.onMessage.listen(_showForeground);
 
+      // 알림 탭 → 딥링크 라우팅 (중복 등록 방지)
+      if (!_tapHandlersRegistered) {
+        _tapHandlersRegistered = true;
+        // 백그라운드(앱 실행 중) 상태에서 알림 탭
+        FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteTap);
+        // 종료 상태에서 알림 탭으로 앱이 켜진 경우 (런치 메시지)
+        FirebaseMessaging.instance.getInitialMessage().then((m) {
+          debugPrint('[PUSH] getInitialMessage = ${m?.data}');
+          if (m != null) _handleRemoteTap(m);
+        });
+        debugPrint('[PUSH] tap handlers 등록 완료');
+      }
+
       // Android 는 POST_NOTIFICATIONS 권한 없어도 토큰 발급됨 — 권한 요청은 분리.
       final token = await messaging.getToken();
       if (token != null) await DkswCore.registerInquiryFcmToken(token);
       messaging.onTokenRefresh.listen(DkswCore.registerInquiryFcmToken);
-    } catch (_) {
-      // 푸시 셋업 실패가 앱 부팅을 막지 않도록 무시
+      debugPrint('[PUSH] initialize 완료 (token=${token != null})');
+    } catch (e, st) {
+      // 푸시 셋업 실패가 앱 부팅을 막지 않도록 무시 — 단 원인은 로그로 남긴다.
+      debugPrint('[PUSH] initialize 실패: $e\n$st');
     }
   }
 
   /// 포그라운드에서 받은 FCM 메시지를 로컬 알림으로 표시.
   static void _showForeground(RemoteMessage message) {
+    debugPrint('[PUSH] onMessage(foreground 수신) data=${message.data} hasNotif=${message.notification != null}');
     final n = message.notification;
     if (n == null) return; // data-only 메시지는 표시 대상 아님
     final body = n.body ?? '';
@@ -76,7 +112,112 @@ class PushService {
           styleInformation: BigTextStyleInformation(body),
         ),
       ),
+      // 탭 시 딥링크 라우팅용 — FCM data 를 그대로 실어 보냄.
+      payload: jsonEncode(message.data),
     );
+  }
+
+  /// 포그라운드 로컬 알림 탭 핸들러 — payload(JSON) 를 파싱해 라우팅.
+  static void _handleLocalTap(NotificationResponse response) {
+    final payload = response.payload;
+    debugPrint('[PUSH] _handleLocalTap payload=$payload');
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = (jsonDecode(payload) as Map).cast<String, dynamic>();
+      _route(data);
+    } catch (e) {
+      debugPrint('[PUSH] _handleLocalTap parse 실패: $e');
+    }
+  }
+
+  /// 백그라운드/종료 상태 알림 탭 핸들러.
+  static void _handleRemoteTap(RemoteMessage message) {
+    debugPrint('[PUSH] _handleRemoteTap data=${message.data}');
+    _route(message.data);
+  }
+
+  /// FCM data 기반 라우팅 — 1:1 문의 답변 / 이벤트 / 공지 딥링크.
+  /// 종료 상태에서 켜질 땐 navigator 가 아직 준비 전일 수 있어 준비될 때까지 재시도.
+  static Future<void> _route(Map<String, dynamic> data, {int attempt = 0}) async {
+    final type = data['type']?.toString();
+    if (type != 'inquiry_reply' && type != 'event' && type != 'notice') return;
+
+    // MainScreen 이 올라온 뒤에만 push — 안 그러면 SplashScreen→MainScreen 전환이
+    // 딥링크로 push 한 화면을 덮어써 메인으로 돌아간다(종료상태 진입 레이스).
+    if (attempt == 0) {
+      debugPrint('[PUSH] _route type=$type, appReady 대기...');
+      await _appReady.future.timeout(const Duration(seconds: 12), onTimeout: () {});
+    }
+
+    final nav = MyApp.navigatorKey.currentState;
+    if (nav == null) {
+      debugPrint('[PUSH] _route nav=null attempt=$attempt');
+      if (attempt >= 12) return; // 최대 ~6초 대기 후 포기
+      await Future.delayed(const Duration(milliseconds: 500));
+      return _route(data, attempt: attempt + 1);
+    }
+    debugPrint('[PUSH] _route nav 준비됨 → type=$type 라우팅');
+
+    if (type == 'inquiry_reply') {
+      final id = int.tryParse(data['inquiryId']?.toString() ?? '');
+      nav.push(MaterialPageRoute(
+        builder: (_) => InquiryScreen(
+          topBanner: const InquiryNativeAdBanner(),
+          bannerAboveHeader: true,
+          initialInquiryId: id,
+        ),
+      ));
+      return;
+    }
+
+    // 이벤트 / 공지 — id 로 항목을 받아 상세로 직행. 푸시 탭 직후엔 네트워크가 덜 준비돼
+    // 첫 fetch 가 비거나 늦을 수 있으므로, 못 찾으면 잠깐 뒤 재시도한 뒤 폴백한다.
+    final id = int.tryParse(data['id']?.toString() ?? '');
+    if (type == 'event') {
+      _routeToEventDetail(nav, id);
+    } else if (type == 'notice') {
+      _routeToNoticeDetail(nav, id);
+    }
+  }
+
+  static Future<void> _routeToEventDetail(NavigatorState nav, int? id,
+      {int attempt = 0}) async {
+    EventItem? item;
+    try {
+      final list = await DkswCore.fetchEvents();
+      for (final e in list) {
+        if (e.id == id) { item = e; break; }
+      }
+    } catch (_) {}
+    if (item == null && id != null && attempt < 4) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      return _routeToEventDetail(nav, id, attempt: attempt + 1);
+    }
+    final found = item;
+    nav.push(MaterialPageRoute(
+      builder: (_) =>
+          found != null ? EventDetailScreen(event: found) : const EventsScreen(),
+    ));
+  }
+
+  static Future<void> _routeToNoticeDetail(NavigatorState nav, int? id,
+      {int attempt = 0}) async {
+    NoticeItem? item;
+    try {
+      final list = await DkswCore.fetchNotices();
+      for (final n in list) {
+        if (n.id == id) { item = n; break; }
+      }
+    } catch (_) {}
+    if (item == null && id != null && attempt < 4) {
+      await Future.delayed(const Duration(milliseconds: 600));
+      return _routeToNoticeDetail(nav, id, attempt: attempt + 1);
+    }
+    final found = item;
+    nav.push(MaterialPageRoute(
+      builder: (_) =>
+          found != null ? NoticeDetailScreen(notice: found) : const NoticesScreen(),
+    ));
   }
 
   /// OS 알림 권한(POST_NOTIFICATIONS / iOS notification) 요청.
