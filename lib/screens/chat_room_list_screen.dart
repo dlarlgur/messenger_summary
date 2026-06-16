@@ -103,6 +103,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   // Native에서 DB에 저장 → Flutter가 주기적으로 DB 확인
   Timer? _dbObserverTimer;
   DateTime? _lastCheckTime;
+  // DB Observer 의 전체 리로드가 진행 중인지 — 버스트(안읽음 급증) 시 중복 리로드 코얼레싱.
+  bool _observerReloadInFlight = false;
 
   // 알림 권한 대기 상태
   bool _wasWaitingForPermission = false;
@@ -622,6 +624,21 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     );
     _listNativeAds[key] = ad;
     unawaited(ad.load());
+
+    // 타임아웃 — AdMob 로드가 콜백 없이 멈추면(드물게 발생) 96dp 빈 슬롯이 오래 남는다.
+    // AdMob 자체 no-fill 타임아웃(수십 초)을 기다리지 않고 6초 후 AdFit 폴백으로 전환
+    // (onAdFailedToLoad 와 동일 처리) → 빈 자리 체류 시간 단축.
+    _listNativeAdTimeoutTimers[key]?.cancel();
+    _listNativeAdTimeoutTimers[key] = Timer(const Duration(seconds: 6), () {
+      _listNativeAdTimeoutTimers.remove(key);
+      if (_listNativeAdLoaded[key] == true) return; // 이미 로드됨
+      if (_listNativeAds[key] != ad) return;        // 다른 인스턴스로 교체됨
+      ad.dispose();
+      _listNativeAds.remove(key);
+      adService.switchListAdToAdFit(slot);
+      if (mounted) setState(() => _listNativeAdLoaded[key] = false);
+      debugPrint('⏱️ 목록 네이티브 광고 타임아웃 → AdFit 폴백 (slot=$slot)');
+    });
   }
 
   /// 비-첫탭 상단 AdMob 광고 로드 — 해당 탭이 실제로 보일 때(active) 1회만.
@@ -681,25 +698,35 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   
   /// ✅ 핵심: DB 변경 확인 (updated_at 기준)
   Future<void> _checkDbChanges() async {
+    // 직전 틱의 전체 리로드가 아직 진행 중이면 이번 틱은 건너뛴다.
+    // 안읽음이 빠르게 쌓일 때(updated_at 잦은 변경) 전체 리로드+리빌드가 1초마다
+    // 겹쳐 쌓이며 버벅이던 것 방지 — _lastCheckTime 을 갱신 안 하므로 다음 틱이
+    // 누락 없이 모든 변경을 한 번에 흡수(버스트 코얼레싱).
+    if (_observerReloadInFlight) return;
     try {
       final db = await _localDb.database;
-      
+
       // 마지막 확인 시간 이후 업데이트된 채팅방 확인
       final lastCheckTimestamp = _lastCheckTime?.millisecondsSinceEpoch ?? 0;
-      
+
       final updatedRooms = await db.query(
         'chat_rooms',
         columns: ['id', 'updated_at'],
         where: 'updated_at > ?',
         whereArgs: [lastCheckTimestamp],
       );
-      
+
       if (updatedRooms.isNotEmpty) {
         debugPrint('🔄 DB 변경 감지: ${updatedRooms.length}개 채팅방 업데이트됨');
-        // 변경이 있으면 목록 새로고침
-        await _loadChatRooms(silent: true);
+        // 변경이 있으면 목록 새로고침 (코얼레싱 가드로 감쌈)
+        _observerReloadInFlight = true;
+        try {
+          await _loadChatRooms(silent: true);
+        } finally {
+          _observerReloadInFlight = false;
+        }
       }
-      
+
       _lastCheckTime = DateTime.now();
     } catch (e) {
       debugPrint('❌ DB 변경 확인 실패: $e');
