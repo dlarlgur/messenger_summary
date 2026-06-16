@@ -197,11 +197,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.4.11"
-      resolved-ref: f29c35a94591d421d9220427a376d71d2ecb4e5a
+      ref: "v0.4.13"
+      resolved-ref: "2a18e822ed50b30f364a5301b211c406717ad488"
       url: "https://github.com/dlarlgur/dksw_app_core.git"
     source: git
-    version: "0.4.2"
+    version: "0.4.13"
   fake_async:
     dependency: transitive
     description:

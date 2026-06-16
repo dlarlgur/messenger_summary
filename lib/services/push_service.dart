@@ -5,6 +5,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../main.dart';
 import '../screens/events_screen.dart';
@@ -16,6 +17,19 @@ import '../widgets/inquiry_native_ad_banner.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // 필요 시 데이터 메시지 처리. 현재는 시스템 표시에 위임.
+}
+
+/// 포그라운드로 띄운 로컬 알림을 **알림창에서** 탭하면 앱이 잠깐 paused 상태라
+/// onDidReceiveNotificationResponse(포그라운드 콜백) 대신 이 백그라운드 핸들러로 올 수 있다.
+/// 별도 isolate라 네비게이션 불가 → payload 를 저장해두고, 앱 resume 시
+/// [PushService.checkPendingDeepLink] 가 읽어 라우팅한다.
+const String _kPendingDeepLink = 'pending_push_deeplink';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  final p = response.payload;
+  if (p == null || p.isEmpty) return;
+  SharedPreferences.getInstance().then((sp) => sp.setString(_kPendingDeepLink, p));
 }
 
 final FlutterLocalNotificationsPlugin _localNotifications =
@@ -59,6 +73,8 @@ class PushService {
         ),
         // 포그라운드에서 띄운 로컬 알림 탭 → 딥링크 라우팅
         onDidReceiveNotificationResponse: _handleLocalTap,
+        // 알림창에서 탭(앱 paused) → 백그라운드 isolate 로 올 수 있어 별도 등록
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
       await _localNotifications
           .resolvePlatformSpecificImplementation<
@@ -80,6 +96,9 @@ class PushService {
         });
         debugPrint('[PUSH] tap handlers 등록 완료');
       }
+
+      // 백그라운드 탭으로 저장된 대기 딥링크가 있으면 처리 (콜드 스타트 케이스)
+      checkPendingDeepLink();
 
       // Android 는 POST_NOTIFICATIONS 권한 없어도 토큰 발급됨 — 권한 요청은 분리.
       final token = await messaging.getToken();
@@ -134,6 +153,23 @@ class PushService {
   static void _handleRemoteTap(RemoteMessage message) {
     debugPrint('[PUSH] _handleRemoteTap data=${message.data}');
     _route(message.data);
+  }
+
+  /// 백그라운드 isolate(알림창 탭)에서 저장해둔 대기 딥링크를 읽어 라우팅.
+  /// 앱 시작(initialize) 및 resume(생명주기) 시 호출.
+  static Future<void> checkPendingDeepLink() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.reload(); // 다른 isolate 가 쓴 값을 보기 위해 갱신
+      final p = sp.getString(_kPendingDeepLink);
+      if (p == null || p.isEmpty) return;
+      await sp.remove(_kPendingDeepLink);
+      debugPrint('[PUSH] pending deeplink 처리: $p');
+      final data = (jsonDecode(p) as Map).cast<String, dynamic>();
+      _route(data);
+    } catch (e) {
+      debugPrint('[PUSH] pending deeplink 실패: $e');
+    }
   }
 
   /// FCM data 기반 라우팅 — 1:1 문의 답변 / 이벤트 / 공지 딥링크.

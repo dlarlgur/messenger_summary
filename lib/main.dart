@@ -781,6 +781,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      // 알림창에서 푸시 탭(앱 paused→resume) 시 저장된 딥링크 처리
+      PushService.checkPendingDeepLink();
       // 앱이 포그라운드로 돌아올 때 배지 업데이트
       _updateNotificationBadge();
       if (!mounted) return;

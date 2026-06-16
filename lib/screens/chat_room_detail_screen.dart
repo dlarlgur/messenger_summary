@@ -6038,6 +6038,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     bool isSenderSearch = false,
     int? messageIndex,
   }) {
+    // SMS/MMS 안내성 메시지(사진 없는 "이미지"·"메시지 보기"·"민감한 알림 콘텐츠 숨김" 등)는
+    // 본문도 사진도 없는 잡음이라 화면에 아예 그리지 않음 (기존에 저장된 것도 숨김).
+    if (widget.room.packageName == 'sms' && message.imagePath == null) {
+      const smsNoise = {
+        '이미지', '사진', '이모티콘',
+        '메시지 보기', '메세지 보기',
+        '민감한 알림 콘텐츠 숨김', '알림 내용 숨김',
+      };
+      if (smsNoise.contains(message.message.trim())) {
+        return const SizedBox.shrink();
+      }
+    }
+
     final profileFile = _getSenderProfileImage(message.sender);
     final isFAQ = widget.room.packageName == 'com.dksw.app.faq';
 
@@ -6168,7 +6181,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 링크 메시지인 경우 특별한 UI 표시
-                    if (message.isLinkMessage && message.imagePath != null)
+                    // 단 SMS/MMS 는 링크 카드(URL 1개 + 2줄 요약)로는 멀티링크 광고 문자가
+                    // 잘려 보이므로, 링크 카드를 건너뛰고 일반 말풍선(전체 텍스트 + 이미지)으로 표시.
+                    if (message.isLinkMessage &&
+                        message.imagePath != null &&
+                        widget.room.packageName != 'sms')
                       _buildLinkMessage(message, isSentByMe, showTime)
                     else ...[
                       // 일반 이미지가 있으면 먼저 표시 (말풍선 없이)
@@ -6504,9 +6521,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             }
           },
           child: Container(
+            // 카드 높이를 고정하면 안의 이미지(최대 0.9×너비)가 넘쳐서 오버플로 →
+            // maxWidth 만 제약하고 높이는 내용(이미지+텍스트)에 맞게 자라도록 둔다.
+            // 이미지 자체는 _buildImageWidget 의 maxHeight 로 이미 제한됨.
             constraints: BoxConstraints(
               maxWidth: maxImageWidth,
-              maxHeight: screenWidth * 0.5,
             ),
             decoration: BoxDecoration(
               color: Colors.grey[100],

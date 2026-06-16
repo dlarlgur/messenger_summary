@@ -574,6 +574,32 @@ class NotificationListener : NotificationListenerService() {
      * ⚠️ 복구: LargeIcon에서 사진 추출 로직 활성화 (크기 조건 200x200 이상)
      */
     @Suppress("DEPRECATION")
+    /**
+     * SMS/MMS 전용 사진 추출 — EXTRA_PICTURE(실제 공유 사진)만 사용.
+     * 재귀/아이콘 fallback 을 쓰지 않아 광고 MMS 의 회색 placeholder·앱아이콘이 사진으로
+     * 잘못 잡히지 않는다. 너무 작은 비트맵(아이콘/placeholder 추정)은 제외.
+     */
+    private fun extractSmsPhoto(extras: Bundle): Bitmap? {
+        val pic = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                extras.getParcelable(Notification.EXTRA_PICTURE, Bitmap::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                extras.getParcelable(Notification.EXTRA_PICTURE) as? Bitmap
+            }
+        } catch (e: Exception) {
+            null
+        }
+        if (pic == null) {
+            Log.i(TAG, "📨 SMS photo: EXTRA_PICTURE 없음 → 텍스트만")
+            return null
+        }
+        Log.i(TAG, "📨 SMS photo: EXTRA_PICTURE ${pic.width}x${pic.height}")
+        // 아이콘/placeholder 추정(너무 작음) 제외 — 실사진은 보통 가로세로 200px+
+        if (pic.width < 150 || pic.height < 150) return null
+        return pic
+    }
+
     private fun extractPhotoImage(notification: Notification, extras: Bundle): Bitmap? {
         val hasReducedImages = extras.getBoolean("android.reduced.images", false)
 
@@ -1682,8 +1708,12 @@ class NotificationListener : NotificationListenerService() {
                         Log.i(TAG, "[$messengerName] 알림 감지: 발신자=$title, 메시지=$text")
                     }
 
+                    // 문자(SMS/MMS)는 긴 본문을 EXTRA_TEXT 가 아니라 EXTRA_BIG_TEXT 에 담는 경우가 많음
+                    // (삼성 메시지 등 광고/장문 MMS) → 더 긴 쪽을 본문으로 사용해 전문 저장.
+                    val bodyText = if (packageName == "sms" && bigText.length > text.length) bigText else text
+
                     // 메신저별 알림 파싱 (개인톡/그룹톡 구분)
-                    val parsed = parseNotification(packageName, title, text, subText, conversationTitle, isGroupConversation)
+                    val parsed = parseNotification(packageName, title, bodyText, subText, conversationTitle, isGroupConversation)
                     if (parsed == null) {
                         Log.w(TAG, "⚠️ 파싱 실패: packageName=$packageName")
                         return
@@ -1702,6 +1732,7 @@ class NotificationListener : NotificationListenerService() {
                     if (skipImageExtraction) {
                         message = normalizeMediaMessage(message)
                     }
+
 
                     Log.d(TAG, "📝 알림 파싱: sender='$sender', message='${message.take(50)}', roomName='$roomName', isPrivate=$isPrivateChat")
 
@@ -1727,10 +1758,34 @@ class NotificationListener : NotificationListenerService() {
                             Log.d(TAG, "❌ 보낸사람 프로필 이미지 선추출 실패: sender='$sender', isPrivateChat=${subText.isEmpty()}")
                         }
 
-                        // 공유 이미지 선추출 (이모티콘/스티커 포함)
-                        // LINE/Instagram은 이미지 추출 스킵, 미디어 메시지는 한국어 텍스트로 정규화됨
+                        // 공유 이미지 선추출 (이모티콘/스티커 포함). LINE/Instagram/Slack 은 스킵.
                         if (!skipImageExtraction) {
-                            preExtractedImage = extractSharedImage(noti, bundle, message)
+                            // SMS/MMS: 본문이 "이미지"/"사진"/"동영상" 같은 placeholder 일 때(=사진 첨부)에만
+                            // 이미지를 추출해 보여준다. 일반 텍스트 광고엔 추출 안 함(아이콘/카드 회색박스 방지).
+                            preExtractedImage = if (packageName == "sms") {
+                                val t = message.trim()
+                                if (t == "이미지" || t == "사진" || t == "이모티콘" || t == "동영상") {
+                                    extractSharedImage(noti, bundle, message)
+                                } else {
+                                    null
+                                }
+                            } else {
+                                extractSharedImage(noti, bundle, message)
+                            }
+                        }
+                    }
+
+                    // 문자(SMS): 삼성 등은 실제 본문 알림 외에 "메시지 보기"·"이미지"·"민감한 알림 콘텐츠 숨김"
+                    // 같은 부가/안내 알림을 추가로 띄운다. 본문도 사진도 없는 이런 placeholder 는 저장하지 않음.
+                    if (packageName == "sms" && preExtractedImage == null) {
+                        val t = message.trim()
+                        val isNoisePlaceholder = t.isEmpty() ||
+                            t == "메시지 보기" || t == "메세지 보기" ||
+                            t == "민감한 알림 콘텐츠 숨김" || t == "알림 내용 숨김" ||
+                            t == "이미지" || t == "사진" || t == "이모티콘"
+                        if (isNoisePlaceholder) {
+                            Log.i(TAG, "⏭️ SMS 안내성 알림 무시: '$t' (title='$title')")
+                            return
                         }
                     }
 
