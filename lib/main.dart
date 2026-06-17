@@ -239,6 +239,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _isPermissionGranted = true; // 초기값을 true로 설정 (권한 체크 후 결정)
   bool _isCheckingPermissions = false; // ⚠️ 수정: 권한 확인 중이면 로딩 표시하지 않음 (권한 화면이 잠깐 보이는 것 방지)
   bool _isForceUpdateRequired = false; // 강제 업데이트 필요 여부
+  bool _consentResolved = false; // 회원가입 동의 게이트 완료 여부 (완료 전엔 권한/메인 진입 차단)
+  bool _permissionChecked = false; // 권한 체크 1회 완료 여부 (_isPermissionGranted 초기값 true 라 신뢰 위해 별도)
   bool _showGuide = false; // 사용 가이드 표시 여부
   UpdatePolicy? _updatePolicy; // 부트스트랩으로 받아온 업데이트 정책
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
@@ -251,6 +253,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // MainScreen 이 화면에 올라왔음을 알림 — 푸시 딥링크가 스플래시 전환에 덮이지 않도록.
     WidgetsBinding.instance.addPostFrameCallback((_) => PushService.signalAppReady());
+    _runConsentGate(); // 권한/메인보다 먼저 — 동의 완료 전엔 build 가 빈 화면 유지
     _fastInitialize();
     _setupMainMethodChannel();
     _checkPendingSummaryId();
@@ -375,6 +378,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         setState(() {
           _isPermissionGranted = false; // 권한 화면 표시
           _isCheckingPermissions = false; // 권한 확인 완료
+          _permissionChecked = true;
         });
       } else {
         // 모든 필수 권한이 있으면 메인 화면 유지
@@ -385,6 +389,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
           _showGuide = !hasSeenGuide;
+          _permissionChecked = true;
         });
 
         // 가이드를 보여줄 때는 리스너/배지 시작 불필요 (가이드 끝나면 MainScreen 재생성)
@@ -395,6 +400,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           // 배지 업데이트
           _updateNotificationBadge();
         }
+        _maybeShowReprompt(); // 메인 진입(권한 허용) — 마케팅 재요청 대상
       }
     }
   }
@@ -425,6 +431,99 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     });
   }
   
+  /// 회원가입 동의 게이트 — 권한/메인 진입보다 먼저.
+  /// 콘솔이 내려준 필수/선택 동의 항목을 받아 ConsentScreen 으로 처리하고,
+  /// 필수 동의 충족 시 네이티브 알림수집 플래그(agreement_accepted)를 set 한다.
+  /// 완료되면 _consentResolved=true → build 가 권한/메인으로 진행.
+  Future<void> _runConsentGate() async {
+    // 콜드스타트(데이터 삭제 직후 등)엔 DkswCore.init/bootstrap 이 아직 안 끝나
+    // signupConsents 가 빈 채로 게이트가 스킵되던 버그 → 동의 항목이 실릴 때까지 재시도.
+    // 신규 사용자는 동의 필수라 "비어있음 = 스킵" 하면 안 됨.
+    for (int i = 0; DkswCore.signupConsents.isEmpty && i < 5; i++) {
+      try {
+        await DkswCore.bootstrap(timeout: const Duration(seconds: 3));
+      } catch (_) {}
+      if (DkswCore.signupConsents.isNotEmpty) break;
+      await Future.delayed(const Duration(milliseconds: 300)); // init 완료/네트워크 대기
+    }
+    if (!mounted) return;
+
+    // 기존 네이티브 동의자 grandfather — 옛 약관 동의를 새 시스템으로 승계 (재동의 안 띄움).
+    await _migrateLegacyConsentIfNeeded();
+    if (!mounted) return;
+
+    debugPrint('[consent] consents=${DkswCore.signupConsents.length} '
+        'needsGate=${DkswCore.needsConsentGate()}');
+
+    // route push 안 함 — build 가 ConsentScreen 을 직접 return (PermissionScreen 과 동일 방식).
+    // (광고/구독 등 동시 네비게이션과 _debugLocked 충돌 회피)
+    if (DkswCore.needsConsentGate()) {
+      setState(() {}); // signupConsents 로드됨 → build 가 ConsentScreen 표시
+    } else {
+      setState(() => _consentResolved = true);
+      _maybeShowReprompt(); // 게이트 안 거치는 기존 유저도 마케팅 재요청 대상
+    }
+  }
+
+  /// 마케팅 재요청 팝업 — 메인 진입(동의 완료 + 권한 허용 + 가이드 아님) 시 하루 1회.
+  /// 동의 게이트/권한 어느 경로로 메인에 도달하든 호출되도록 여러 지점에서 부름(하루1회 가드로 멱등).
+  void _maybeShowReprompt() {
+    // _permissionChecked 로 "실제 권한 확인+허용된 메인" 보장 (_isPermissionGranted 초기값 true 라
+    // 그것만 보면 권한 체크 전에 권한화면 위로 떠버림).
+    if (!_consentResolved || !_permissionChecked || !_isPermissionGranted || _showGuide || !mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowMarketingReprompt(MyApp.navigatorKey.currentContext ?? context);
+      }
+    });
+  }
+
+  /// 기존(예전 네이티브 온보딩) 동의자를 새 동의 시스템으로 승계.
+  /// 옛 플래그 agreement_accepted=true && 새 기록 없음 → terms/privacy 동의를 로컬+서버에 기록.
+  /// (마케팅은 옛날에 없던 항목이라 제외 — opt-in 유지)
+  Future<void> _migrateLegacyConsentIfNeeded() async {
+    // 새 시스템에 이미 응답 기록이 있으면 skip
+    if (DkswCore.consentAgreed('terms') != null ||
+        DkswCore.consentAgreed('privacy') != null) {
+      return;
+    }
+    bool legacy = false;
+    try {
+      legacy = await mainMethodChannel.invokeMethod<bool>('getLegacyAgreement') ?? false;
+    } catch (_) {}
+    if (!legacy) return;
+
+    final consents = DkswCore.signupConsents;
+    final choices = <ConsentChoice>[];
+    for (final key in const ['terms', 'privacy']) {
+      var version = '1.0';
+      for (final c in consents) {
+        if (c.key == key) {
+          version = c.version;
+          break;
+        }
+      }
+      choices.add(ConsentChoice(key: key, agreed: true, version: version));
+    }
+    await DkswCore.postConsents(choices); // 로컬+서버 migrated 기록
+    debugPrint('[consent] legacy migrated (grandfather): terms,privacy');
+  }
+
+  /// build 로 렌더된 ConsentScreen 에서 필수 동의 완료 시 호출 — 네비게이션 없음.
+  Future<void> _onConsentAgreed() async {
+    // 필수 동의 충족 시 네이티브 알림수집 게이트 플래그 set (네이티브 약관 UI 대체).
+    if (!DkswCore.needsConsentGate()) {
+      try {
+        await mainMethodChannel.invokeMethod('setTermsAgreed', true);
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() => _consentResolved = true);
+    _maybeShowReprompt();
+  }
+
   /// 부트스트랩 결과 수신.
   /// main()에서 [DkswCore.bootstrap]을 await하므로 호출 시점엔 [DkswCore.lastBootstrap]이
   /// 채워져 있다. 안전하게 한 번 더 fetch를 시도하는 폴백 포함(재시도 효과).
@@ -462,6 +561,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         return;
       }
       // 선택 업데이트는 대화 목록 화면에서 처리
+      // (회원가입 동의 게이트는 _runConsentGate 에서 권한/메인보다 먼저 처리)
     } catch (e) {
       debugPrint('❌ 부트스트랩 처리 실패: $e');
       // 실패 시 앱 사용 허용
@@ -664,6 +764,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         setState(() {
           _isPermissionGranted = false; // 권한 화면 표시
           _isCheckingPermissions = false; // 권한 확인 완료
+          _permissionChecked = true;
         });
       } else {
         // 모든 필수 권한이 있으면 메인 화면 유지
@@ -674,6 +775,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
           _showGuide = !hasSeenGuide;
+          _permissionChecked = true;
         });
 
         // 가이드를 보여줄 때는 리스너/배지 시작 불필요 (가이드 끝나면 MainScreen 재생성)
@@ -684,6 +786,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           // 배지 업데이트
           _updateNotificationBadge();
         }
+        _maybeShowReprompt(); // 메인 진입(권한 허용) — 마케팅 재요청 대상
       }
     }
   }
@@ -1218,6 +1321,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 회원가입 동의 게이트가 끝나기 전엔 권한화면·메인(시스템 알림 팝업 포함) 진입 차단.
+    // (이전엔 동의가 bootstrap 뒤라 권한화면/팝업이 먼저 스쳐 지나가는 문제)
+    if (!_consentResolved) {
+      // 동의 항목 로드 완료 + 동의 필요 → ConsentScreen 직접 렌더 (route push 안 함).
+      if (DkswCore.signupConsents.isNotEmpty && DkswCore.needsConsentGate()) {
+        return ConsentScreen(
+          consents: DkswCore.signupConsents,
+          onAgreed: _onConsentAgreed,
+        );
+      }
+      // 로딩 중(또는 동의 불필요 — 곧 _consentResolved=true)
+      return const Scaffold(
+        backgroundColor: AppTokens.bg,
+        body: Center(
+          child: SizedBox(
+            width: 120,
+            height: 120,
+            child: Image(
+              image: AssetImage('assets/ai_talk.png'),
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
             ),
           ),
         ),

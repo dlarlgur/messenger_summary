@@ -223,6 +223,21 @@ class MainActivity : FlutterFragmentActivity() {
                     isFreshLaunch = false
                     result.success(wasFreshLaunch)
                 }
+                "getLegacyAgreement" -> {
+                    // 예전 네이티브 온보딩에서 동의한 기존 사용자 식별 (grandfather 용).
+                    val agreed = getSharedPreferences("onboarding_prefs", Context.MODE_PRIVATE)
+                        .getBoolean("agreement_accepted", false)
+                    result.success(agreed)
+                }
+                "setTermsAgreed" -> {
+                    // 콘솔 동의 게이트(Flutter)에서 필수 동의 완료 시 호출.
+                    // NotificationListener 가 보는 onboarding_prefs/agreement_accepted 플래그를 set
+                    // → 동의 후 알림 수집 게이팅이 정상 작동. (네이티브 약관 UI 를 대체)
+                    val agreed = call.arguments as? Boolean ?: true
+                    getSharedPreferences("onboarding_prefs", Context.MODE_PRIVATE)
+                        .edit().putBoolean("agreement_accepted", agreed).apply()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

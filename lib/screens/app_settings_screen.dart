@@ -35,6 +35,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   String? _currentPlanType;
   final PlanService _planService = PlanService();
 
+  // 마케팅(광고성) 수신 동의 토글 상태
+  late bool _marketingOn = DkswCore.consentAgreed('marketing') == true;
+  bool _marketingBusy = false;
+
   // 파란색 테마 컬러
   // 모든 accent 사용처가 토큰 한 곳을 보도록 alias.
   static const Color _primaryBlue = AppTokens.accent;
@@ -243,6 +247,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
             },
             isLast: true,
           ),
+          const SizedBox(height: 16),
+
+          // 알림 설정 섹션 — 마케팅(광고성) 수신 동의 토글 (정보통신망법상 상시 철회 가능)
+          _buildSectionHeaderStyled('알림', Icons.notifications_active),
+          _buildMarketingToggle(),
           const SizedBox(height: 16),
 
           // 일반 섹션
@@ -691,6 +700,82 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                   Icons.chevron_right,
                   size: 22,
                   color: Colors.grey[400],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 마케팅(광고성) 수신 동의 토글 — _buildStyledMenuItem 와 동일한 카드 스타일 + Switch.
+  Widget _buildMarketingToggle() {
+    Future<void> setOn(bool v) async {
+      if (_marketingBusy) return;
+      setState(() {
+        _marketingBusy = true;
+        _marketingOn = v;
+      });
+      final version = DkswCore.signupConsents
+          .firstWhere(
+            (c) => c.key == 'marketing',
+            orElse: () => const SignupConsent(
+                key: 'marketing', title: '마케팅 정보 수신', required: false, version: '1.0'),
+          )
+          .version;
+      await DkswCore.postConsents([
+        ConsentChoice(key: 'marketing', agreed: v, version: version),
+      ]);
+      if (mounted) setState(() => _marketingBusy = false);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _marketingBusy ? null : () => setOn(!_marketingOn),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.campaign_rounded,
+                      size: 22, color: Colors.deepOrange),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('이벤트·혜택 알림 받기',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppTokens.text)),
+                      SizedBox(height: 2),
+                      Text('이벤트·프로모션 등 광고성 정보 수신 (선택)',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E))),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _marketingOn,
+                  onChanged: _marketingBusy ? null : setOn,
+                  activeColor: AppTokens.accent,
                 ),
               ],
             ),

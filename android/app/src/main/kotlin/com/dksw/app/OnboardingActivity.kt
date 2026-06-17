@@ -70,14 +70,10 @@ class OnboardingActivity : ComponentActivity() {
         // 뷰 초기화 먼저 수행 (loadingOverlay 등)
         initViews()
 
-        // 이미 동의한 경우 MainActivity로 이동
-        if (prefs.getBoolean(KEY_AGREEMENT, false)) {
-            proceedToMainActivity()
-            return
-        }
-
-        setupListeners()
-        applySystemBarInsets()
+        // 약관 동의는 콘솔 제어 Flutter 동의화면(ConsentScreen)으로 이관됨.
+        // OnboardingActivity 는 이제 통과만 — 동의 플래그(agreement_accepted)는
+        // Flutter 동의 완료 시 MainActivity 의 setTermsAgreed 채널로 set 한다.
+        proceedToMainActivity()
     }
 
     private fun initViews() {
