@@ -277,6 +277,7 @@ deploy_console() {
             --env-file ~/aiapp/config/env/console.env \
             -v ~/aiapp/data/console/uploads:/app/public/uploads \
             -v ~/aiapp/data/logs/console:/logs \
+            -v ~/aiapp/config/app:/app/config/app:ro \
             aiapp_console:latest
 
         # 3. 마이그레이션 (새 .sql 파일이 있으면 자동 적용, 이미 적용된 건 스킵)
@@ -299,6 +300,121 @@ ENDSSH
     log_info "========== CONSOLE 배포 완료 =========="
 }
 
+deploy_maccha() {
+    log_info "========== MACCHA 배포 시작 =========="
+
+    # 1. 업로드 (node_modules / .env / .git 제외)
+    log_info "서버에 업로드 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/maccha ~/aiapp/data/logs/maccha ~/aiapp/data/maccha/secrets ~/aiapp/config/env"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.env' \
+        --exclude='.git' \
+        /Users/ghim/my_business/maccha_server/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/maccha/
+
+    # 2. Docker 이미지 빌드 + raw docker run (depends_on 사고 방지)
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/maccha
+
+        if [ ! -f ~/aiapp/config/env/maccha.env ]; then
+            echo "[MACCHA] ERROR: ~/aiapp/config/env/maccha.env 없음. 최초 배포는 .env 먼저 수동 생성."
+            exit 1
+        fi
+
+        docker build -t aiapp_maccha:latest .
+        docker stop aiapp_maccha 2>/dev/null || true
+        docker rm -f aiapp_maccha 2>/dev/null || true
+        docker run -d \
+            --name aiapp_maccha \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            --env-file ~/aiapp/config/env/maccha.env \
+            -v ~/aiapp/data/maccha/secrets:/app/secrets:ro \
+            -v ~/aiapp/data/logs/maccha:/app/logs \
+            aiapp_maccha:latest
+
+        # 3. 마이그레이션 (idempotent — schema_migrations 트래킹)
+        sleep 3
+        echo "[MACCHA] migrate..."
+        docker exec aiapp_maccha node scripts/migrate.js || true
+ENDSSH
+
+    # 4. 헬스체크
+    sleep 2
+    log_info "헬스체크:"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "curl -sk https://dksw4.com/maccha/api/health"
+    echo ""
+
+    log_info "========== MACCHA 배포 완료 =========="
+}
+
+deploy_mungbap() {
+    log_info "========== MUNGBAP 배포 시작 =========="
+
+    # 1. 업로드 (node_modules / .env / .git 제외)
+    log_info "서버에 업로드 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/mungbap ~/aiapp/data/logs/mungbap ~/aiapp/config/env"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.env' \
+        --exclude='.git' \
+        /Users/ghim/my_business/mungbap_server/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/mungbap/
+
+    # 2. Docker 이미지 빌드 + raw docker run (depends_on 사고 방지)
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/mungbap
+
+        if [ ! -f ~/aiapp/config/env/mungbap.env ]; then
+            echo "[MUNGBAP] ERROR: ~/aiapp/config/env/mungbap.env 없음. 최초 배포는 .env 먼저 수동 생성."
+            echo "         필요 키: MYSQL_*, JWT_SECRET, KAKAO_REST_API_KEY, GEMINI_API_KEY"
+            exit 1
+        fi
+
+        docker build -t aiapp_mungbap:latest .
+        docker stop aiapp_mungbap 2>/dev/null || true
+        docker rm -f aiapp_mungbap 2>/dev/null || true
+        docker run -d \
+            --name aiapp_mungbap \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            --env-file ~/aiapp/config/env/mungbap.env \
+            -v ~/aiapp/data/logs/mungbap:/app/logs \
+            aiapp_mungbap:latest
+
+        # 3. 마이그레이션 (idempotent — schema_migrations 트래킹)
+        sleep 3
+        echo "[MUNGBAP] migrate..."
+        docker exec aiapp_mungbap node scripts/migrate.js || true
+
+        # 4. nginx reload (라우트가 추가돼 있으면 적용)
+        docker exec aiapp_nginx nginx -t 2>/dev/null && \
+            docker exec aiapp_nginx nginx -s reload && \
+            echo "[MUNGBAP] nginx reloaded" || \
+            echo "[MUNGBAP] nginx reload skipped (라우트 미설정)"
+ENDSSH
+
+    # 5. 헬스체크 (nginx 라우트 없으면 컨테이너 직접)
+    sleep 2
+    log_info "헬스체크:"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker exec aiapp_nginx wget -qO- http://aiapp_mungbap:4400/health 2>/dev/null || \
+         docker exec aiapp_mungbap wget -qO- http://localhost:4400/health"
+    echo ""
+
+    log_info "========== MUNGBAP 배포 완료 =========="
+}
+
 deploy_charge() {
     log_info "========== CHARGE 배포 시작 =========="
 
@@ -319,19 +435,57 @@ deploy_charge() {
     scp -i $SSH_KEY /Users/ghim/my_business/charge_server/data/highway_rest_stops.csv \
         $REMOTE_USER@$REMOTE_HOST:~/aiapp/data/charge/highway_rest_stops.csv
 
-    # 2. Docker 재시작
-    log_info "Docker 컨테이너 재시작 중..."
-    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
-        "cd ~/aiapp/docker && docker compose build --no-cache charge && { docker stop aiapp_charge 2>/dev/null; docker rm -f aiapp_charge 2>/dev/null; } ; docker compose up -d charge"
+    # 2. Blue/Green 무중단 배포 (비활성 색 빌드 → 헬시 → nginx 전환 → 기존 색 정지)
+    log_info "Blue/Green 무중단 배포 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/docker
 
-    # 3. 로그 확인
-    log_info "시작 대기 중 (5초)..."
-    sleep 5
+        BLUE_RUNNING=$(docker inspect --format='{{.State.Running}}' aiapp_charge_blue 2>/dev/null || echo "false")
+        if [ "$BLUE_RUNNING" = "true" ]; then
+            DEPLOY="green"; OLD="blue"
+        else
+            DEPLOY="blue"; OLD="green"
+        fi
+        echo "[CHARGE] deploying → charge_${DEPLOY} (stopping charge_${OLD})"
+
+        docker compose build --no-cache charge_${DEPLOY}
+        docker compose up -d charge_${DEPLOY}
+
+        echo "[CHARGE] waiting for healthy..."
+        for i in $(seq 1 30); do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' aiapp_charge_${DEPLOY} 2>/dev/null || echo "none")
+            [ "$STATUS" = "healthy" ] && echo "[CHARGE] healthy!" && break
+            [ $i -eq 30 ] && echo "[CHARGE] health check timeout, rolling back" && docker compose stop charge_${DEPLOY} && exit 1
+            sleep 3
+        done
+
+        # nginx upstream 을 새 색으로 전환 (안 하면 죽은 색으로 붙어 502)
+        NGINX_CONF="$HOME/aiapp/config/nginx/conf.d/aiapp.conf"
+        if [ -f "$NGINX_CONF" ]; then
+            cp -a "$NGINX_CONF" "$NGINX_CONF.bak.deploy.$(date +%Y%m%d%H%M%S)"
+            sed -i "s/server aiapp_charge_[a-z]*:1024;/server aiapp_charge_${DEPLOY}:1024;/g" "$NGINX_CONF"
+            if ! grep -q "server aiapp_charge_${DEPLOY}:1024" "$NGINX_CONF"; then
+                echo "[CHARGE] ERROR: nginx upstream 치환 실패. charge 줄(server aiapp_charge_*:1024) 확인"
+                exit 1
+            fi
+            docker exec aiapp_nginx nginx -t
+            docker exec aiapp_nginx nginx -s reload
+            echo "[CHARGE] nginx upstream → aiapp_charge_${DEPLOY}:1024"
+        else
+            echo "[CHARGE] WARN: nginx 설정 없음: $NGINX_CONF"
+        fi
+
+        docker compose stop charge_${OLD} 2>/dev/null || true
+        echo "[CHARGE] stopped charge_${OLD}"
+ENDSSH
+
+    # 3. 로그 확인 (활성 인스턴스)
     log_info "로그 확인:"
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
-        "docker logs aiapp_charge 2>&1 | tail -5"
+        'C=$(docker ps --filter name=aiapp_charge_ --format "{{.Names}}" | head -1); echo "[CHARGE] active: $C"; docker logs "$C" 2>&1 | grep -iE "listening|준비 완료|error" | tail -5' 2>/dev/null || true
 
-    log_info "========== CHARGE 배포 완료 =========="
+    log_info "========== CHARGE 배포 완료 (무중단) =========="
 }
 
 deploy_homepage() {
@@ -411,13 +565,15 @@ deploy_cats() {
         $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/cats/
 
     # 2. systemctl restart — cats-telegram / cats-grid 는 배포 시 건드리지 않음
-    log_info "systemctl restart (api/ws/synthesizer/upbit-sync/bot/momentum)..."
+    log_info "systemctl restart (api/ws/synthesizer/upbit-sync/bot/momentum/pullback/btc-beta)..."
     ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
         set -e
-        sudo systemctl restart cats-api cats-ws cats-synthesizer cats-upbit-sync cats-bot cats-momentum
+        sudo systemctl restart cats-api cats-ws cats-synthesizer cats-upbit-sync \
+            cats-bot cats-momentum cats-pullback cats-btc-beta cats-rsi-reversal cats-rsi-aggressive
         sleep 4
         echo "[CATS] 서비스 상태:"
-        systemctl is-active cats-api cats-ws cats-synthesizer cats-upbit-sync cats-bot cats-momentum
+        systemctl is-active cats-api cats-ws cats-synthesizer cats-upbit-sync \
+            cats-bot cats-momentum cats-pullback cats-btc-beta cats-rsi-reversal cats-rsi-aggressive
 ENDSSH
 
     # 3. 최근 로그 확인
@@ -494,6 +650,8 @@ show_usage() {
     echo "  charge   - CHARGE 서버만 배포"
     echo "  console  - DKSW Console 배포"
     echo "  homepage - DKSW Homepage (dksw4.com) 배포"
+    echo "  maccha   - 막차알리미 백엔드 배포"
+    echo "  mungbap  - 멍밥(강아지 화식 레시피) 백엔드 배포"
     echo "  cats     - CATS 자동매매 봇 배포 (격자 통과 + 마이그레이션 후 사용)"
     echo "  cats_web - CATS 웹 대시보드 배포 (Next.js, cats.dksw4.com)"
     echo "  all      - 모두 배포"
@@ -520,6 +678,12 @@ case "$1" in
         ;;
     console)
         deploy_console
+        ;;
+    maccha)
+        deploy_maccha
+        ;;
+    mungbap)
+        deploy_mungbap
         ;;
     homepage)
         deploy_homepage
