@@ -134,9 +134,11 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   final Map<String, NativeAd> _tabTopAds = {};
   final Map<String, bool> _tabTopAdLoaded = {};
 
-  // 채팅방 목록 네이티브 광고 — 슬롯 4·8 두 개를 탭별 인스턴스로 관리.
-  // 키: "$pkg|$slot" (예: "com.kakao.talk|4"). AdWidget 단일 인스턴스 보장은
-  // 첫 번째 탭에만 광고를 그려서 유지함.
+  // 채팅방 목록 네이티브 광고 — 슬롯 4·8…을 탭(패키지)별 인스턴스로 관리.
+  // 키: "$pkg|$slot" (예: "com.kakao.talk|4"). 모든 탭이 광고를 그리되 각 탭은
+  // 자기 패키지 키의 별도 NativeAd 인스턴스를 쓰므로 같은 AdWidget 이 두 탭에
+  // 동시 mount 되는 크래시가 없다(인스턴스가 다르면 OK). 로드는 그 탭이 실제로
+  // 빌드될 때 지연 로드(_buildAdMobListSlot → _ensureListAdLoaded).
   final Map<String, NativeAd> _listNativeAds = {};
   final Map<String, bool> _listNativeAdLoaded = {};
   final Map<String, Timer> _listNativeAdTimeoutTimers = {};
@@ -572,12 +574,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 목록 슬롯의 AdMob 네이티브를 **그 슬롯이 화면 근처에 올 때 1회** 로드.
   /// PlatformView mount 가 스크롤에 따라 분산되어 버벅임이 줄어든다.
   /// preload 된 광고가 있으면 즉시 사용. AdFit 폴백/​house bypass 슬롯은 skip.
-  void _ensureListAdLoaded(int slot) {
+  ///
+  /// [pkg] 탭(메신저 패키지)별 별도 NativeAd 인스턴스를 만들어 같은 AdWidget
+  /// 인스턴스가 두 탭에 동시 mount 되는 크래시를 회피한다. 키는 "$pkg|$slot".
+  void _ensureListAdLoaded(String pkg, int slot) {
     final adService = AdService();
-    final firstPkg =
-        MessengerSettingsService().getEnabledMessengers().firstOrNull?.packageName;
-    if (firstPkg == null) return;
-    final key = _listAdKey(firstPkg, slot);
+    final key = _listAdKey(pkg, slot);
     if (_listNativeAds.containsKey(key)) return; // 이미 로드/로딩 중
     if (adService.useAdFitForListSlot(slot)) return; // AdFit 모드 → 위젯이 렌더
 
@@ -585,7 +587,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final houseOverride = HouseAdCache.at(slot);
     if (houseOverride != null && houseOverride.bypassAdmob) return;
 
-    // 스플래시 동안 preload 된 광고가 있으면 즉시 사용 (깜빡임 X)
+    // 스플래시 동안 preload 된 광고가 있으면 즉시 사용 (깜빡임 X).
+    // preload 인스턴스는 슬롯당 1개라 take() 한 탭만 가져가고(소비), 나머지 탭은
+    // 아래에서 새 NativeAd 를 생성한다 → 인스턴스 공유 없음(AdWidget 안전).
     final preloadedList = adService.takePreloadedListAd(slot);
     if (preloadedList != null) {
       _listNativeAds[key] = preloadedList;
@@ -593,7 +597,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _listNativeAdLoaded[key] = true);
       });
-      debugPrint('🎯 목록 네이티브 광고 — preload 즉시 사용 (slot=$slot, $firstPkg)');
+      debugPrint('🎯 목록 네이티브 광고 — preload 즉시 사용 (slot=$slot, $pkg)');
       return;
     }
     final ad = NativeAd(
@@ -606,12 +610,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
             adService.resetListAdFallback(slot);
             setState(() => _listNativeAdLoaded[key] = true);
           }
-          debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $firstPkg)');
+          debugPrint('✅ 목록 네이티브 광고 로드 완료 (slot=$slot, $pkg)');
         },
         onAdFailedToLoad: (ad, error) {
           _listNativeAdTimeoutTimers.remove(key)?.cancel();
           debugPrint(
-              '❌ 목록 네이티브 광고 로드 실패 (slot=$slot, $firstPkg): ${error.message}');
+              '❌ 목록 네이티브 광고 로드 실패 (slot=$slot, $pkg): ${error.message}');
           if (_listNativeAds[key] == ad) {
             ad.dispose();
             _listNativeAds.remove(key);
@@ -1843,9 +1847,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           // 패키지별 탭 필터
           _buildPackageTabs(),
           // 채팅방 목록 (PageView로 탭 전환 - 손가락 따라 화면 이동)
-          // 상단 네이티브 광고는 첫 번째 탭의 CustomScrollView 첫 sliver로 들어가
-          // 목록과 함께 스크롤 아웃된다 (sticky 방지). AdWidget 단일 인스턴스 보장은
-          // isFirstPage 체크로 유지.
+          // 상단 네이티브 광고는 각 탭 CustomScrollView 첫 sliver로 들어가 목록과
+          // 함께 스크롤 아웃된다 (sticky 방지). 목록 중간 광고는 각 탭이 자기 패키지
+          // 키("$pkg|$slot")의 별도 NativeAd 인스턴스를 그려 AdWidget 충돌을 피한다.
           Expanded(
             child: Builder(
               builder: (context) {
@@ -2087,7 +2091,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   /// 채팅방 목록 + 리스트 네이티브 광고 빌드.
   ///
   /// charge_app과 동일한 슬롯 머지 패턴:
-  ///   - 슬롯 4·8 = AdMob 네이티브 (첫 번째 탭만, AdWidget 단일성 보장)
+  ///   - 슬롯 4·8 = AdMob 네이티브 (모든 탭, 탭별 별도 인스턴스 키로 AdWidget 안전)
   ///   - 슬롯 12+ = 콘솔 등록 house ad
   ///   - bypass=true house ad 가 4·8에 등록되면 AdMob 자리를 가로챔
   /// 룸 수가 적어 슬롯 위치까지 도달하지 못하면 그 슬롯은 자연히 미표시.
@@ -2116,9 +2120,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
     final Widget? topAd = _buildTopAdFor(packageName, isFirstPage);
 
-    // 첫 탭에서만 광고 슬롯 머지. 그 외 탭은 룸만.
-    final List<Object> merged =
-        isFirstPage ? _mergeRoomsWithAdSlots(rooms) : rooms;
+    // 모든 탭에서 광고 슬롯 머지. 각 탭은 자기 패키지 키("$pkg|$slot")의 별도
+    // NativeAd 인스턴스를 그리므로(_buildAdMobListSlot) AdWidget 동시 mount 충돌 없음.
+    final List<Object> merged = _mergeRoomsWithAdSlots(rooms);
 
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -2188,10 +2192,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   Widget _buildAdMobListSlot(int slot, String? packageName) {
     if (packageName == null) return const SizedBox.shrink();
     final adService = AdService();
-    final key = _listAdKey(packageName, slot);
+    final String pkg = packageName;
+    final key = _listAdKey(pkg, slot);
     // 이 슬롯이 화면 근처에서 빌드되는 시점에 비로소 로드 → PlatformView mount 분산(버벅임↓).
+    // 현재 빌드되는 탭(pkg) 기준으로 로드 → 탭별 별도 인스턴스(현재 탭만 지연 로드).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _ensureListAdLoaded(slot);
+      if (mounted) _ensureListAdLoaded(pkg, slot);
     });
     final ad = _listNativeAds[key];
     final isLoaded = _listNativeAdLoaded[key] == true;
