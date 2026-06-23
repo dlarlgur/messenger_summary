@@ -92,6 +92,13 @@ void main() async {
   // SharedPreferences read 한 번 → 수십 ms 라 splash 시간에 충분히 흡수됨.
   await NotificationSettingsService().initialize();
 
+  // Firebase 초기화 — MaterialApp 의 FirebaseAnalytics observer 가 build 시점에
+  // FirebaseAnalytics.instance 를 참조하므로 runApp 전에 먼저 완료해야 함.
+  // (안 그러면 [core/no-app] No Firebase App 크래시)
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+
   // 즉시 UI 표시 (권한 화면 바로 노출) - 나머지 초기화는 백그라운드에서
   runApp(const MyApp());
 
