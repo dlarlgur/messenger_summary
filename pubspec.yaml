@@ -65,6 +65,8 @@ dependencies:
   # 푸시 알림 (FCM) — 1:1 문의 답변 알림
   firebase_core: ^3.0.0
   firebase_messaging: ^15.0.0
+  # 사용자/세션 분석 (Firebase Analytics — Play Console 연동)
+  firebase_analytics: ^11.0.0
   # 포그라운드(앱 실행 중) FCM 직접 표시용 — 백그라운드는 시스템 자동 표시
   flutter_local_notifications: ^19.4.0
 

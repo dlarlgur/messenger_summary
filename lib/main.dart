@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'services/push_service.dart';
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
@@ -212,6 +213,9 @@ class MyApp extends StatelessWidget {
         title: 'AI 톡비서',
         debugShowCheckedModeBanner: false,
         theme: _buildAppTheme(),
+        navigatorObservers: [
+          FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+        ],
         home: SplashScreen(nextBuilder: (_) => const MainScreen()),
       ),
     );
