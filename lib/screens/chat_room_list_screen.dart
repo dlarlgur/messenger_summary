@@ -20,6 +20,7 @@ import '../services/messenger_settings_service.dart';
 import '../services/ad_service.dart';
 import '../services/push_service.dart';
 import '../services/rating_prompt_service.dart';
+import '../services/app_updater.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/popup_notice_dialog.dart';
 // popup_ad_dialog 는 dksw_app_core v0.3.2 부터 코어로 통합 — 위 import 로 사용.
@@ -295,12 +296,23 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
 
   /// 선택 업데이트 체크 (대화 목록 로드 시).
   /// 부트스트랩 결과의 [UpdatePolicy]를 SharedPreferences 스킵 정책과 함께 처리.
+  ///
+  /// charge `_handleUpdateGate` 패턴: 선택 업데이트는 먼저 구글 인앱 업데이트
+  /// (flexible)를 시도하고, 시작되지 않으면 커스텀 다이얼로그로 폴백한다.
   Future<void> _checkOptionalUpdate() async {
     try {
       final policy = DkswCore.lastBootstrap?.update;
       if (policy == null) return;
       if (!policy.optionalUpdate || policy.forceUpdate) return; // 강제는 main에서 처리
 
+      // ① 구글 인앱 업데이트(flexible) 먼저 시도.
+      final result = await AppUpdater.tryFlexibleUpdate();
+      if (result == InAppUpdateResult.started) {
+        debugPrint('[UpdateGate] 인앱 업데이트(flexible) 시작 — 다이얼로그 생략');
+        return;
+      }
+
+      // ② 시작 안 되면(미지원/불가/실패) 커스텀 다이얼로그로 폴백.
       if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {

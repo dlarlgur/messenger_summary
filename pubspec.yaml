@@ -34,6 +34,9 @@ dependencies:
   # 웹뷰/URL
   url_launcher: ^6.2.2
   webview_flutter: ^4.4.2
+
+  # 인앱 업데이트 (Android 전용 — 구글 플레이 인앱 업데이트)
+  in_app_update: ^4.2.3
   
   # 유틸리티
   uuid: ^4.2.1

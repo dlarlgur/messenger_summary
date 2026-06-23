@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../theme/app_tokens.dart';
+
 /// 앱 업데이트 다이얼로그.
 /// SDK [UpdatePolicy]를 받아 강제/선택 업데이트를 분기 처리한다.
 /// 선택 업데이트는 "1일/7일 보지 않기" 옵션을 SharedPreferences에 저장.
@@ -50,10 +52,9 @@ class UpdateDialog extends StatefulWidget {
 }
 
 class _UpdateDialogState extends State<UpdateDialog> {
-  static const Color _accentBlue = Color(0xFF2563EB);
-  static const Color _accentBlueDark = Color(0xFF1D4ED8);
-  static const Color _accentRed = Color(0xFFDC2626);
-  static const Color _accentRedDark = Color(0xFFB91C1C);
+  // 브랜드 블루 hero 그라데이션 (AppTokens.accent 기준 진한 2색).
+  static const Color _heroStart = Color(0xFF3B6DFF); // AppTokens.accent
+  static const Color _heroEnd = Color(0xFF1E48D6); // 더 진한 블루
 
   int? _selectedSkipDays;
 
@@ -107,12 +108,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final latestVersion = widget.policy.latestVersion ?? '';
     final releaseNote = widget.policy.releaseNote ?? '';
-    final accent = isForced ? _accentRed : _accentBlue;
-    final accentDark = isForced ? _accentRedDark : _accentBlueDark;
+    // 강제/선택 모두 브랜드 블루 톤으로 통일 (charge 패턴: 알람 빨강 대신 깔끔하게).
+    final accent = AppTokens.accent;
 
-    final bg = isDark ? const Color(0xFF161B24) : Colors.white;
-    final textPrimary = isDark ? Colors.white : const Color(0xFF1F2937);
-    final textSecondary = isDark ? Colors.white70 : const Color(0xFF6B7280);
+    final bg = isDark ? const Color(0xFF161B24) : AppTokens.surface;
+    final textPrimary = isDark ? Colors.white : AppTokens.text;
+    final textSecondary = isDark ? Colors.white70 : AppTokens.text2;
 
     return PopScope(
       canPop: !isForced,
@@ -137,16 +138,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Hero header (gradient)
+                // Hero header (브랜드 블루 그라데이션)
                 Container(
                   padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [accent, accentDark],
+                      colors: [_heroStart, _heroEnd],
                     ),
-                    borderRadius: const BorderRadius.only(
+                    borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
                     ),
@@ -162,7 +163,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                         ),
                         child: Icon(
                           isForced
-                              ? Icons.warning_amber_rounded
+                              ? Icons.system_update_rounded
                               : Icons.rocket_launch_rounded,
                           color: Colors.white,
                           size: 24,
@@ -220,12 +221,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
                           decoration: BoxDecoration(
                             color: isDark
                                 ? Colors.white.withValues(alpha: 0.04)
-                                : const Color(0xFFF8FAFB),
+                                : AppTokens.bg,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isDark
                                   ? Colors.white.withValues(alpha: 0.06)
-                                  : const Color(0xFFE8ECF0),
+                                  : AppTokens.border,
                             ),
                           ),
                           constraints: const BoxConstraints(maxHeight: 160),
@@ -383,14 +384,14 @@ class _SkipTile extends StatelessWidget {
                 ? accent.withValues(alpha: isDark ? 0.15 : 0.08)
                 : (isDark
                     ? Colors.white.withValues(alpha: 0.03)
-                    : const Color(0xFFF8FAFB)),
+                    : AppTokens.bg),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected
                   ? accent.withValues(alpha: 0.5)
                   : (isDark
                       ? Colors.white.withValues(alpha: 0.06)
-                      : const Color(0xFFE8ECF0)),
+                      : AppTokens.border),
             ),
           ),
           child: Row(
@@ -401,7 +402,7 @@ class _SkipTile extends StatelessWidget {
                     : Icons.radio_button_unchecked,
                 color: selected
                     ? accent
-                    : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+                    : (isDark ? Colors.white54 : AppTokens.text3),
                 size: 18,
               ),
               const SizedBox(width: 10),
@@ -412,9 +413,7 @@ class _SkipTile extends StatelessWidget {
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   color: selected
                       ? accent
-                      : (isDark
-                          ? Colors.white70
-                          : const Color(0xFF6B7280)),
+                      : (isDark ? Colors.white70 : AppTokens.text2),
                 ),
               ),
             ],
