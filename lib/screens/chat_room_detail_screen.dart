@@ -1684,9 +1684,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    '메시지 개수 입력',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  Text(
+                    AppLocalizations.of(context).chatDetail_messageCountInput,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -1706,8 +1706,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
-                      hintText: '개수 입력',
-                      suffixText: '개',
+                      hintText: AppLocalizations.of(context).chatDetail_countInputHint,
+                      suffixText: AppLocalizations.of(context).chatDetail_countUnit,
                       errorText: errorMessage,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -1719,7 +1719,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               actions: [
                 TextButton(
                   onPressed: () => safeClose(),
-                  child: Text('취소', style: TextStyle(color: Colors.grey[600])),
+                  child: Text(AppLocalizations.of(context).chatDetail_cancel, style: TextStyle(color: Colors.grey[600])),
                 ),
                 ElevatedButton(
                   onPressed: validateAndPop,
@@ -1729,7 +1729,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('확인'),
+                  child: Text(AppLocalizations.of(context).chatDetail_confirm),
                 ),
               ],
             );
@@ -1805,7 +1805,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               ),
               const SizedBox(width: 4),
               Text(
-                isTop ? '선택 시작' : '선택 끝',
+                isTop ? AppLocalizations.of(context).chatDetail_selectStart : AppLocalizations.of(context).chatDetail_selectEnd,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -1831,13 +1831,13 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       Navigator.pop(context, {'pinned': newPinned});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newPinned ? '상단에 고정되었습니다.' : '고정이 해제되었습니다.'),
+          content: Text(newPinned ? AppLocalizations.of(context).chatDetail_pinned : AppLocalizations.of(context).chatDetail_unpinned),
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('고정 설정 변경에 실패했습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatDetail_pinFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -1885,14 +1885,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            newSummaryEnabled ? '✨ AI 요약 기능이 켜졌습니다.' : 'AI 요약 기능이 꺼졌습니다.',
+            newSummaryEnabled ? AppLocalizations.of(context).chatDetail_summaryOn : AppLocalizations.of(context).chatDetail_summaryOff,
           ),
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('요약 기능 설정 변경에 실패했습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatDetail_summaryToggleFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -1911,8 +1911,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('대화방 나가기에 실패했습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatDetail_leaveFailed),
           backgroundColor: Colors.red,
         ),
       );
@@ -2027,9 +2027,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             },
           ),
           title: _isDeleteMode
-              ? const Text(
-                  '메시지 삭제',
-                  style: TextStyle(
+              ? Text(
+                  AppLocalizations.of(context).chatDetail_deleteMessage,
+                  style: const TextStyle(
                     color: AppTokens.text,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
@@ -2089,8 +2089,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   onPressed: () async {
                     if (_messages.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('요약할 메시지가 없습니다.'),
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context).chatDetail_noMessagesToSummarize),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -2148,9 +2148,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'AI 요약 히스토리',
-                            style: TextStyle(
+                          Text(
+                            AppLocalizations.of(context).chatDetail_summaryHistory,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFF333333),
@@ -2164,7 +2164,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     child: Builder(
                       builder: (context) {
                         final messengerInfo = MessengerRegistry.getByPackageName(widget.room.packageName);
-                        final messengerName = messengerInfo?.alias ?? '메신저';
+                        final messengerName = messengerInfo?.alias ?? AppLocalizations.of(context).chatDetail_messengerFallback;
                         final brandColor = messengerInfo?.brandColor ?? AppTokens.accent;
                         final isKakaoTalk = widget.room.packageName == 'com.kakao.talk';
                         
@@ -2226,9 +2226,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          '대화방 나가기',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context).chatDetail_leaveTitle,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
                             color: Colors.red,
@@ -2262,7 +2262,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadMessages,
-                          child: const Text('다시 시도'),
+                          child: Text(AppLocalizations.of(context).chatDetail_retry),
                         ),
                       ],
                     ),
@@ -2283,7 +2283,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                             size: 64, color: Colors.grey[400]),
                                         const SizedBox(height: 16),
                                         Text(
-                                          '아직 대화가 없습니다',
+                                          AppLocalizations.of(context).chatDetail_noConversation,
                                           style: TextStyle(
                                             fontSize: 18,
                                             color: Colors.grey[600],
@@ -2639,16 +2639,16 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     // 요약 모드일 때는 간단한 타이틀 표시 (조절 기능은 하단 바에)
     if (_isSummaryMode) {
       return Row(
-        children: const [
-          Icon(
+        children: [
+          const Icon(
             Icons.auto_awesome,
             color: AppTokens.accent,
             size: 20,
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(
-            'AI 요약 모드',
-            style: TextStyle(
+            AppLocalizations.of(context).chatDetail_summaryMode,
+            style: const TextStyle(
               color: AppTokens.text,
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -2734,7 +2734,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     controller: _searchController,
                     focusNode: _searchFocusNode,
                     decoration: InputDecoration(
-                      hintText: '대화 검색',
+                      hintText: AppLocalizations.of(context).chatDetail_searchHint,
                       hintStyle: TextStyle(
                         color: Colors.grey[400],
                         fontSize: 14,
@@ -2885,7 +2885,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '개',
+                                  AppLocalizations.of(context).chatDetail_countUnit,
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -2962,14 +2962,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.auto_awesome, size: 18),
-                        SizedBox(width: 6),
+                        const Icon(Icons.auto_awesome, size: 18),
+                        const SizedBox(width: 6),
                         Text(
-                          '요약',
-                          style: TextStyle(
+                          AppLocalizations.of(context).chatDetail_summary,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.3,
@@ -3036,7 +3036,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           controller: _searchController,
                           focusNode: _searchFocusNode,
                           decoration: InputDecoration(
-                            hintText: '대화 검색',
+                            hintText: AppLocalizations.of(context).chatDetail_searchHint,
                             hintStyle: TextStyle(
                               color: Colors.grey[400],
                               fontSize: 15,
@@ -3798,7 +3798,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '개',
+                                  AppLocalizations.of(context).chatDetail_countUnit,
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -3876,14 +3876,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.auto_awesome, size: 18),
-                        SizedBox(width: 6),
+                        const Icon(Icons.auto_awesome, size: 18),
+                        const SizedBox(width: 6),
                         Text(
-                          '요약',
-                          style: TextStyle(
+                          AppLocalizations.of(context).chatDetail_summary,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.3,
@@ -3949,7 +3949,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         child: TextField(
                           controller: _searchController,
                           decoration: InputDecoration(
-                            hintText: '대화 검색',
+                            hintText: AppLocalizations.of(context).chatDetail_searchHint,
                             hintStyle: TextStyle(
                               color: Colors.grey[400],
                               fontSize: 15,
