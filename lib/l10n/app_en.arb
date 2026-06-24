@@ -1,0 +1,8 @@
+{
+  "@@locale": "en",
+  "settingsTitle": "Settings",
+  "sectionGeneral": "General",
+  "language": "Language",
+  "languageSelectTitle": "Select language",
+  "languageSystemDefault": "System default"
+}

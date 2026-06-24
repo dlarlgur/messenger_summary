@@ -1,0 +1,11 @@
+{
+  "@@locale": "ko",
+  "settingsTitle": "앱 설정",
+  "@settingsTitle": {
+    "description": "앱 설정 화면 타이틀"
+  },
+  "sectionGeneral": "일반",
+  "language": "언어",
+  "languageSelectTitle": "언어 선택",
+  "languageSystemDefault": "시스템 기본값"
+}

@@ -1,0 +1,8 @@
+{
+  "@@locale": "ja",
+  "settingsTitle": "アプリ設定",
+  "sectionGeneral": "一般",
+  "language": "言語",
+  "languageSelectTitle": "言語を選択",
+  "languageSystemDefault": "システムの既定"
+}

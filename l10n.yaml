@@ -1,0 +1,6 @@
+# Flutter gen-l10n 설정 — lib/l10n/*.arb → lib/l10n/app_localizations.dart 생성.
+arb-dir: lib/l10n
+template-arb-file: app_ko.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

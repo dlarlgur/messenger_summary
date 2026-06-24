@@ -16,6 +16,8 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'services/push_service.dart';
 import 'services/local_db_service.dart';
 import 'services/notification_settings_service.dart';
+import 'services/locale_controller.dart';
+import 'l10n/app_localizations.dart';
 import 'services/auto_summary_settings_service.dart';
 import 'services/profile_image_service.dart';
 import 'services/auth_service.dart';
@@ -91,6 +93,8 @@ void main() async {
   // 첫 build 부터 음소거 표시가 정확히 반영되도록 알림 설정만 await 로 선행.
   // SharedPreferences read 한 번 → 수십 ms 라 splash 시간에 충분히 흡수됨.
   await NotificationSettingsService().initialize();
+  // 선택 언어(로케일) 로드 — 첫 build 부터 선택 언어로 표시.
+  await LocaleController().initialize();
 
   // Firebase 초기화 — MaterialApp 의 FirebaseAnalytics observer 가 build 시점에
   // FirebaseAnalytics.instance 를 참조하므로 runApp 전에 먼저 완료해야 함.
@@ -214,16 +218,22 @@ class MyApp extends StatelessWidget {
           value: NotificationSettingsService(),
         ),
         ChangeNotifierProvider(create: (_) => AutoSummarySettingsService()),
+        ChangeNotifierProvider<LocaleController>.value(value: LocaleController()),
       ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'AI 톡비서',
-        debugShowCheckedModeBanner: false,
-        theme: _buildAppTheme(),
-        navigatorObservers: [
-          FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
-        ],
-        home: SplashScreen(nextBuilder: (_) => const MainScreen()),
+      child: Consumer<LocaleController>(
+        builder: (context, localeController, _) => MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'AI 톡비서',
+          debugShowCheckedModeBanner: false,
+          theme: _buildAppTheme(),
+          locale: localeController.locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          navigatorObservers: [
+            FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+          ],
+          home: SplashScreen(nextBuilder: (_) => const MainScreen()),
+        ),
       ),
     );
   }

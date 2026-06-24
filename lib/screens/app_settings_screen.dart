@@ -20,6 +20,8 @@ import '../config/constants.dart';
 import '../theme/app_tokens.dart';
 import '../services/auto_summary_settings_service.dart';
 import '../services/plan_service.dart';
+import '../l10n/app_localizations.dart';
+import '../services/locale_controller.dart';
 
 /// 앱 설정 화면
 class AppSettingsScreen extends StatefulWidget {
@@ -136,7 +138,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       // backgroundColor 는 global theme(AppTokens.bg) 사용
       appBar: AppBar(
         // 색·타이틀 폰트는 global appBarTheme 사용
-        title: const Text('앱 설정'),
+        title: Text(AppLocalizations.of(context).settingsTitle),
       ),
       body: ListView(
         children: [
@@ -255,13 +257,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           const SizedBox(height: 16),
 
           // 일반 섹션
-          _buildSectionHeaderStyled('일반', Icons.settings),
+          _buildSectionHeaderStyled(
+              AppLocalizations.of(context).sectionGeneral, Icons.settings),
+          _buildStyledMenuItem(
+            icon: Icons.language,
+            title: AppLocalizations.of(context).language,
+            subtitle: LocaleController.displayName(
+                Localizations.localeOf(context).languageCode),
+            iconColor: _primaryBlue,
+            isFirst: true,
+            onTap: _showLanguagePicker,
+          ),
           _buildStyledMenuItem(
             icon: Icons.star,
             title: '리뷰를 남겨주세요',
             subtitle: '소중한 리뷰가 큰 힘이 됩니다',
             iconColor: Colors.amber,
-            isFirst: true,
             onTap: () {
               _openStoreReview();
             },
@@ -578,6 +589,45 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   }
 
   /// 스타일된 섹션 헤더
+  void _showLanguagePicker() {
+    final current = LocaleController().locale?.languageCode;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        Widget tile(String label, String? code) => ListTile(
+              title: Text(label),
+              trailing: current == code
+                  ? Icon(Icons.check, color: _primaryBlue)
+                  : null,
+              onTap: () {
+                LocaleController().setLocale(code == null ? null : Locale(code));
+                Navigator.of(ctx).pop();
+              },
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  AppLocalizations.of(context).languageSelectTitle,
+                  style:
+                      const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              tile(AppLocalizations.of(context).languageSystemDefault, null),
+              tile('한국어', 'ko'),
+              tile('English', 'en'),
+              tile('日本語', 'ja'),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSectionHeaderStyled(String title, IconData icon) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
