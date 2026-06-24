@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 평점 요청 단순 확인 다이얼로그 (C1 Soft Modern Blue 톤).
 ///
@@ -86,9 +87,9 @@ class RatingDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              '톡비서가 마음에 드시나요?',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).ratingDialog_title,
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppTokens.text,
@@ -97,9 +98,9 @@ class RatingDialog extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            const Text(
-              '평점 한 번이면 저희에게\n정말 큰 힘이 됩니다 🙏',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).ratingDialog_message,
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
                 color: AppTokens.text2,
@@ -112,7 +113,7 @@ class RatingDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: _SecondaryButton(
-                    label: '나중에',
+                    label: AppLocalizations.of(context).ratingDialog_later,
                     onTap: () {
                       Navigator.of(context).pop();
                       onLater?.call();
@@ -122,7 +123,7 @@ class RatingDialog extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _PrimaryButton(
-                    label: '평점 남기기',
+                    label: AppLocalizations.of(context).ratingDialog_rate,
                     onTap: () async {
                       Navigator.of(context).pop();
                       await onConfirm();

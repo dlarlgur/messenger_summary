@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 앱 업데이트 다이얼로그.
 /// SDK [UpdatePolicy]를 받아 강제/선택 업데이트를 분기 처리한다.
@@ -85,7 +86,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       // iOS: storeUrl이 없으면 안내만 (chat_llm은 Android 우선 배포)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('스토어를 열 수 없습니다.')),
+          SnackBar(content: Text(AppLocalizations.of(context).updateDialog_storeOpenFailed)),
         );
       }
     }
@@ -175,7 +176,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isForced ? '필수 업데이트' : '새 버전이 나왔어요',
+                              isForced ? AppLocalizations.of(context).updateDialog_forcedTitle : AppLocalizations.of(context).updateDialog_optionalTitle,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
@@ -207,7 +208,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                     children: [
                       if (releaseNote.isNotEmpty) ...[
                         Text(
-                          '변경 사항',
+                          AppLocalizations.of(context).updateDialog_changesLabel,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -252,7 +253,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                '원활한 이용을 위해 최신 버전으로 업데이트해 주세요.',
+                                AppLocalizations.of(context).updateDialog_forcedNotice,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: textSecondary,
@@ -266,7 +267,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       if (!isForced) ...[
                         const SizedBox(height: 16),
                         _SkipTile(
-                          label: '하루 동안 보지 않기',
+                          label: AppLocalizations.of(context).updateDialog_skip1Day,
                           selected: _selectedSkipDays == 1,
                           accent: accent,
                           isDark: isDark,
@@ -275,7 +276,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                         ),
                         const SizedBox(height: 6),
                         _SkipTile(
-                          label: '일주일 동안 보지 않기',
+                          label: AppLocalizations.of(context).updateDialog_skip7Days,
                           selected: _selectedSkipDays == 7,
                           accent: accent,
                           isDark: isDark,
@@ -302,7 +303,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                                   borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text(
-                              '나중에',
+                              AppLocalizations.of(context).updateDialog_later,
                               style: TextStyle(
                                 color: textSecondary,
                                 fontWeight: FontWeight.w600,
@@ -326,14 +327,14 @@ class _UpdateDialogState extends State<UpdateDialog> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.download_rounded, size: 18),
-                              SizedBox(width: 6),
+                              const Icon(Icons.download_rounded, size: 18),
+                              const SizedBox(width: 6),
                               Text(
-                                '지금 업데이트',
-                                style: TextStyle(
+                                AppLocalizations.of(context).updateDialog_updateNow,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
                                 ),

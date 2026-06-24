@@ -704,4 +704,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get policies_externalLink => 'External link';
+
+  @override
+  String get notifList_deletedOne => 'Notification deleted.';
+
+  @override
+  String get notifList_deleteAllTitle => 'Delete all notifications';
+
+  @override
+  String get notifList_deleteAllConfirm => 'Delete all notifications?';
+
+  @override
+  String get notifList_cancel => 'Cancel';
+
+  @override
+  String get notifList_delete => 'Delete';
+
+  @override
+  String get notifList_deletedAll => 'All notifications deleted.';
+
+  @override
+  String get notifList_appBarTitle => 'Auto-summary notifications';
+
+  @override
+  String get notifList_deleteAllTooltip => 'Delete all';
+
+  @override
+  String get notifList_empty => 'No saved auto-summary notifications';
+
+  @override
+  String get notifList_summaryNotFound => 'That summary couldn\'t be found.';
+
+  @override
+  String get notifList_unknownRoom => 'Unknown chat';
+
+  @override
+  String get popupNotice_skipToday => 'Don\'t show today';
+
+  @override
+  String get popupNotice_skipMonth => 'Don\'t show for a month';
+
+  @override
+  String get popupNotice_close => 'Close';
+
+  @override
+  String get ratingDialog_title => 'Enjoying the app?';
+
+  @override
+  String get ratingDialog_message => 'A quick rating means\nso much to us 🙏';
+
+  @override
+  String get ratingDialog_later => 'Later';
+
+  @override
+  String get ratingDialog_rate => 'Leave a rating';
+
+  @override
+  String get updateDialog_storeOpenFailed => 'Couldn\'t open the store.';
+
+  @override
+  String get updateDialog_forcedTitle => 'Required update';
+
+  @override
+  String get updateDialog_optionalTitle => 'A new version is available';
+
+  @override
+  String get updateDialog_changesLabel => 'What\'s new';
+
+  @override
+  String get updateDialog_forcedNotice =>
+      'Please update to the latest version for the best experience.';
+
+  @override
+  String get updateDialog_skip1Day => 'Hide for a day';
+
+  @override
+  String get updateDialog_skip7Days => 'Hide for a week';
+
+  @override
+  String get updateDialog_later => 'Later';
+
+  @override
+  String get updateDialog_updateNow => 'Update now';
 }

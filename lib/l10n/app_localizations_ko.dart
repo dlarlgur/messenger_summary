@@ -671,4 +671,85 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get policies_externalLink => '외부 링크';
+
+  @override
+  String get notifList_deletedOne => '알림이 삭제되었습니다.';
+
+  @override
+  String get notifList_deleteAllTitle => '모든 알림 삭제';
+
+  @override
+  String get notifList_deleteAllConfirm => '모든 알림을 삭제하시겠습니까?';
+
+  @override
+  String get notifList_cancel => '취소';
+
+  @override
+  String get notifList_delete => '삭제';
+
+  @override
+  String get notifList_deletedAll => '모든 알림이 삭제되었습니다.';
+
+  @override
+  String get notifList_appBarTitle => '자동 요약 알림';
+
+  @override
+  String get notifList_deleteAllTooltip => '모두 삭제';
+
+  @override
+  String get notifList_empty => '저장된 자동 요약 알림이 없습니다';
+
+  @override
+  String get notifList_summaryNotFound => '해당 요약을 찾을 수 없습니다.';
+
+  @override
+  String get notifList_unknownRoom => '알 수 없는 채팅방';
+
+  @override
+  String get popupNotice_skipToday => '오늘 하루 안 보기';
+
+  @override
+  String get popupNotice_skipMonth => '한 달 안 보기';
+
+  @override
+  String get popupNotice_close => '닫기';
+
+  @override
+  String get ratingDialog_title => '톡비서가 마음에 드시나요?';
+
+  @override
+  String get ratingDialog_message => '평점 한 번이면 저희에게\n정말 큰 힘이 됩니다 🙏';
+
+  @override
+  String get ratingDialog_later => '나중에';
+
+  @override
+  String get ratingDialog_rate => '평점 남기기';
+
+  @override
+  String get updateDialog_storeOpenFailed => '스토어를 열 수 없습니다.';
+
+  @override
+  String get updateDialog_forcedTitle => '필수 업데이트';
+
+  @override
+  String get updateDialog_optionalTitle => '새 버전이 나왔어요';
+
+  @override
+  String get updateDialog_changesLabel => '변경 사항';
+
+  @override
+  String get updateDialog_forcedNotice => '원활한 이용을 위해 최신 버전으로 업데이트해 주세요.';
+
+  @override
+  String get updateDialog_skip1Day => '하루 동안 보지 않기';
+
+  @override
+  String get updateDialog_skip7Days => '일주일 동안 보지 않기';
+
+  @override
+  String get updateDialog_later => '나중에';
+
+  @override
+  String get updateDialog_updateNow => '지금 업데이트';
 }

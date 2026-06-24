@@ -1371,6 +1371,168 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'외부 링크'**
   String get policies_externalLink;
+
+  /// No description provided for @notifList_deletedOne.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림이 삭제되었습니다.'**
+  String get notifList_deletedOne;
+
+  /// No description provided for @notifList_deleteAllTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'모든 알림 삭제'**
+  String get notifList_deleteAllTitle;
+
+  /// No description provided for @notifList_deleteAllConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'모든 알림을 삭제하시겠습니까?'**
+  String get notifList_deleteAllConfirm;
+
+  /// No description provided for @notifList_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get notifList_cancel;
+
+  /// No description provided for @notifList_delete.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제'**
+  String get notifList_delete;
+
+  /// No description provided for @notifList_deletedAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'모든 알림이 삭제되었습니다.'**
+  String get notifList_deletedAll;
+
+  /// No description provided for @notifList_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 알림'**
+  String get notifList_appBarTitle;
+
+  /// No description provided for @notifList_deleteAllTooltip.
+  ///
+  /// In ko, this message translates to:
+  /// **'모두 삭제'**
+  String get notifList_deleteAllTooltip;
+
+  /// No description provided for @notifList_empty.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장된 자동 요약 알림이 없습니다'**
+  String get notifList_empty;
+
+  /// No description provided for @notifList_summaryNotFound.
+  ///
+  /// In ko, this message translates to:
+  /// **'해당 요약을 찾을 수 없습니다.'**
+  String get notifList_summaryNotFound;
+
+  /// No description provided for @notifList_unknownRoom.
+  ///
+  /// In ko, this message translates to:
+  /// **'알 수 없는 채팅방'**
+  String get notifList_unknownRoom;
+
+  /// No description provided for @popupNotice_skipToday.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 하루 안 보기'**
+  String get popupNotice_skipToday;
+
+  /// No description provided for @popupNotice_skipMonth.
+  ///
+  /// In ko, this message translates to:
+  /// **'한 달 안 보기'**
+  String get popupNotice_skipMonth;
+
+  /// No description provided for @popupNotice_close.
+  ///
+  /// In ko, this message translates to:
+  /// **'닫기'**
+  String get popupNotice_close;
+
+  /// No description provided for @ratingDialog_title.
+  ///
+  /// In ko, this message translates to:
+  /// **'톡비서가 마음에 드시나요?'**
+  String get ratingDialog_title;
+
+  /// No description provided for @ratingDialog_message.
+  ///
+  /// In ko, this message translates to:
+  /// **'평점 한 번이면 저희에게\n정말 큰 힘이 됩니다 🙏'**
+  String get ratingDialog_message;
+
+  /// No description provided for @ratingDialog_later.
+  ///
+  /// In ko, this message translates to:
+  /// **'나중에'**
+  String get ratingDialog_later;
+
+  /// No description provided for @ratingDialog_rate.
+  ///
+  /// In ko, this message translates to:
+  /// **'평점 남기기'**
+  String get ratingDialog_rate;
+
+  /// No description provided for @updateDialog_storeOpenFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'스토어를 열 수 없습니다.'**
+  String get updateDialog_storeOpenFailed;
+
+  /// No description provided for @updateDialog_forcedTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'필수 업데이트'**
+  String get updateDialog_forcedTitle;
+
+  /// No description provided for @updateDialog_optionalTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 버전이 나왔어요'**
+  String get updateDialog_optionalTitle;
+
+  /// No description provided for @updateDialog_changesLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'변경 사항'**
+  String get updateDialog_changesLabel;
+
+  /// No description provided for @updateDialog_forcedNotice.
+  ///
+  /// In ko, this message translates to:
+  /// **'원활한 이용을 위해 최신 버전으로 업데이트해 주세요.'**
+  String get updateDialog_forcedNotice;
+
+  /// No description provided for @updateDialog_skip1Day.
+  ///
+  /// In ko, this message translates to:
+  /// **'하루 동안 보지 않기'**
+  String get updateDialog_skip1Day;
+
+  /// No description provided for @updateDialog_skip7Days.
+  ///
+  /// In ko, this message translates to:
+  /// **'일주일 동안 보지 않기'**
+  String get updateDialog_skip7Days;
+
+  /// No description provided for @updateDialog_later.
+  ///
+  /// In ko, this message translates to:
+  /// **'나중에'**
+  String get updateDialog_later;
+
+  /// No description provided for @updateDialog_updateNow.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금 업데이트'**
+  String get updateDialog_updateNow;
 }
 
 class _AppLocalizationsDelegate

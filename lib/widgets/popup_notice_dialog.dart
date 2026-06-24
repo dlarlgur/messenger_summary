@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/subscription_screen.dart';
+import '../l10n/app_localizations.dart';
 
 /// 콘솔에 등록된 type=popup 공지를 진입 시 1회 표시.
 /// "오늘 보지 않기" 누르면 해당 공지 id가 다음 자정까지 스킵.
@@ -120,8 +121,8 @@ class PopupNoticeDialog extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: const RoundedRectangleBorder(),
                     ),
-                    child: const Text('오늘 하루 안 보기',
-                        style: TextStyle(fontSize: 13.5)),
+                    child: Text(AppLocalizations.of(context).popupNotice_skipToday,
+                        style: const TextStyle(fontSize: 13.5)),
                   ),
                 ),
                 Container(width: 1, height: 20, color: divider),
@@ -133,8 +134,8 @@ class PopupNoticeDialog extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: const RoundedRectangleBorder(),
                     ),
-                    child: const Text('한 달 안 보기',
-                        style: TextStyle(fontSize: 13.5)),
+                    child: Text(AppLocalizations.of(context).popupNotice_skipMonth,
+                        style: const TextStyle(fontSize: 13.5)),
                   ),
                 ),
               ],
@@ -147,9 +148,9 @@ class PopupNoticeDialog extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: const RoundedRectangleBorder(),
               ),
-              child: const Text(
-                '닫기',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              child: Text(
+                AppLocalizations.of(context).popupNotice_close,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ),
           ],

@@ -671,4 +671,85 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get policies_externalLink => '外部リンク';
+
+  @override
+  String get notifList_deletedOne => '通知を削除しました。';
+
+  @override
+  String get notifList_deleteAllTitle => 'すべての通知を削除';
+
+  @override
+  String get notifList_deleteAllConfirm => 'すべての通知を削除しますか？';
+
+  @override
+  String get notifList_cancel => 'キャンセル';
+
+  @override
+  String get notifList_delete => '削除';
+
+  @override
+  String get notifList_deletedAll => 'すべての通知を削除しました。';
+
+  @override
+  String get notifList_appBarTitle => '自動要約の通知';
+
+  @override
+  String get notifList_deleteAllTooltip => 'すべて削除';
+
+  @override
+  String get notifList_empty => '保存された自動要約の通知はありません';
+
+  @override
+  String get notifList_summaryNotFound => '該当する要約が見つかりませんでした。';
+
+  @override
+  String get notifList_unknownRoom => '不明なチャット';
+
+  @override
+  String get popupNotice_skipToday => '今日は表示しない';
+
+  @override
+  String get popupNotice_skipMonth => '1ヶ月表示しない';
+
+  @override
+  String get popupNotice_close => '閉じる';
+
+  @override
+  String get ratingDialog_title => 'アプリは気に入っていただけましたか？';
+
+  @override
+  String get ratingDialog_message => '評価をひとついただけると\n私たちの大きな励みになります 🙏';
+
+  @override
+  String get ratingDialog_later => 'あとで';
+
+  @override
+  String get ratingDialog_rate => '評価する';
+
+  @override
+  String get updateDialog_storeOpenFailed => 'ストアを開けませんでした。';
+
+  @override
+  String get updateDialog_forcedTitle => '必須アップデート';
+
+  @override
+  String get updateDialog_optionalTitle => '新しいバージョンがあります';
+
+  @override
+  String get updateDialog_changesLabel => '変更点';
+
+  @override
+  String get updateDialog_forcedNotice => '快適にご利用いただくため、最新バージョンにアップデートしてください。';
+
+  @override
+  String get updateDialog_skip1Day => '1日表示しない';
+
+  @override
+  String get updateDialog_skip7Days => '1週間表示しない';
+
+  @override
+  String get updateDialog_later => 'あとで';
+
+  @override
+  String get updateDialog_updateNow => '今すぐ更新';
 }

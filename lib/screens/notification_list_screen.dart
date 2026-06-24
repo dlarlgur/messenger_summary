@@ -5,6 +5,7 @@ import '../services/local_db_service.dart';
 import 'summary_history_screen.dart';
 import 'chat_room_detail_screen.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
@@ -111,9 +112,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       final unreadCount = await _localDb.getUnreadNotificationCount();
       await _updateBadge(unreadCount);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('알림이 삭제되었습니다.'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).notifList_deletedOne),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -123,16 +124,16 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('모든 알림 삭제'),
-        content: const Text('모든 알림을 삭제하시겠습니까?'),
+        title: Text(AppLocalizations.of(context).notifList_deleteAllTitle),
+        content: Text(AppLocalizations.of(context).notifList_deleteAllConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).notifList_cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            child: Text(AppLocalizations.of(context).notifList_delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -145,9 +146,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         // 배지 업데이트 (0으로 설정)
         await _updateBadge(0);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('모든 알림이 삭제되었습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).notifList_deletedAll),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -161,9 +162,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       appBar: AppBar(
         backgroundColor: AppTokens.accent,
         elevation: 0,
-        title: const Text(
-          '자동 요약 알림',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).notifList_appBarTitle,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -174,7 +175,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
               onPressed: _deleteAllNotifications,
-              tooltip: '모두 삭제',
+              tooltip: AppLocalizations.of(context).notifList_deleteAllTooltip,
             ),
         ],
       ),
@@ -192,7 +193,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '저장된 자동 요약 알림이 없습니다',
+                        AppLocalizations.of(context).notifList_empty,
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -275,9 +276,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             } else if (mounted) {
                               // 채팅방을 찾을 수 없으면 메시지 표시
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('해당 요약을 찾을 수 없습니다.'),
-                                  duration: Duration(seconds: 1),
+                                SnackBar(
+                                  content: Text(AppLocalizations.of(context).notifList_summaryNotFound),
+                                  duration: const Duration(seconds: 1),
                                 ),
                               );
                             }
@@ -320,7 +321,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                         // 채팅방 이름
                                         Flexible(
                                           child: Text(
-                                            displayRoomName.isNotEmpty ? displayRoomName : '알 수 없는 채팅방',
+                                            displayRoomName.isNotEmpty ? displayRoomName : AppLocalizations.of(context).notifList_unknownRoom,
                                             style: TextStyle(
                                               fontSize: 15,
                                               fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
