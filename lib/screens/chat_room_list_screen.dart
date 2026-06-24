@@ -1776,10 +1776,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         // 색·타이틀 폰트는 global appBarTheme 적용. AppLogo 만 leading 으로 주입.
         titleSpacing: 8,
         title: Row(
-          children: const [
-            AppLogo(),
-            SizedBox(width: 10),
-            Text('AI 톡비서'),
+          children: [
+            const AppLogo(),
+            const SizedBox(width: 10),
+            Text(AppLocalizations.of(context).brand_appName),
           ],
         ),
         actions: [

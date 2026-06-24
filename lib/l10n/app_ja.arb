@@ -460,5 +460,6 @@
   "chatDetail_loadFailed": "会話の読み込みに失敗しました。",
   "chatDetail_msgSelectedSuffix": "件のメッセージを選択中",
   "chatDetail_selectedChars": "選択中: {count}文字",
-  "chatDetail_totalChars": "全体: {count}文字"
+  "chatDetail_totalChars": "全体: {count}文字",
+  "brand_appName": "AIトークアシスタント"
 }

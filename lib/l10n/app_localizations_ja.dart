@@ -1502,4 +1502,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String chatDetail_totalChars(int count) {
     return '全体: $count文字';
   }
+
+  @override
+  String get brand_appName => 'AIトークアシスタント';
 }

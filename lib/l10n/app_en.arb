@@ -460,5 +460,6 @@
   "chatDetail_loadFailed": "Failed to load the conversation.",
   "chatDetail_msgSelectedSuffix": " messages selected",
   "chatDetail_selectedChars": "Selected: {count} chars",
-  "chatDetail_totalChars": "Total: {count} chars"
+  "chatDetail_totalChars": "Total: {count} chars",
+  "brand_appName": "AI Talk Assistant"
 }

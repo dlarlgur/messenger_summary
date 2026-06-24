@@ -2865,6 +2865,12 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'전체: {count}자'**
   String chatDetail_totalChars(int count);
+
+  /// No description provided for @brand_appName.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서'**
+  String get brand_appName;
 }
 
 class _AppLocalizationsDelegate

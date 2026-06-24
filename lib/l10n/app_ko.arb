@@ -749,5 +749,6 @@
         "type": "int"
       }
     }
-  }
+  },
+  "brand_appName": "AI 톡비서"
 }

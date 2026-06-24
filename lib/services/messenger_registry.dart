@@ -50,7 +50,7 @@ class MessengerRegistry {
   static const List<MessengerInfo> allMessengers = [
     MessengerInfo(
       packageName: 'com.kakao.talk',
-      alias: '카카오톡',
+      alias: 'KakaoTalk',
       brandColor: Color(0xFFFEE500),
       icon: Icons.chat_bubble,
       enabledByDefault: true,
@@ -99,7 +99,7 @@ class MessengerRegistry {
     ),
     MessengerInfo(
       packageName: 'com.nhn.android.band',
-      alias: '네이버 밴드',
+      alias: 'Band',
       brandColor: Color(0xFF2EC36C),
       icon: Icons.group_work_rounded,
       enabledByDefault: true,
@@ -109,7 +109,7 @@ class MessengerRegistry {
     // 설정 화면(messenger_settings)에서 다른 메신저처럼 On/Off 토글 가능.
     MessengerInfo(
       packageName: 'sms',
-      alias: '문자메시지',
+      alias: 'SMS',
       brandColor: Color(0xFF1E88E5),
       icon: Icons.sms,
       enabledByDefault: true,

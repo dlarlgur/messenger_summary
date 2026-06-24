@@ -1559,4 +1559,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatDetail_totalChars(int count) {
     return 'Total: $count chars';
   }
+
+  @override
+  String get brand_appName => 'AI Talk Assistant';
 }

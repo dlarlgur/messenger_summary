@@ -1502,4 +1502,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String chatDetail_totalChars(int count) {
     return '전체: $count자';
   }
+
+  @override
+  String get brand_appName => 'AI 톡비서';
 }

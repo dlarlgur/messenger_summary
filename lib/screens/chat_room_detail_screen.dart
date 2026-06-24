@@ -3503,6 +3503,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           '$_selectedMessageCount',
@@ -3513,13 +3514,17 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          AppLocalizations.of(context).chatDetail_msgSelectedSuffix,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(AppColors.summaryPrimary)
-                                .withOpacity(0.7),
+                        Flexible(
+                          child: Text(
+                            AppLocalizations.of(context).chatDetail_msgSelectedSuffix,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(AppColors.summaryPrimary)
+                                  .withOpacity(0.7),
+                            ),
                           ),
                         ),
                       ],
