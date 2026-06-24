@@ -7,6 +7,7 @@ import '../services/local_db_service.dart';
 import '../config/constants.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 요약 히스토리 화면
 class SummaryHistoryScreen extends StatefulWidget {
@@ -313,7 +314,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('요약 히스토리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'),
+            content: Text(AppLocalizations.of(context).summaryLoadFailed),
             backgroundColor: Colors.red,
           ),
         );
@@ -456,9 +457,9 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
-          '요약 삭제',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).summaryDeleteTitle,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -470,16 +471,16 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              '취소',
-              style: TextStyle(color: Colors.grey),
+            child: Text(
+              AppLocalizations.of(context).summaryCancel,
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              '삭제',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              AppLocalizations.of(context).summaryDelete,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -530,7 +531,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+            content: Text(AppLocalizations.of(context).summaryDeleteFailedRetry),
             backgroundColor: Colors.red,
           ),
         );
@@ -546,30 +547,30 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
-          '요약 삭제',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).summaryDeleteTitle,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
-          '이 요약을 삭제하시겠습니까?',
-          style: TextStyle(fontSize: 16),
+        content: Text(
+          AppLocalizations.of(context).summaryDeleteOneConfirm,
+          style: const TextStyle(fontSize: 16),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              '취소',
-              style: TextStyle(color: Colors.grey),
+            child: Text(
+              AppLocalizations.of(context).summaryCancel,
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              '삭제',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              AppLocalizations.of(context).summaryDelete,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -597,16 +598,16 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('요약이 삭제되었습니다.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).summaryDeleted),
               backgroundColor: Colors.green,
             ),
           );
           _loadSummaries();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('삭제에 실패했습니다.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).summaryDeleteFailed),
               backgroundColor: Colors.red,
             ),
           );
@@ -619,7 +620,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+            content: Text(AppLocalizations.of(context).summaryDeleteFailedRetry),
             backgroundColor: Colors.red,
           ),
         );
@@ -672,9 +673,9 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               )
-            : const Text(
-                'AI 요약 히스토리',
-                style: TextStyle(
+            : Text(
+                AppLocalizations.of(context).summaryHistoryTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -701,8 +702,8 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                   const SizedBox(width: 6),
                   Text(
                     _selectedSummaryIds.length == _summaries.length
-                        ? '전체 해제'
-                        : '전체 선택',
+                        ? AppLocalizations.of(context).summaryDeselectAll
+                        : AppLocalizations.of(context).summarySelectAll,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -721,7 +722,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     : Colors.white,
               ),
               onPressed: _selectedSummaryIds.isEmpty ? null : _deleteSelectedSummaries,
-              tooltip: '선택 삭제',
+              tooltip: AppLocalizations.of(context).summaryDeleteSelected,
             ),
           ],
           // 선택 모드 토글 버튼
@@ -729,13 +730,13 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: _toggleSelectionMode,
-              tooltip: '선택 모드 종료',
+              tooltip: AppLocalizations.of(context).summaryExitSelectionMode,
             )
           else
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: Colors.white),
               onPressed: _toggleSelectionMode,
-              tooltip: '편집',
+              tooltip: AppLocalizations.of(context).summaryEdit,
             ),
         ],
       ),
@@ -757,7 +758,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '요약 히스토리가 없습니다',
+                        AppLocalizations.of(context).summaryNoHistory,
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -808,7 +809,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    '이 날짜의 요약이 없습니다',
+                                    AppLocalizations.of(context).summaryNoSummaryForDate,
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.grey[600],
@@ -1187,9 +1188,9 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                                     color: AppTokens.accent,
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text(
-                                    '상세 내용',
-                                    style: TextStyle(
+                                  Text(
+                                    AppLocalizations.of(context).summaryDetailLabel,
+                                    style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
                                       color: AppTokens.accent,
@@ -1428,7 +1429,7 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.grey),
                       onPressed: () => _deleteSummary(summary.summaryId),
-                      tooltip: '삭제',
+                      tooltip: AppLocalizations.of(context).summaryDelete,
                     ),
                 ],
               ),
@@ -1526,9 +1527,9 @@ class _SummaryHistoryScreenState extends State<SummaryHistoryScreen> {
                           Icons.expand_more,
                           color: AppTokens.accent,
                         ),
-                        label: const Text(
-                          '상세보기',
-                          style: TextStyle(
+                        label: Text(
+                          AppLocalizations.of(context).summaryViewDetail,
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppTokens.accent,
@@ -1586,9 +1587,9 @@ class _CalendarPickerDialogState extends State<_CalendarPickerDialog> {
             // 헤더
             Row(
               children: [
-                const Text(
-                  '날짜 선택',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).summarySelectDate,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1702,9 +1703,9 @@ class _CalendarPickerDialogState extends State<_CalendarPickerDialog> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  '선택',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).summaryConfirm,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),

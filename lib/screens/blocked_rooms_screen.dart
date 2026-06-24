@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 import '../models/chat_room.dart';
 import '../services/local_db_service.dart';
 import '../services/profile_image_service.dart';
@@ -48,7 +49,8 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = '차단된 채팅방을 불러오는데 실패했습니다.';
+          _errorMessage =
+              AppLocalizations.of(context).blocked_loadFailed;
           _isLoading = false;
         });
       }
@@ -70,10 +72,10 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('차단 해제에 실패했습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).blocked_unblockFailed),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -123,17 +125,17 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('차단 일괄 해제'),
+        title: Text(AppLocalizations.of(context).blocked_bulkUnblockTitle),
         content: Text('선택한 $count개 채팅방의 차단을 해제하시겠습니까?\n\n차단 해제 후 새 메시지가 다시 저장됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).blocked_cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
-            child: const Text('해제'),
+            child: Text(AppLocalizations.of(context).blocked_unblock),
           ),
         ],
       ),
@@ -177,12 +179,12 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('차단 해제'),
+        title: Text(AppLocalizations.of(context).blocked_unblockTitle),
         content: Text('${room.roomName}의 차단을 해제하시겠습니까?\n\n차단 해제 후 새 메시지가 다시 저장됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).blocked_cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -190,7 +192,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
               await _unblockRoom(room);
             },
             style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
-            child: const Text('해제'),
+            child: Text(AppLocalizations.of(context).blocked_unblock),
           ),
         ],
       ),
@@ -246,7 +248,9 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
         backgroundColor: AppTokens.accent,
         foregroundColor: Colors.white,
         title: Text(
-          _selectionMode ? '${_selectedIds.length}개 선택됨' : '차단방 관리',
+          _selectionMode
+              ? '${_selectedIds.length}개 선택됨'
+              : AppLocalizations.of(context).blocked_title,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -272,7 +276,9 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    allSelected ? '전체 해제' : '전체 선택',
+                    allSelected
+                        ? AppLocalizations.of(context).blocked_deselectAll
+                        : AppLocalizations.of(context).blocked_selectAll,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -290,18 +296,18 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
                     : Colors.white,
               ),
               onPressed: _selectedIds.isEmpty ? null : _unblockSelected,
-              tooltip: '선택 해제',
+              tooltip: AppLocalizations.of(context).blocked_unblockSelected,
             ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: _exitSelectionMode,
-              tooltip: '선택 모드 종료',
+              tooltip: AppLocalizations.of(context).blocked_exitSelectionMode,
             ),
           ] else if (_blockedRooms.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: Colors.white),
               onPressed: _enterSelectionMode,
-              tooltip: '편집',
+              tooltip: AppLocalizations.of(context).blocked_edit,
             ),
         ],
       ),
@@ -337,7 +343,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadBlockedRooms,
-              child: const Text('다시 시도'),
+              child: Text(AppLocalizations.of(context).blocked_retry),
             ),
           ],
         ),
@@ -356,7 +362,7 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              '차단된 채팅방이 없습니다.',
+              AppLocalizations.of(context).blocked_emptyMessage,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -473,9 +479,9 @@ class _BlockedRoomsScreenState extends State<BlockedRoomsScreen> {
                   minimumSize: const Size(0, 36),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
-                  '차단 해제',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).blocked_unblock,
+                  style: const TextStyle(
                     color: AppTokens.accent,
                     fontWeight: FontWeight.w600,
                   ),

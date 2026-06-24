@@ -14,6 +14,7 @@ import '../models/chat_room.dart';
 import 'summary_history_screen.dart';
 import '../widgets/paywall_bottom_sheet.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 요약 관리 화면
 class UsageManagementScreen extends StatefulWidget {
@@ -192,10 +193,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('요약 기능 설정 변경에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).usageToggleSummaryFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -226,14 +227,14 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('요약 관리'),
+        title: Text(AppLocalizations.of(context).usageTitle),
         backgroundColor: AppTokens.accent,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadUsage,
-            tooltip: '새로고침',
+            tooltip: AppLocalizations.of(context).usageRefresh,
           ),
         ],
       ),
@@ -271,7 +272,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadUsage,
-              child: const Text('다시 시도'),
+              child: Text(AppLocalizations.of(context).usageRetry),
             ),
           ],
         ),
@@ -279,10 +280,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     }
 
     if (_usageData == null) {
-      return const Center(
+      return Center(
         child: Text(
-          '사용량 정보를 불러올 수 없습니다.',
-          style: TextStyle(
+          AppLocalizations.of(context).usageLoadFailed,
+          style: const TextStyle(
             fontSize: 16,
             color: Colors.grey,
           ),
@@ -405,7 +406,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isFree ? '무료 플랜' : '베이직 플랜',
+                  isFree
+                      ? AppLocalizations.of(context).usagePlanFree
+                      : AppLocalizations.of(context).usagePlanBasic,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -414,7 +417,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  period == 'daily' ? '일일 요약 제한' : '월간 요약 제한',
+                  period == 'daily'
+                      ? AppLocalizations.of(context).usageLimitDaily
+                      : AppLocalizations.of(context).usageLimitMonthly,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -461,9 +466,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '사용량',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).usageUsage,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1A1A1A),
@@ -481,10 +486,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                 ),
                 child: Text(
                   isExceeded
-                      ? '초과'
+                      ? AppLocalizations.of(context).usageStatusExceeded
                       : isNearLimit
-                          ? '거의 다 사용'
-                          : '정상',
+                          ? AppLocalizations.of(context).usageStatusNearLimit
+                          : AppLocalizations.of(context).usageStatusNormal,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -591,7 +596,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '남은 횟수',
+                        AppLocalizations.of(context).usageRemainingLabel,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -646,7 +651,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  period == 'daily' ? '다음 리셋' : '다음 달 리셋',
+                  period == 'daily'
+                      ? AppLocalizations.of(context).usageNextReset
+                      : AppLocalizations.of(context).usageNextResetMonthly,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -727,9 +734,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              '요약 기능 켜진 채팅방',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).usageSummaryEnabledRooms,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1A1A1A),
@@ -776,7 +783,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '요약 기능이 켜진 채팅방이 없습니다',
+                    AppLocalizations.of(context).usageNoSummaryEnabledRooms,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -809,7 +816,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                   Text(
                     _selectedPackageName != null
                         ? '${MessengerRegistry.getAlias(_selectedPackageName!)} 채팅방이 없습니다'
-                        : '채팅방이 없습니다',
+                        : AppLocalizations.of(context).usageNoRooms,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -884,7 +891,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             final roomCount = roomsByPackage[packageName]?.length ?? 0;
             
             return _buildMessengerTabItem(
-              messengerInfo?.alias ?? '알 수 없음',
+              messengerInfo?.alias ?? AppLocalizations.of(context).usageUnknown,
               isSelected,
               () {
                 setState(() {
@@ -1035,7 +1042,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          room.packageAlias.isNotEmpty ? room.packageAlias : '채팅방',
+          room.packageAlias.isNotEmpty ? room.packageAlias : AppLocalizations.of(context).usageRoom,
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey[600],
@@ -1065,9 +1072,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             Icons.history,
             color: AppTokens.accent,
           ),
-          title: const Text('요약 히스토리'),
+          title: Text(AppLocalizations.of(context).usageSummaryHistory),
           subtitle: Text(
-            '이 채팅방의 요약 기록 보기',
+            AppLocalizations.of(context).usageSummaryHistorySubtitle,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -1096,12 +1103,12 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
               return GestureDetector(
                 onTap: () => PaywallBottomSheet.show(
                   context,
-                  triggerFeature: '자동요약',
+                  triggerFeature: AppLocalizations.of(context).usageAutoSummaryFeature,
                 ),
                 child: ListTile(
                   title: Row(
                     children: [
-                      const Text('자동 요약'),
+                      Text(AppLocalizations.of(context).usageAutoSummary),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -1124,9 +1131,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                       ),
                     ],
                   ),
-                  subtitle: const Text(
-                    'N개 메시지 쌓이면 자동으로 백그라운드 요약',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  subtitle: Text(
+                    AppLocalizations.of(context).usageAutoSummaryDescription,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1163,11 +1170,11 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
             return Column(
             children: [
               ListTile(
-                title: const Text('자동 요약'),
+                title: Text(AppLocalizations.of(context).usageAutoSummary),
                 subtitle: Text(
                   room.autoSummaryEnabled
                       ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
-                      : '자동 요약이 꺼져 있습니다',
+                      : AppLocalizations.of(context).usageAutoSummaryOff,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -1198,9 +1205,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                '메시지 개수',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context).usageMessageCount,
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF2A2A2A),
@@ -1253,7 +1260,7 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                   ],
                                   decoration: InputDecoration(
                                     hintText: '5 ~ 200',
-                                    suffixText: '개',
+                                    suffixText: AppLocalizations.of(context).usageCountUnit,
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16,
@@ -1306,14 +1313,14 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '5개',
+                                AppLocalizations.of(context).usageRangeMin,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
                                 ),
                               ),
                               Text(
-                                '200개',
+                                AppLocalizations.of(context).usageRangeMax,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -1336,9 +1343,9 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
                                 ),
                                 elevation: 0,
                               ),
-                              child: const Text(
-                                '확인',
-                                style: TextStyle(
+                              child: Text(
+                                AppLocalizations.of(context).usageConfirm,
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1363,10 +1370,10 @@ class _UsageManagementScreenState extends State<UsageManagementScreen> {
     if (enabled && !_isBasicPlan) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('자동 요약 기능은 베이직 플랜에서만 사용 가능합니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).usageAutoSummaryBasicOnly),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }

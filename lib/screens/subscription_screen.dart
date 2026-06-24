@@ -5,6 +5,7 @@ import '../config/constants.dart';
 import '../services/in_app_purchase_service.dart';
 import '../services/plan_service.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 플랜 구독 화면
 class SubscriptionScreen extends StatefulWidget {
@@ -68,7 +69,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 2),
               action: SnackBarAction(
-                label: '다시 시도',
+                label: AppLocalizations.of(context).subscriptionRetry,
                 textColor: Colors.white,
                 onPressed: _restorePurchases,
               ),
@@ -118,7 +119,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final initialized = await _purchaseService.initialize();
       if (!initialized) {
         setState(() {
-          _error = '인앱 결제를 사용할 수 없습니다.';
+          _error = AppLocalizations.of(context).subscriptionIapUnavailable;
           _isLoading = false;
         });
         return;
@@ -168,16 +169,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         // 구매 성공은 _handlePurchaseSuccess에서 처리됨
         // 여기서는 사용자에게 안내만 표시
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('구매가 진행 중입니다. 완료되면 플랜이 자동으로 활성화됩니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).subscriptionPurchaseInProgress),
+            duration: const Duration(seconds: 1),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('구매 시작에 실패했습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).subscriptionPurchaseStartFailed),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -186,7 +187,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       Navigator.pop(context); // 로딩 다이얼로그 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('구매 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          content: Text(AppLocalizations.of(context).subscriptionPurchaseError),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -224,7 +225,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.success
-                ? '구매가 복원되었습니다.'
+                ? AppLocalizations.of(context).subscriptionRestoreSuccess
                 : '구매 복원 실패: ${result.message}'),
             backgroundColor: result.success ? Colors.green : Colors.red,
             duration: const Duration(seconds: 1),
@@ -235,9 +236,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         Navigator.pop(context);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('복원할 구매 내역이 없습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).subscriptionNoRestorablePurchases),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -246,7 +247,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('구매 복원 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          content: Text(AppLocalizations.of(context).subscriptionRestoreError),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -266,12 +267,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('플랜 구독'),
+        title: Text(AppLocalizations.of(context).subscriptionTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.restore),
             onPressed: _restorePurchases,
-            tooltip: '구매 복원',
+            tooltip: AppLocalizations.of(context).subscriptionRestore,
           ),
         ],
       ),
@@ -305,7 +306,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadProducts,
-              child: const Text('다시 시도'),
+              child: Text(AppLocalizations.of(context).subscriptionRetry),
             ),
           ],
         ),
@@ -313,19 +314,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
 
     if (_products.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.shopping_cart_outlined,
               size: 64,
               color: Colors.grey,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              '등록된 상품이 없습니다.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              AppLocalizations.of(context).subscriptionNoProducts,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),
@@ -416,9 +417,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Text(
-                        '현재 플랜',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalizations.of(context).subscriptionCurrentPlanBadge,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -455,7 +456,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           vertical: 12,
                         ),
                       ),
-                      child: const Text('구독하기'),
+                      child: Text(AppLocalizations.of(context).subscriptionSubscribe),
                     )
                   else if (_isPurchasing)
                     const SizedBox(
@@ -470,13 +471,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               if (product.id == InAppPurchaseService.basicPlanMonthly) ...[
                 const Divider(),
                 const SizedBox(height: 8),
-                _buildBenefitItem('방해 광고 제거 (전면·리워드 X)'),
+                _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitNoAds),
                 const SizedBox(height: 4),
-                _buildBenefitItem('월 150회 요약 가능'),
+                _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitMonthlySummaries),
                 const SizedBox(height: 4),
                 _buildBenefitItem('메시지 최대 ${_basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback}개까지 요약'),
                 const SizedBox(height: 4),
-                _buildBenefitItem('자동 요약 기능 사용 가능'),
+                _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitAutoSummary),
               ],
             ],
           ),

@@ -195,6 +195,948 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'필수'**
   String get permRequiredBadge;
+
+  /// No description provided for @blocked_loadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단된 채팅방을 불러오는데 실패했습니다.'**
+  String get blocked_loadFailed;
+
+  /// No description provided for @blocked_unblockFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단 해제에 실패했습니다.'**
+  String get blocked_unblockFailed;
+
+  /// No description provided for @blocked_bulkUnblockTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단 일괄 해제'**
+  String get blocked_bulkUnblockTitle;
+
+  /// No description provided for @blocked_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get blocked_cancel;
+
+  /// No description provided for @blocked_unblock.
+  ///
+  /// In ko, this message translates to:
+  /// **'해제'**
+  String get blocked_unblock;
+
+  /// No description provided for @blocked_unblockTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단 해제'**
+  String get blocked_unblockTitle;
+
+  /// No description provided for @blocked_title.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단방 관리'**
+  String get blocked_title;
+
+  /// No description provided for @blocked_deselectAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 해제'**
+  String get blocked_deselectAll;
+
+  /// No description provided for @blocked_selectAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 선택'**
+  String get blocked_selectAll;
+
+  /// No description provided for @blocked_unblockSelected.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 해제'**
+  String get blocked_unblockSelected;
+
+  /// No description provided for @blocked_exitSelectionMode.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 모드 종료'**
+  String get blocked_exitSelectionMode;
+
+  /// No description provided for @blocked_edit.
+  ///
+  /// In ko, this message translates to:
+  /// **'편집'**
+  String get blocked_edit;
+
+  /// No description provided for @blocked_retry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get blocked_retry;
+
+  /// No description provided for @blocked_emptyMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단된 채팅방이 없습니다.'**
+  String get blocked_emptyMessage;
+
+  /// No description provided for @guideSkip.
+  ///
+  /// In ko, this message translates to:
+  /// **'건너뛰기'**
+  String get guideSkip;
+
+  /// No description provided for @guideStart.
+  ///
+  /// In ko, this message translates to:
+  /// **'시작하기'**
+  String get guideStart;
+
+  /// No description provided for @guideNext.
+  ///
+  /// In ko, this message translates to:
+  /// **'다음'**
+  String get guideNext;
+
+  /// No description provided for @guideNotifTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오톡 알림 설정'**
+  String get guideNotifTitle;
+
+  /// No description provided for @guideNotifSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지를 정확히 읽으려면\n아래와 같이 설정해 주세요'**
+  String get guideNotifSubtitle;
+
+  /// No description provided for @guideNotifSettingPath.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오톡 설정 → 알림 → 알림 표시 → 알림 내용\n\"이름 + 메시지\"로 설정'**
+  String get guideNotifSettingPath;
+
+  /// No description provided for @guideMockSenderBoss.
+  ///
+  /// In ko, this message translates to:
+  /// **'부장님'**
+  String get guideMockSenderBoss;
+
+  /// No description provided for @guideMockTimePm559.
+  ///
+  /// In ko, this message translates to:
+  /// **'오후 5:59'**
+  String get guideMockTimePm559;
+
+  /// No description provided for @guideMockBossMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'김대리 오늘 퇴근 전 까지 사장님께 드릴 보고서 작성해서 보내.'**
+  String get guideMockBossMessage;
+
+  /// No description provided for @guideMockNotifHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'톡이 오면 위 스크린샷처럼\n스마트폰 상단 알림창에 보여야 합니다.'**
+  String get guideMockNotifHint;
+
+  /// No description provided for @guideSummaryTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 대화 요약'**
+  String get guideSummaryTitle;
+
+  /// No description provided for @guideSummarySubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'긴 대화도 한눈에 파악하세요'**
+  String get guideSummarySubtitle;
+
+  /// No description provided for @guideSummaryRoomName.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 구독자 모임'**
+  String get guideSummaryRoomName;
+
+  /// No description provided for @guideSummaryBadge.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약'**
+  String get guideSummaryBadge;
+
+  /// No description provided for @guideSummaryCardTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 사용 방법 안내'**
+  String get guideSummaryCardTitle;
+
+  /// No description provided for @guideStatMessagesValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'5개'**
+  String get guideStatMessagesValue;
+
+  /// No description provided for @guideStatMessagesLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지'**
+  String get guideStatMessagesLabel;
+
+  /// No description provided for @guideStatParticipantsValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'5명'**
+  String get guideStatParticipantsValue;
+
+  /// No description provided for @guideStatParticipantsLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'참여자'**
+  String get guideStatParticipantsLabel;
+
+  /// No description provided for @guideStatDurationValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'8분'**
+  String get guideStatDurationValue;
+
+  /// No description provided for @guideStatDurationLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'소요시간'**
+  String get guideStatDurationLabel;
+
+  /// No description provided for @guideSummaryContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 사용 방법에 대해 서로 공유하며, 요약 기능이 너무 편해서 스트레스가 훨씬 줄었다는 내용을 공유하고 있습니다.'**
+  String get guideSummaryContent;
+
+  /// No description provided for @guideSummaryHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방에서 요약 버튼을 눌러보세요'**
+  String get guideSummaryHint;
+
+  /// No description provided for @guideDeletedTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제된 메시지 복원'**
+  String get guideDeletedTitle;
+
+  /// No description provided for @guideDeletedSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제된 메시지를 볼 수 있고,\n상대 몰래 메시지를 미리 볼 수 있어요.'**
+  String get guideDeletedSubtitle;
+
+  /// No description provided for @guideChatBoss.
+  ///
+  /// In ko, this message translates to:
+  /// **'부장님,'**
+  String get guideChatBoss;
+
+  /// No description provided for @guideChatDeleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지가 삭제되었습니다.'**
+  String get guideChatDeleted;
+
+  /// No description provided for @guideAiAssistantBadge.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서'**
+  String get guideAiAssistantBadge;
+
+  /// No description provided for @guideChatRestored.
+  ///
+  /// In ko, this message translates to:
+  /// **'완전 짜증나!!!'**
+  String get guideChatRestored;
+
+  /// No description provided for @guideDeletedExplain1.
+  ///
+  /// In ko, this message translates to:
+  /// **'이제부터 삭제된 메시지를 볼 수 있고,'**
+  String get guideDeletedExplain1;
+
+  /// No description provided for @guideDeletedExplain2.
+  ///
+  /// In ko, this message translates to:
+  /// **'상대 몰래 메시지를 미리 볼 수 있어요.'**
+  String get guideDeletedExplain2;
+
+  /// No description provided for @howTo_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 사용 가이드'**
+  String get howTo_appBarTitle;
+
+  /// No description provided for @howTo_section1Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 필수 설정'**
+  String get howTo_section1Title;
+
+  /// No description provided for @howTo_section1Subtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'작동을 위해 필수!'**
+  String get howTo_section1Subtitle;
+
+  /// No description provided for @howTo_section1Item1.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오톡 알림 켜기: 요약이나 삭제된 메시지 확인을 원하는 채팅방의 알림을 켜주세요.'**
+  String get howTo_section1Item1;
+
+  /// No description provided for @howTo_section1Item2.
+  ///
+  /// In ko, this message translates to:
+  /// **'카톡 알림 형식: 카카오톡 설정 → 알림 → \'이름+메시지\' 형식으로 설정해야 내용을 인식합니다.'**
+  String get howTo_section1Item2;
+
+  /// No description provided for @howTo_section1Item3.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 권한 허용: 앱 설정에서 \'알림 접근 허용\' 및 **\'배터리 사용량 최적화 중지\'**를 반드시 설정해 주세요.'**
+  String get howTo_section1Item3;
+
+  /// No description provided for @howTo_section2Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'2. 🔒 보안 및 개인정보 보호'**
+  String get howTo_section2Title;
+
+  /// No description provided for @howTo_section2Subtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'안심하고 사용하세요!'**
+  String get howTo_section2Subtitle;
+
+  /// No description provided for @howTo_section2Item1.
+  ///
+  /// In ko, this message translates to:
+  /// **'로컬 저장 방식: 모든 대화 내용은 서버가 아닌 사용자의 휴대폰(로컬)에만 저장되어 안전합니다.'**
+  String get howTo_section2Item1;
+
+  /// No description provided for @howTo_section2Item2.
+  ///
+  /// In ko, this message translates to:
+  /// **'철저한 개인정보 마스킹: 요약 기능 사용 시, 대화에 포함된 주민등록번호, 핸드폰 번호, 이메일 등 주요 개인정보는 자동으로 마스킹(별표 처리) 후 전송됩니다.'**
+  String get howTo_section2Item2;
+
+  /// No description provided for @howTo_section2Item3.
+  ///
+  /// In ko, this message translates to:
+  /// **'데이터 보안: 모든 통신은 HTTPS 암호화를 거치며, 서버에는 어떠한 대화 로그도 남지 않습니다.'**
+  String get howTo_section2Item3;
+
+  /// No description provided for @howTo_section2Item4.
+  ///
+  /// In ko, this message translates to:
+  /// **'익명성 보장: 별도의 로그인을 하지 않으므로 대화 내용이 누구의 것인지 특정할 수 없어 익명성이 철저히 보장됩니다.'**
+  String get howTo_section2Item4;
+
+  /// No description provided for @howTo_section3Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'3. 채팅방 목록 관리'**
+  String get howTo_section3Title;
+
+  /// No description provided for @howTo_section3Subtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'목록에서 길게 누르기'**
+  String get howTo_section3Subtitle;
+
+  /// No description provided for @howTo_section3Item1.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 기능 켜기/끄기: 켜두면 안 읽은 메시지가 5개 이상일 때 입장 시 자동으로 요약 영역이 선택됩니다.'**
+  String get howTo_section3Item1;
+
+  /// No description provided for @howTo_section3Item2.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 자동 요약 설정 (Basic 전용): 설정한 메시지 개수가 쌓이면 자동으로 요약하고 푸시 알림을 보냅니다.'**
+  String get howTo_section3Item2;
+
+  /// No description provided for @howTo_section3Item3.
+  ///
+  /// In ko, this message translates to:
+  /// **'상단 고정 / 알림 끄기: 자주 쓰는 방은 고정하고, 시끄러운 방은 앱 내에서 알림만 끌 수 있습니다.'**
+  String get howTo_section3Item3;
+
+  /// No description provided for @howTo_section3Item4.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 차단 / 삭제: 차단 시 메시지 저장을 중단하며, 삭제 시 모든 데이터(사진, 요약 등)가 소멸됩니다.'**
+  String get howTo_section3Item4;
+
+  /// No description provided for @howTo_section4Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'4. 대화방 내부 주요 기능'**
+  String get howTo_section4Title;
+
+  /// No description provided for @howTo_section4Item1.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 요약: 오른쪽 상단의 요약하기 아이콘을 클릭하여 즉시 요약할 수 있습니다.'**
+  String get howTo_section4Item1;
+
+  /// No description provided for @howTo_section4Item2.
+  ///
+  /// In ko, this message translates to:
+  /// **'검색 & 복사: 사용자/시간/키워드별 검색이 가능하며, 메시지를 꾹 눌러 복사할 수 있습니다.'**
+  String get howTo_section4Item2;
+
+  /// No description provided for @howTo_section4Item3.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제된 메시지 확인: 상대방이 삭제한 메시지도 그대로 확인할 수 있습니다.'**
+  String get howTo_section4Item3;
+
+  /// No description provided for @howTo_section4Item4.
+  ///
+  /// In ko, this message translates to:
+  /// **'주의사항: 동영상 및 여러 장 묶음 사진은 앱 내에 저장되지 않습니다.'**
+  String get howTo_section4Item4;
+
+  /// No description provided for @howTo_section5Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'5. 상세 요약 활용법'**
+  String get howTo_section5Title;
+
+  /// No description provided for @howTo_section5Item1.
+  ///
+  /// In ko, this message translates to:
+  /// **'수동 요약: 구간 직접 선택, 숫자 입력, 혹은 말풍선 터치로 블록을 잡아 요약할 수 있습니다.'**
+  String get howTo_section5Item1;
+
+  /// No description provided for @howTo_section5Item2.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 히스토리: [앱 설정 → 요약 관리 → 요약 히스토리]에서 과거 기록 확인 및 삭제가 가능합니다.'**
+  String get howTo_section5Item2;
+
+  /// No description provided for @howTo_section6Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'6. 요금제 및 사용량 확인'**
+  String get howTo_section6Title;
+
+  /// No description provided for @howTo_section6Subtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'[앱 설정 → 요약 관리]에서 실시간 사용량을 확인하세요.'**
+  String get howTo_section6Subtitle;
+
+  /// No description provided for @howTo_freePlanName.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 플랜'**
+  String get howTo_freePlanName;
+
+  /// No description provided for @howTo_basicPlanName.
+  ///
+  /// In ko, this message translates to:
+  /// **'베이직 플랜'**
+  String get howTo_basicPlanName;
+
+  /// No description provided for @howTo_planLabelCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 횟수'**
+  String get howTo_planLabelCount;
+
+  /// No description provided for @howTo_planLabelLimit.
+  ///
+  /// In ko, this message translates to:
+  /// **'1회 요약 한도'**
+  String get howTo_planLabelLimit;
+
+  /// No description provided for @howTo_planLabelFeature.
+  ///
+  /// In ko, this message translates to:
+  /// **'주요 특징'**
+  String get howTo_planLabelFeature;
+
+  /// No description provided for @howTo_freePlanLimitValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'5~50개'**
+  String get howTo_freePlanLimitValue;
+
+  /// No description provided for @howTo_freePlanFeatureValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'기본 요약 기능'**
+  String get howTo_freePlanFeatureValue;
+
+  /// No description provided for @howTo_basicPlanCountValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'150회 (결제일 기준 초기화)'**
+  String get howTo_basicPlanCountValue;
+
+  /// No description provided for @howTo_basicPlanLimitValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'5~200개'**
+  String get howTo_basicPlanLimitValue;
+
+  /// No description provided for @howTo_basicPlanFeatureValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용자가 설정한 메시지 수만큼 자동요약.\n자동요약 후 푸시 알림 제공'**
+  String get howTo_basicPlanFeatureValue;
+
+  /// No description provided for @paywall_upgradeTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'BASIC 플랜으로 업그레이드'**
+  String get paywall_upgradeTitle;
+
+  /// No description provided for @paywall_dailyLimitReached.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 무료 요약 횟수를 모두 사용했어요.\nBASIC 플랜으로 계속 이용하세요.'**
+  String get paywall_dailyLimitReached;
+
+  /// No description provided for @paywall_adRechargeNotice.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고 시청 후 요약 1회가 즉시 충전됩니다'**
+  String get paywall_adRechargeNotice;
+
+  /// No description provided for @paywall_defaultSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'더 많은 메시지를 분석하고 스마트하게 관리하세요'**
+  String get paywall_defaultSubtitle;
+
+  /// No description provided for @paywall_later.
+  ///
+  /// In ko, this message translates to:
+  /// **'나중에'**
+  String get paywall_later;
+
+  /// No description provided for @subscriptionRetry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get subscriptionRetry;
+
+  /// No description provided for @subscriptionIapUnavailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'인앱 결제를 사용할 수 없습니다.'**
+  String get subscriptionIapUnavailable;
+
+  /// No description provided for @subscriptionPurchaseInProgress.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매가 진행 중입니다. 완료되면 플랜이 자동으로 활성화됩니다.'**
+  String get subscriptionPurchaseInProgress;
+
+  /// No description provided for @subscriptionPurchaseStartFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 시작에 실패했습니다.'**
+  String get subscriptionPurchaseStartFailed;
+
+  /// No description provided for @subscriptionPurchaseError.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
+  String get subscriptionPurchaseError;
+
+  /// No description provided for @subscriptionRestoreSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매가 복원되었습니다.'**
+  String get subscriptionRestoreSuccess;
+
+  /// No description provided for @subscriptionNoRestorablePurchases.
+  ///
+  /// In ko, this message translates to:
+  /// **'복원할 구매 내역이 없습니다.'**
+  String get subscriptionNoRestorablePurchases;
+
+  /// No description provided for @subscriptionRestoreError.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 복원 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
+  String get subscriptionRestoreError;
+
+  /// No description provided for @subscriptionTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜 구독'**
+  String get subscriptionTitle;
+
+  /// No description provided for @subscriptionRestore.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 복원'**
+  String get subscriptionRestore;
+
+  /// No description provided for @subscriptionNoProducts.
+  ///
+  /// In ko, this message translates to:
+  /// **'등록된 상품이 없습니다.'**
+  String get subscriptionNoProducts;
+
+  /// No description provided for @subscriptionCurrentPlanBadge.
+  ///
+  /// In ko, this message translates to:
+  /// **'현재 플랜'**
+  String get subscriptionCurrentPlanBadge;
+
+  /// No description provided for @subscriptionSubscribe.
+  ///
+  /// In ko, this message translates to:
+  /// **'구독하기'**
+  String get subscriptionSubscribe;
+
+  /// No description provided for @subscriptionBenefitNoAds.
+  ///
+  /// In ko, this message translates to:
+  /// **'방해 광고 제거 (전면·리워드 X)'**
+  String get subscriptionBenefitNoAds;
+
+  /// No description provided for @subscriptionBenefitMonthlySummaries.
+  ///
+  /// In ko, this message translates to:
+  /// **'월 150회 요약 가능'**
+  String get subscriptionBenefitMonthlySummaries;
+
+  /// No description provided for @subscriptionBenefitAutoSummary.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 기능 사용 가능'**
+  String get subscriptionBenefitAutoSummary;
+
+  /// No description provided for @summaryLoadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 히스토리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'**
+  String get summaryLoadFailed;
+
+  /// No description provided for @summaryDeleteTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 삭제'**
+  String get summaryDeleteTitle;
+
+  /// No description provided for @summaryCancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get summaryCancel;
+
+  /// No description provided for @summaryDelete.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제'**
+  String get summaryDelete;
+
+  /// No description provided for @summaryDeleteFailedRetry.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'**
+  String get summaryDeleteFailedRetry;
+
+  /// No description provided for @summaryDeleteOneConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 요약을 삭제하시겠습니까?'**
+  String get summaryDeleteOneConfirm;
+
+  /// No description provided for @summaryDeleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약이 삭제되었습니다.'**
+  String get summaryDeleted;
+
+  /// No description provided for @summaryDeleteFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제에 실패했습니다.'**
+  String get summaryDeleteFailed;
+
+  /// No description provided for @summaryHistoryTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 히스토리'**
+  String get summaryHistoryTitle;
+
+  /// No description provided for @summaryDeselectAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 해제'**
+  String get summaryDeselectAll;
+
+  /// No description provided for @summarySelectAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 선택'**
+  String get summarySelectAll;
+
+  /// No description provided for @summaryDeleteSelected.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 삭제'**
+  String get summaryDeleteSelected;
+
+  /// No description provided for @summaryExitSelectionMode.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 모드 종료'**
+  String get summaryExitSelectionMode;
+
+  /// No description provided for @summaryEdit.
+  ///
+  /// In ko, this message translates to:
+  /// **'편집'**
+  String get summaryEdit;
+
+  /// No description provided for @summaryNoHistory.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 히스토리가 없습니다'**
+  String get summaryNoHistory;
+
+  /// No description provided for @summaryNoSummaryForDate.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 날짜의 요약이 없습니다'**
+  String get summaryNoSummaryForDate;
+
+  /// No description provided for @summaryDetailLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'상세 내용'**
+  String get summaryDetailLabel;
+
+  /// No description provided for @summaryViewDetail.
+  ///
+  /// In ko, this message translates to:
+  /// **'상세보기'**
+  String get summaryViewDetail;
+
+  /// No description provided for @summarySelectDate.
+  ///
+  /// In ko, this message translates to:
+  /// **'날짜 선택'**
+  String get summarySelectDate;
+
+  /// No description provided for @summaryConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택'**
+  String get summaryConfirm;
+
+  /// No description provided for @usageTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 관리'**
+  String get usageTitle;
+
+  /// No description provided for @usageRefresh.
+  ///
+  /// In ko, this message translates to:
+  /// **'새로고침'**
+  String get usageRefresh;
+
+  /// No description provided for @usageRetry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get usageRetry;
+
+  /// No description provided for @usageLoadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용량 정보를 불러올 수 없습니다.'**
+  String get usageLoadFailed;
+
+  /// No description provided for @usageToggleSummaryFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능 설정 변경에 실패했습니다.'**
+  String get usageToggleSummaryFailed;
+
+  /// No description provided for @usagePlanFree.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 플랜'**
+  String get usagePlanFree;
+
+  /// No description provided for @usagePlanBasic.
+  ///
+  /// In ko, this message translates to:
+  /// **'베이직 플랜'**
+  String get usagePlanBasic;
+
+  /// No description provided for @usageLimitDaily.
+  ///
+  /// In ko, this message translates to:
+  /// **'일일 요약 제한'**
+  String get usageLimitDaily;
+
+  /// No description provided for @usageLimitMonthly.
+  ///
+  /// In ko, this message translates to:
+  /// **'월간 요약 제한'**
+  String get usageLimitMonthly;
+
+  /// No description provided for @usageUsage.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용량'**
+  String get usageUsage;
+
+  /// No description provided for @usageStatusExceeded.
+  ///
+  /// In ko, this message translates to:
+  /// **'초과'**
+  String get usageStatusExceeded;
+
+  /// No description provided for @usageStatusNearLimit.
+  ///
+  /// In ko, this message translates to:
+  /// **'거의 다 사용'**
+  String get usageStatusNearLimit;
+
+  /// No description provided for @usageStatusNormal.
+  ///
+  /// In ko, this message translates to:
+  /// **'정상'**
+  String get usageStatusNormal;
+
+  /// No description provided for @usageRemainingLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'남은 횟수'**
+  String get usageRemainingLabel;
+
+  /// No description provided for @usageNextReset.
+  ///
+  /// In ko, this message translates to:
+  /// **'다음 리셋'**
+  String get usageNextReset;
+
+  /// No description provided for @usageNextResetMonthly.
+  ///
+  /// In ko, this message translates to:
+  /// **'다음 달 리셋'**
+  String get usageNextResetMonthly;
+
+  /// No description provided for @usageSummaryEnabledRooms.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능 켜진 채팅방'**
+  String get usageSummaryEnabledRooms;
+
+  /// No description provided for @usageNoSummaryEnabledRooms.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능이 켜진 채팅방이 없습니다'**
+  String get usageNoSummaryEnabledRooms;
+
+  /// No description provided for @usageNoRooms.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방이 없습니다'**
+  String get usageNoRooms;
+
+  /// No description provided for @usageUnknown.
+  ///
+  /// In ko, this message translates to:
+  /// **'알 수 없음'**
+  String get usageUnknown;
+
+  /// No description provided for @usageRoom.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방'**
+  String get usageRoom;
+
+  /// No description provided for @usageSummaryHistory.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 히스토리'**
+  String get usageSummaryHistory;
+
+  /// No description provided for @usageSummaryHistorySubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 채팅방의 요약 기록 보기'**
+  String get usageSummaryHistorySubtitle;
+
+  /// No description provided for @usageAutoSummaryFeature.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동요약'**
+  String get usageAutoSummaryFeature;
+
+  /// No description provided for @usageAutoSummary.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약'**
+  String get usageAutoSummary;
+
+  /// No description provided for @usageAutoSummaryDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'N개 메시지 쌓이면 자동으로 백그라운드 요약'**
+  String get usageAutoSummaryDescription;
+
+  /// No description provided for @usageAutoSummaryOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약이 꺼져 있습니다'**
+  String get usageAutoSummaryOff;
+
+  /// No description provided for @usageMessageCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 개수'**
+  String get usageMessageCount;
+
+  /// No description provided for @usageCountUnit.
+  ///
+  /// In ko, this message translates to:
+  /// **'개'**
+  String get usageCountUnit;
+
+  /// No description provided for @usageRangeMin.
+  ///
+  /// In ko, this message translates to:
+  /// **'5개'**
+  String get usageRangeMin;
+
+  /// No description provided for @usageRangeMax.
+  ///
+  /// In ko, this message translates to:
+  /// **'200개'**
+  String get usageRangeMax;
+
+  /// No description provided for @usageConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'확인'**
+  String get usageConfirm;
+
+  /// No description provided for @usageAutoSummaryBasicOnly.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 기능은 베이직 플랜에서만 사용 가능합니다.'**
+  String get usageAutoSummaryBasicOnly;
 }
 
 class _AppLocalizationsDelegate

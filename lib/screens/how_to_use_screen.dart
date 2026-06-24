@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/constants.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_tokens.dart';
 
 /// AI 톡비서 사용 가이드 화면
@@ -13,7 +14,7 @@ class HowToUseScreen extends StatelessWidget {
     return Scaffold(
       // 색·AppBar 는 global theme 사용
       appBar: AppBar(
-        title: const Text('AI 톡비서 사용 가이드'),
+        title: Text(AppLocalizations.of(context).howTo_appBarTitle),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -24,19 +25,19 @@ class HowToUseScreen extends StatelessWidget {
               // 1. 필수 설정
               _buildSection(
                 context,
-                title: '1. 필수 설정',
-                subtitle: '작동을 위해 필수!',
+                title: AppLocalizations.of(context).howTo_section1Title,
+                subtitle: AppLocalizations.of(context).howTo_section1Subtitle,
                 icon: Icons.settings,
                 iconColor: Colors.orange,
                 items: [
                   _buildBulletItem(
-                    '카카오톡 알림 켜기: 요약이나 삭제된 메시지 확인을 원하는 채팅방의 알림을 켜주세요.',
+                    AppLocalizations.of(context).howTo_section1Item1,
                   ),
                   _buildBulletItem(
-                    '카톡 알림 형식: 카카오톡 설정 → 알림 → \'이름+메시지\' 형식으로 설정해야 내용을 인식합니다.',
+                    AppLocalizations.of(context).howTo_section1Item2,
                   ),
                   _buildBulletItem(
-                    '앱 권한 허용: 앱 설정에서 \'알림 접근 허용\' 및 **\'배터리 사용량 최적화 중지\'**를 반드시 설정해 주세요.',
+                    AppLocalizations.of(context).howTo_section1Item3,
                     isImportant: true,
                   ),
                 ],
@@ -46,22 +47,22 @@ class HowToUseScreen extends StatelessWidget {
               // 2. 보안 및 개인정보 보호
               _buildSection(
                 context,
-                title: '2. 🔒 보안 및 개인정보 보호',
-                subtitle: '안심하고 사용하세요!',
+                title: AppLocalizations.of(context).howTo_section2Title,
+                subtitle: AppLocalizations.of(context).howTo_section2Subtitle,
                 icon: Icons.lock,
                 iconColor: Colors.green,
                 items: [
                   _buildBulletItem(
-                    '로컬 저장 방식: 모든 대화 내용은 서버가 아닌 사용자의 휴대폰(로컬)에만 저장되어 안전합니다.',
+                    AppLocalizations.of(context).howTo_section2Item1,
                   ),
                   _buildBulletItem(
-                    '철저한 개인정보 마스킹: 요약 기능 사용 시, 대화에 포함된 주민등록번호, 핸드폰 번호, 이메일 등 주요 개인정보는 자동으로 마스킹(별표 처리) 후 전송됩니다.',
+                    AppLocalizations.of(context).howTo_section2Item2,
                   ),
                   _buildBulletItem(
-                    '데이터 보안: 모든 통신은 HTTPS 암호화를 거치며, 서버에는 어떠한 대화 로그도 남지 않습니다.',
+                    AppLocalizations.of(context).howTo_section2Item3,
                   ),
                   _buildBulletItem(
-                    '익명성 보장: 별도의 로그인을 하지 않으므로 대화 내용이 누구의 것인지 특정할 수 없어 익명성이 철저히 보장됩니다.',
+                    AppLocalizations.of(context).howTo_section2Item4,
                   ),
                 ],
               ),
@@ -70,22 +71,22 @@ class HowToUseScreen extends StatelessWidget {
               // 3. 채팅방 목록 관리
               _buildSection(
                 context,
-                title: '3. 채팅방 목록 관리',
-                subtitle: '목록에서 길게 누르기',
+                title: AppLocalizations.of(context).howTo_section3Title,
+                subtitle: AppLocalizations.of(context).howTo_section3Subtitle,
                 icon: Icons.list,
                 iconColor: _primaryBlue,
                 items: [
                   _buildBulletItem(
-                    'AI 요약 기능 켜기/끄기: 켜두면 안 읽은 메시지가 5개 이상일 때 입장 시 자동으로 요약 영역이 선택됩니다.',
+                    AppLocalizations.of(context).howTo_section3Item1,
                   ),
                   _buildBulletItem(
-                    'AI 자동 요약 설정 (Basic 전용): 설정한 메시지 개수가 쌓이면 자동으로 요약하고 푸시 알림을 보냅니다.',
+                    AppLocalizations.of(context).howTo_section3Item2,
                   ),
                   _buildBulletItem(
-                    '상단 고정 / 알림 끄기: 자주 쓰는 방은 고정하고, 시끄러운 방은 앱 내에서 알림만 끌 수 있습니다.',
+                    AppLocalizations.of(context).howTo_section3Item3,
                   ),
                   _buildBulletItem(
-                    '채팅방 차단 / 삭제: 차단 시 메시지 저장을 중단하며, 삭제 시 모든 데이터(사진, 요약 등)가 소멸됩니다.',
+                    AppLocalizations.of(context).howTo_section3Item4,
                   ),
                 ],
               ),
@@ -94,21 +95,21 @@ class HowToUseScreen extends StatelessWidget {
               // 4. 대화방 내부 주요 기능
               _buildSection(
                 context,
-                title: '4. 대화방 내부 주요 기능',
+                title: AppLocalizations.of(context).howTo_section4Title,
                 icon: Icons.chat_bubble,
                 iconColor: Colors.purple,
                 items: [
                   _buildBulletItem(
-                    '대화 요약: 오른쪽 상단의 요약하기 아이콘을 클릭하여 즉시 요약할 수 있습니다.',
+                    AppLocalizations.of(context).howTo_section4Item1,
                   ),
                   _buildBulletItem(
-                    '검색 & 복사: 사용자/시간/키워드별 검색이 가능하며, 메시지를 꾹 눌러 복사할 수 있습니다.',
+                    AppLocalizations.of(context).howTo_section4Item2,
                   ),
                   _buildBulletItem(
-                    '삭제된 메시지 확인: 상대방이 삭제한 메시지도 그대로 확인할 수 있습니다.',
+                    AppLocalizations.of(context).howTo_section4Item3,
                   ),
                   _buildBulletItem(
-                    '주의사항: 동영상 및 여러 장 묶음 사진은 앱 내에 저장되지 않습니다.',
+                    AppLocalizations.of(context).howTo_section4Item4,
                   ),
                 ],
               ),
@@ -117,15 +118,15 @@ class HowToUseScreen extends StatelessWidget {
               // 5. 상세 요약 활용법
               _buildSection(
                 context,
-                title: '5. 상세 요약 활용법',
+                title: AppLocalizations.of(context).howTo_section5Title,
                 icon: Icons.auto_awesome,
                 iconColor: Colors.amber,
                 items: [
                   _buildBulletItem(
-                    '수동 요약: 구간 직접 선택, 숫자 입력, 혹은 말풍선 터치로 블록을 잡아 요약할 수 있습니다.',
+                    AppLocalizations.of(context).howTo_section5Item1,
                   ),
                   _buildBulletItem(
-                    '요약 히스토리: [앱 설정 → 요약 관리 → 요약 히스토리]에서 과거 기록 확인 및 삭제가 가능합니다.',
+                    AppLocalizations.of(context).howTo_section5Item2,
                   ),
                 ],
               ),
@@ -134,8 +135,8 @@ class HowToUseScreen extends StatelessWidget {
               // 6. 요금제 및 사용량 확인
               _buildSection(
                 context,
-                title: '6. 요금제 및 사용량 확인',
-                subtitle: '[앱 설정 → 요약 관리]에서 실시간 사용량을 확인하세요.',
+                title: AppLocalizations.of(context).howTo_section6Title,
+                subtitle: AppLocalizations.of(context).howTo_section6Subtitle,
                 icon: Icons.payment,
                 iconColor: Colors.teal,
                 items: [
@@ -285,23 +286,23 @@ class HowToUseScreen extends StatelessWidget {
       children: [
         // 무료 플랜 카드
         _buildPlanCard(
-          planName: '무료 플랜',
+          planName: AppLocalizations.of(context).howTo_freePlanName,
           planColor: AppTokens.accent,
           items: [
-            _buildPlanItem('요약 횟수', '하루 최대 ${UsageConstants.freePlanMaxLimitFallback}회 (${UsageConstants.freePlanMaxAdRewardsFallback}회는 광고 시청 시, 매일 자정 초기화)'),
-            _buildPlanItem('1회 요약 한도', '5~50개'),
-            _buildPlanItem('주요 특징', '기본 요약 기능'),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelCount, '하루 최대 ${UsageConstants.freePlanMaxLimitFallback}회 (${UsageConstants.freePlanMaxAdRewardsFallback}회는 광고 시청 시, 매일 자정 초기화)'),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelLimit, AppLocalizations.of(context).howTo_freePlanLimitValue),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelFeature, AppLocalizations.of(context).howTo_freePlanFeatureValue),
           ],
         ),
         const SizedBox(height: 12),
         // Basic 플랜 카드
         _buildPlanCard(
-          planName: '베이직 플랜',
+          planName: AppLocalizations.of(context).howTo_basicPlanName,
           planColor: Colors.purple,
           items: [
-            _buildPlanItem('요약 횟수', '150회 (결제일 기준 초기화)'),
-            _buildPlanItem('1회 요약 한도', '5~200개'),
-            _buildPlanItem('주요 특징', '사용자가 설정한 메시지 수만큼 자동요약.\n자동요약 후 푸시 알림 제공'),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelCount, AppLocalizations.of(context).howTo_basicPlanCountValue),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelLimit, AppLocalizations.of(context).howTo_basicPlanLimitValue),
+            _buildPlanItem(AppLocalizations.of(context).howTo_planLabelFeature, AppLocalizations.of(context).howTo_basicPlanFeatureValue),
           ],
         ),
       ],

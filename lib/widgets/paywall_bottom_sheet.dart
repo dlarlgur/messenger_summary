@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../screens/subscription_screen.dart';
 import '../services/plan_service.dart';
 import '../theme/app_tokens.dart';
@@ -102,9 +103,9 @@ class PaywallBottomSheet extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Title
-          const Text(
-            'BASIC 플랜으로 업그레이드',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).paywall_upgradeTitle,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1A1A1A),
@@ -132,7 +133,7 @@ class PaywallBottomSheet extends StatelessWidget {
                     child: Text(
                       adRemainingCount > 0
                           ? '기본 무료 횟수를 모두 사용했어요.\n광고를 보시면 오늘 $adRemainingCount회 더 이용할 수 있어요.'
-                          : '오늘 무료 요약 횟수를 모두 사용했어요.\nBASIC 플랜으로 계속 이용하세요.',
+                          : AppLocalizations.of(context).paywall_dailyLimitReached,
                       style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFFE65100),
@@ -181,7 +182,7 @@ class PaywallBottomSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '광고 시청 후 요약 1회가 즉시 충전됩니다',
+                AppLocalizations.of(context).paywall_adRechargeNotice,
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
@@ -209,10 +210,10 @@ class PaywallBottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ] else ...[
-            const Text(
-              '더 많은 메시지를 분석하고 스마트하게 관리하세요',
+            Text(
+              AppLocalizations.of(context).paywall_defaultSubtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 color: Color(0xFF888888),
               ),
@@ -304,9 +305,9 @@ class PaywallBottomSheet extends StatelessWidget {
           // Dismiss
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              '나중에',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context).paywall_later,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF888888),
               ),

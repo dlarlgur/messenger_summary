@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/app_localizations.dart';
 import '../main.dart';
 import '../theme/app_tokens.dart';
 
@@ -68,7 +69,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
               child: TextButton(
                 onPressed: _completeGuide,
                 child: Text(
-                  '건너뛰기',
+                  AppLocalizations.of(context).guideSkip,
                   style: TextStyle(
                     color: Colors.grey[500],
                     fontSize: 14,
@@ -129,7 +130,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentPage == _totalPages - 1 ? '시작하기' : '다음',
+                        _currentPage == _totalPages - 1
+                            ? AppLocalizations.of(context).guideStart
+                            : AppLocalizations.of(context).guideNext,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -153,9 +156,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          const Text(
-            '카카오톡 알림 설정',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).guideNotifTitle,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -163,7 +166,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '메시지를 정확히 읽으려면\n아래와 같이 설정해 주세요',
+            AppLocalizations.of(context).guideNotifSubtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
@@ -191,7 +194,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '카카오톡 설정 → 알림 → 알림 표시 → 알림 내용\n"이름 + 메시지"로 설정',
+                    AppLocalizations.of(context).guideNotifSettingPath,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[800],
@@ -270,7 +273,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '부장님',
+                            AppLocalizations.of(context).guideMockSenderBoss,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 14,
@@ -278,7 +281,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                             ),
                           ),
                           Text(
-                            '오후 5:59',
+                            AppLocalizations.of(context).guideMockTimePm559,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.5),
                               fontSize: 11,
@@ -288,7 +291,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '김대리 오늘 퇴근 전 까지 사장님께 드릴 보고서 작성해서 보내.',
+                        AppLocalizations.of(context).guideMockBossMessage,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 13,
@@ -309,7 +312,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '톡이 오면 위 스크린샷처럼\n스마트폰 상단 알림창에 보여야 합니다.',
+              AppLocalizations.of(context).guideMockNotifHint,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),
@@ -330,9 +333,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          const Text(
-            'AI 대화 요약',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).guideSummaryTitle,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -340,7 +343,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '긴 대화도 한눈에 파악하세요',
+            AppLocalizations.of(context).guideSummarySubtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
@@ -377,10 +380,10 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
               children: [
                 const Icon(Icons.arrow_back_ios, size: 18, color: Colors.black54),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'AI 톡비서 구독자 모임',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    AppLocalizations.of(context).guideSummaryRoomName,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                 ),
                 Icon(Icons.search, size: 20, color: Colors.grey[600]),
@@ -414,14 +417,14 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                         color: AppTokens.accentSoft,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, size: 14, color: AppTokens.accent),
-                          SizedBox(width: 4),
+                          const Icon(Icons.auto_awesome, size: 14, color: AppTokens.accent),
+                          const SizedBox(width: 4),
                           Text(
-                            'AI 요약',
-                            style: TextStyle(
+                            AppLocalizations.of(context).guideSummaryBadge,
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppTokens.accent,
@@ -434,9 +437,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                 ),
                 const SizedBox(height: 12),
                 // 제목
-                const Text(
-                  'AI 톡비서 사용 방법 안내',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).guideSummaryCardTitle,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     height: 1.3,
@@ -446,17 +449,29 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                 // 통계 카드
                 Row(
                   children: [
-                    _buildStatCard(Icons.message, '5개', '메시지'),
+                    _buildStatCard(
+                      Icons.message,
+                      AppLocalizations.of(context).guideStatMessagesValue,
+                      AppLocalizations.of(context).guideStatMessagesLabel,
+                    ),
                     const SizedBox(width: 8),
-                    _buildStatCard(Icons.people, '5명', '참여자'),
+                    _buildStatCard(
+                      Icons.people,
+                      AppLocalizations.of(context).guideStatParticipantsValue,
+                      AppLocalizations.of(context).guideStatParticipantsLabel,
+                    ),
                     const SizedBox(width: 8),
-                    _buildStatCard(Icons.access_time, '8분', '소요시간'),
+                    _buildStatCard(
+                      Icons.access_time,
+                      AppLocalizations.of(context).guideStatDurationValue,
+                      AppLocalizations.of(context).guideStatDurationLabel,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 // 요약 내용
                 Text(
-                  'AI 톡비서 사용 방법에 대해 서로 공유하며, 요약 기능이 너무 편해서 스트레스가 훨씬 줄었다는 내용을 공유하고 있습니다.',
+                  AppLocalizations.of(context).guideSummaryContent,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[700],
@@ -469,7 +484,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           const Spacer(),
           // 하단 안내
           Text(
-            '채팅방에서 요약 버튼을 눌러보세요',
+            AppLocalizations.of(context).guideSummaryHint,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -522,9 +537,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          const Text(
-            '삭제된 메시지 복원',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).guideDeletedTitle,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -532,7 +547,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '삭제된 메시지를 볼 수 있고,\n상대 몰래 메시지를 미리 볼 수 있어요.',
+            AppLocalizations.of(context).guideDeletedSubtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
@@ -564,7 +579,11 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
             child: Column(
               children: [
                 // 상대방 메시지
-                _buildChatBubble('부장님,', false, hasUnread: true),
+                _buildChatBubble(
+                  AppLocalizations.of(context).guideChatBoss,
+                  false,
+                  hasUnread: true,
+                ),
                 const SizedBox(height: 6),
                 // 삭제된 메시지
                 Center(
@@ -575,7 +594,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      '메시지가 삭제되었습니다.',
+                      AppLocalizations.of(context).guideChatDeleted,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withOpacity(0.9),
@@ -592,9 +611,9 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                       color: Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'AI 톡비서',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context).guideAiAssistantBadge,
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppTokens.accent,
@@ -604,9 +623,15 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                 ),
                 const SizedBox(height: 12),
                 // 복원된 메시지
-                _buildChatBubble('부장님,', false),
+                _buildChatBubble(
+                  AppLocalizations.of(context).guideChatBoss,
+                  false,
+                ),
                 const SizedBox(height: 6),
-                _buildChatBubble('완전 짜증나!!!', false),
+                _buildChatBubble(
+                  AppLocalizations.of(context).guideChatRestored,
+                  false,
+                ),
                 const Spacer(),
                 // 하단 설명
                 Container(
@@ -618,7 +643,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                   child: Column(
                     children: [
                       Text(
-                        '이제부터 삭제된 메시지를 볼 수 있고,',
+                        AppLocalizations.of(context).guideDeletedExplain1,
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[800],
@@ -626,7 +651,7 @@ class _AppGuideScreenState extends State<AppGuideScreen> {
                         ),
                       ),
                       Text(
-                        '상대 몰래 메시지를 미리 볼 수 있어요.',
+                        AppLocalizations.of(context).guideDeletedExplain2,
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[800],
