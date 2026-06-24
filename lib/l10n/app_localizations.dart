@@ -2607,6 +2607,234 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'업데이트하기'**
   String get main_update;
+
+  /// No description provided for @chatList_autoSummaryReach.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 메시지 도달 시 자동 요약'**
+  String chatList_autoSummaryReach(int count);
+
+  /// No description provided for @chatList_markReadCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개의 안 읽은 메시지를 읽음으로 표시'**
+  String chatList_markReadCount(int count);
+
+  /// No description provided for @chatList_roomNotifOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 알림이 켜졌습니다.'**
+  String chatList_roomNotifOn(String room);
+
+  /// No description provided for @chatList_roomNotifOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 알림이 꺼졌습니다.'**
+  String chatList_roomNotifOff(String room);
+
+  /// No description provided for @chatList_blockConfirmMsg.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room}을(를) 차단하시겠습니까?\n\n차단된 채팅방은 목록에서 숨겨지고,\n새 메시지도 저장되지 않습니다.\n\n설정 > 차단방 관리에서 해제할 수 있습니다.'**
+  String chatList_blockConfirmMsg(String room);
+
+  /// No description provided for @chatList_roomBlocked.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 채팅방이 차단되었습니다.'**
+  String chatList_roomBlocked(String room);
+
+  /// No description provided for @chatList_roomDeleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 대화방이 삭제되었습니다.'**
+  String chatList_roomDeleted(String room);
+
+  /// No description provided for @chatList_noRoomsForPkg.
+  ///
+  /// In ko, this message translates to:
+  /// **'{name} 대화방이 없습니다'**
+  String chatList_noRoomsForPkg(String name);
+
+  /// No description provided for @chatList_planSet.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜이 {plan}로 설정되었습니다.'**
+  String chatList_planSet(String plan);
+
+  /// No description provided for @chatDetail_msgCountNeed5.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지가 {count}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'**
+  String chatDetail_msgCountNeed5(int count);
+
+  /// No description provided for @chatDetail_countRangeHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'최대 {max}개까지 가능 (현재 {current}개 선택됨)'**
+  String chatDetail_countRangeHint(int max, int current);
+
+  /// No description provided for @chatDetail_countRangeError.
+  ///
+  /// In ko, this message translates to:
+  /// **'5 ~ {max} 사이의 숫자를 입력해주세요.'**
+  String chatDetail_countRangeError(int max);
+
+  /// No description provided for @chatDetail_roomNotifOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 알림이 꺼졌습니다.'**
+  String chatDetail_roomNotifOff(String room);
+
+  /// No description provided for @chatDetail_roomNotifOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 알림이 켜졌습니다.'**
+  String chatDetail_roomNotifOn(String room);
+
+  /// No description provided for @chatDetail_leftRoom.
+  ///
+  /// In ko, this message translates to:
+  /// **'{room} 대화방에서 나갔습니다.'**
+  String chatDetail_leftRoom(String room);
+
+  /// No description provided for @chatDetail_participantCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}명'**
+  String chatDetail_participantCount(int count);
+
+  /// No description provided for @chatDetail_openMessenger.
+  ///
+  /// In ko, this message translates to:
+  /// **'{name} 열기'**
+  String chatDetail_openMessenger(String name);
+
+  /// No description provided for @chatDetail_newMessages.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 메시지 {count}개'**
+  String chatDetail_newMessages(int count);
+
+  /// No description provided for @chatDetail_noMsgForDate.
+  ///
+  /// In ko, this message translates to:
+  /// **'{date}의 메시지가 없습니다'**
+  String chatDetail_noMsgForDate(String date);
+
+  /// No description provided for @chatDetail_messagesSelected.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 메시지 선택됨'**
+  String chatDetail_messagesSelected(int count);
+
+  /// No description provided for @chatDetail_summaryCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 요약'**
+  String chatDetail_summaryCount(int count);
+
+  /// No description provided for @chatDetail_totalBasic.
+  ///
+  /// In ko, this message translates to:
+  /// **'총 {count}개 · BASIC 200개'**
+  String chatDetail_totalBasic(int count);
+
+  /// No description provided for @chatDetail_freePlanMax.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 플랜에서는 최대 {max}개까지만 요약할 수 있습니다.'**
+  String chatDetail_freePlanMax(int max);
+
+  /// No description provided for @chatDetail_todayRemaining.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 남은 횟수: {remaining}/3'**
+  String chatDetail_todayRemaining(int remaining);
+
+  /// No description provided for @chatDetail_msgCountValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개'**
+  String chatDetail_msgCountValue(int count);
+
+  /// No description provided for @chatDetail_deleteSelectedCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 삭제'**
+  String chatDetail_deleteSelectedCount(int count);
+
+  /// No description provided for @chatDetail_deletedCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개의 메시지가 삭제되었습니다.'**
+  String chatDetail_deletedCount(int count);
+
+  /// No description provided for @chatDetail_deleteConfirmCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택한 {count}개의 메시지를 삭제하시겠습니까?'**
+  String chatDetail_deleteConfirmCount(int count);
+
+  /// No description provided for @chatDetail_summarySubjectFallback.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 메시지 요약'**
+  String chatDetail_summarySubjectFallback(int count);
+
+  /// No description provided for @chatDetail_durationHm.
+  ///
+  /// In ko, this message translates to:
+  /// **'{hours}시간 {minutes}분'**
+  String chatDetail_durationHm(int hours, int minutes);
+
+  /// No description provided for @chatDetail_durationH.
+  ///
+  /// In ko, this message translates to:
+  /// **'{hours}시간'**
+  String chatDetail_durationH(int hours);
+
+  /// No description provided for @chatDetail_durationM.
+  ///
+  /// In ko, this message translates to:
+  /// **'{minutes}분'**
+  String chatDetail_durationM(int minutes);
+
+  /// No description provided for @settings_featureBasicMsgCap.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 최대 {count}개까지 요약'**
+  String settings_featureBasicMsgCap(int count);
+
+  /// No description provided for @settings_featureFreeLimit.
+  ///
+  /// In ko, this message translates to:
+  /// **'하루 최대 {count}회 무료 요약'**
+  String settings_featureFreeLimit(int count);
+
+  /// No description provided for @settings_featureFreeMsgCap.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 최대 {count}개 요약'**
+  String settings_featureFreeMsgCap(int count);
+
+  /// No description provided for @settings_featureAdRewards.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}회는 광고 시청 시 제공'**
+  String settings_featureAdRewards(int count);
+
+  /// No description provided for @settings_countRegistered.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}건 등록됨'**
+  String settings_countRegistered(int count);
+
+  /// No description provided for @main_updateVersionMsg.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱을 계속 사용하려면\n최신 버전({version})으로\n업데이트해 주세요.'**
+  String main_updateVersionMsg(String version);
 }
 
 class _AppLocalizationsDelegate

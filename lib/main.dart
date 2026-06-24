@@ -1313,7 +1313,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '앱을 계속 사용하려면\n최신 버전(${_updatePolicy?.latestVersion ?? ""})으로\n업데이트해 주세요.',
+                  AppLocalizations.of(context).main_updateVersionMsg(_updatePolicy?.latestVersion ?? ""),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,

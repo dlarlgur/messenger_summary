@@ -526,7 +526,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         return [
           _buildFeatureItem(AppLocalizations.of(context).settings_featureAutoManual),
           const SizedBox(height: 8),
-          _buildFeatureItem('메시지 최대 ${basicMsg}개까지 요약'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureBasicMsgCap(basicMsg)),
           const SizedBox(height: 8),
           _buildFeatureItem(AppLocalizations.of(context).settings_featureAutoPush),
           const SizedBox(height: 8),
@@ -537,11 +537,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
         final adRewards = _freePlanMaxLimit != null ? (_freePlanMaxLimit! - 2) : UsageConstants.freePlanMaxAdRewardsFallback;
         final freeMsg = _freeMsgCap ?? UsageConstants.freeSummaryMessagesPerRequestFallback;
         return [
-          _buildFeatureItem('하루 최대 ${maxLimit}회 무료 요약'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureFreeLimit(maxLimit)),
           const SizedBox(height: 8),
-          _buildFeatureItem('메시지 최대 ${freeMsg}개 요약'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureFreeMsgCap(freeMsg)),
           const SizedBox(height: 8),
-          _buildFeatureItem('$adRewards회는 광고 시청 시 제공'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureAdRewards(adRewards)),
         ];
     }
   }
@@ -585,7 +585,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       'faqs' => c.faqs,
       _ => 0,
     };
-    return n > 0 ? '$n건 등록됨' : fallback;
+    return n > 0 ? AppLocalizations.of(context).settings_countRegistered(n) : fallback;
   }
 
   /// 스타일된 섹션 헤더

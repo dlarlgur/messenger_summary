@@ -1350,7 +1350,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     if (_messages.length < 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('메시지가 ${_messages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
+          content: Text(AppLocalizations.of(context).chatDetail_msgCountNeed5(_messages.length)),
           backgroundColor: Colors.orange,
         ),
       );
@@ -1656,7 +1656,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               // 유효성 검사
               if (count == null || count < 5 || count > maxCount) {
                 setDialogState(() {
-                  errorMessage = '5 ~ $maxCount 사이의 숫자를 입력해주세요.';
+                  errorMessage = AppLocalizations.of(context).chatDetail_countRangeError(maxCount);
                 });
                 return; // 에러 발생 시 다이얼로그 유지
               }
@@ -1695,7 +1695,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '최대 $maxCount개까지 가능 (현재 ${currentSelected}개 선택됨)',
+                    AppLocalizations.of(context).chatDetail_countRangeHint(maxCount, currentSelected),
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
@@ -1863,8 +1863,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         SnackBar(
           content: Text(
             isMuted
-                ? '${widget.room.roomName} 알림이 꺼졌습니다.'
-                : '${widget.room.roomName} 알림이 켜졌습니다.',
+                ? AppLocalizations.of(context).chatDetail_roomNotifOff(widget.room.roomName)
+                : AppLocalizations.of(context).chatDetail_roomNotifOn(widget.room.roomName),
           ),
         ),
       );
@@ -1906,7 +1906,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       Navigator.pop(context, true); // true를 반환하여 목록 화면에서 삭제된 방을 제거하도록 함
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${widget.room.roomName} 대화방에서 나갔습니다.'),
+          content: Text(AppLocalizations.of(context).chatDetail_leftRoom(widget.room.roomName)),
         ),
       );
     } else if (mounted) {
@@ -2052,7 +2052,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         ),
                         if (widget.room.participantCount > 0)
                           Text(
-                            '${widget.room.participantCount}명',
+                            AppLocalizations.of(context).chatDetail_participantCount(widget.room.participantCount),
                             style: const TextStyle(
                               color: AppTokens.text3,
                               fontSize: 12,
@@ -2100,7 +2100,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                              '메시지가 ${_messages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
+                              AppLocalizations.of(context).chatDetail_msgCountNeed5(_messages.length)),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -2195,7 +2195,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              '$messengerName 열기',
+                              AppLocalizations.of(context).chatDetail_openMessenger(messengerName),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
@@ -2557,7 +2557,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                                                     ),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      '새 메시지 $_newMessageCount개',
+                                                      AppLocalizations.of(context).chatDetail_newMessages(_newMessageCount),
                                                       style: const TextStyle(
                                                         color: Colors.white,
                                                         fontSize: 13,
@@ -3446,7 +3446,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '${DateFormat('yyyy년 M월 d일').format(targetDate)}의 메시지가 없습니다'),
+              AppLocalizations.of(context).chatDetail_noMsgForDate(DateFormat('yyyy년 M월 d일').format(targetDate))),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 1),
         ),
@@ -4116,7 +4116,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               const Icon(Icons.auto_awesome, size: 18),
               const SizedBox(width: 6),
               Text(
-                '$summaryCount개 요약',
+                AppLocalizations.of(context).chatDetail_summaryCount(summaryCount),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -4157,7 +4157,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         size: 10, color: Color(0xFFFF9800)),
                     const SizedBox(width: 3),
                     Text(
-                      '총 ${unreadCount}개 · BASIC 200개',
+                      AppLocalizations.of(context).chatDetail_totalBasic(unreadCount),
                       style: const TextStyle(
                         fontSize: 10,
                         color: Color(0xFFFF9800),
@@ -4263,7 +4263,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '무료 플랜에서는 최대 ${maxCount}개까지만 요약할 수 있습니다.'),
+                AppLocalizations.of(context).chatDetail_freePlanMax(maxCount)),
             backgroundColor: Colors.orange,
           ),
         );
@@ -4295,7 +4295,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '메시지가 ${selectedMessages.length}개입니다. 요약은 5개 이상의 메시지가 필요합니다.'),
+                AppLocalizations.of(context).chatDetail_msgCountNeed5(selectedMessages.length)),
             backgroundColor: Colors.orange,
           ),
         );
@@ -4346,7 +4346,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         final summaryMessage =
             result['summaryMessage'] ?? result['summary'] ?? '';
         final summarySubject =
-            result['summarySubject'] ?? '${selectedMessages.length}개 메시지 요약';
+            result['summarySubject'] ?? AppLocalizations.of(context).chatDetail_summarySubjectFallback(selectedMessages.length);
 
         debugPrint('📝 요약 저장: $summarySubject');
         debugPrint('📝 요약 내용: $summaryMessage');
@@ -4576,7 +4576,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '오늘 남은 횟수: $remaining/3',
+                          AppLocalizations.of(context).chatDetail_todayRemaining(remaining),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[500],
@@ -4893,7 +4893,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       Expanded(
                         child: _buildInfoCard(
                           Icons.chat_bubble_rounded,
-                          '${summaryData['messageCount'] ?? 0}개',
+                          AppLocalizations.of(context).chatDetail_msgCountValue(summaryData['messageCount'] ?? 0),
                           AppLocalizations.of(context).chatDetail_messages,
                           AppTokens.accent,
                         ),
@@ -4902,7 +4902,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       Expanded(
                         child: _buildInfoCard(
                           Icons.people_rounded,
-                          '${summaryData['participantCount'] ?? 0}명',
+                          AppLocalizations.of(context).chatDetail_participantCount(summaryData['participantCount'] ?? 0),
                           AppLocalizations.of(context).chatDetail_participants,
                           Colors.green,
                         ),
@@ -5305,11 +5305,11 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     final minutes = duration.inMinutes % 60;
     
     if (hours > 0 && minutes > 0) {
-      return '${hours}시간 ${minutes}분';
+      return AppLocalizations.of(context).chatDetail_durationHm(hours, minutes);
     } else if (hours > 0) {
-      return '${hours}시간';
+      return AppLocalizations.of(context).chatDetail_durationH(hours);
     } else if (minutes > 0) {
-      return '${minutes}분';
+      return AppLocalizations.of(context).chatDetail_durationM(minutes);
     } else {
       return '1분 미만';
     }
@@ -5901,7 +5901,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context).chatDetail_deleteMessage),
         content: Text(
-          '선택한 ${_selectedMessageIds.length}개의 메시지를 삭제하시겠습니까?',
+          AppLocalizations.of(context).chatDetail_deleteConfirmCount(_selectedMessageIds.length),
         ),
         actions: [
           TextButton(
@@ -5932,7 +5932,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$deletedCount개의 메시지가 삭제되었습니다.'),
+            content: Text(AppLocalizations.of(context).chatDetail_deletedCount(deletedCount)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 1),
           ),
@@ -5991,7 +5991,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               Expanded(
                 child: Center(
                   child: Text(
-                    selectedCount > 0 ? '$selectedCount개 삭제' : AppLocalizations.of(context).chatDetail_selectMessages,
+                    selectedCount > 0 ? AppLocalizations.of(context).chatDetail_deleteSelectedCount(selectedCount) : AppLocalizations.of(context).chatDetail_selectMessages,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

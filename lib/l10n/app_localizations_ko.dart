@@ -1293,4 +1293,194 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get main_update => '업데이트하기';
+
+  @override
+  String chatList_autoSummaryReach(int count) {
+    return '$count개 메시지 도달 시 자동 요약';
+  }
+
+  @override
+  String chatList_markReadCount(int count) {
+    return '$count개의 안 읽은 메시지를 읽음으로 표시';
+  }
+
+  @override
+  String chatList_roomNotifOn(String room) {
+    return '$room 알림이 켜졌습니다.';
+  }
+
+  @override
+  String chatList_roomNotifOff(String room) {
+    return '$room 알림이 꺼졌습니다.';
+  }
+
+  @override
+  String chatList_blockConfirmMsg(String room) {
+    return '$room을(를) 차단하시겠습니까?\n\n차단된 채팅방은 목록에서 숨겨지고,\n새 메시지도 저장되지 않습니다.\n\n설정 > 차단방 관리에서 해제할 수 있습니다.';
+  }
+
+  @override
+  String chatList_roomBlocked(String room) {
+    return '$room 채팅방이 차단되었습니다.';
+  }
+
+  @override
+  String chatList_roomDeleted(String room) {
+    return '$room 대화방이 삭제되었습니다.';
+  }
+
+  @override
+  String chatList_noRoomsForPkg(String name) {
+    return '$name 대화방이 없습니다';
+  }
+
+  @override
+  String chatList_planSet(String plan) {
+    return '플랜이 $plan로 설정되었습니다.';
+  }
+
+  @override
+  String chatDetail_msgCountNeed5(int count) {
+    return '메시지가 $count개입니다. 요약은 5개 이상의 메시지가 필요합니다.';
+  }
+
+  @override
+  String chatDetail_countRangeHint(int max, int current) {
+    return '최대 $max개까지 가능 (현재 $current개 선택됨)';
+  }
+
+  @override
+  String chatDetail_countRangeError(int max) {
+    return '5 ~ $max 사이의 숫자를 입력해주세요.';
+  }
+
+  @override
+  String chatDetail_roomNotifOff(String room) {
+    return '$room 알림이 꺼졌습니다.';
+  }
+
+  @override
+  String chatDetail_roomNotifOn(String room) {
+    return '$room 알림이 켜졌습니다.';
+  }
+
+  @override
+  String chatDetail_leftRoom(String room) {
+    return '$room 대화방에서 나갔습니다.';
+  }
+
+  @override
+  String chatDetail_participantCount(int count) {
+    return '$count명';
+  }
+
+  @override
+  String chatDetail_openMessenger(String name) {
+    return '$name 열기';
+  }
+
+  @override
+  String chatDetail_newMessages(int count) {
+    return '새 메시지 $count개';
+  }
+
+  @override
+  String chatDetail_noMsgForDate(String date) {
+    return '$date의 메시지가 없습니다';
+  }
+
+  @override
+  String chatDetail_messagesSelected(int count) {
+    return '$count개 메시지 선택됨';
+  }
+
+  @override
+  String chatDetail_summaryCount(int count) {
+    return '$count개 요약';
+  }
+
+  @override
+  String chatDetail_totalBasic(int count) {
+    return '총 $count개 · BASIC 200개';
+  }
+
+  @override
+  String chatDetail_freePlanMax(int max) {
+    return '무료 플랜에서는 최대 $max개까지만 요약할 수 있습니다.';
+  }
+
+  @override
+  String chatDetail_todayRemaining(int remaining) {
+    return '오늘 남은 횟수: $remaining/3';
+  }
+
+  @override
+  String chatDetail_msgCountValue(int count) {
+    return '$count개';
+  }
+
+  @override
+  String chatDetail_deleteSelectedCount(int count) {
+    return '$count개 삭제';
+  }
+
+  @override
+  String chatDetail_deletedCount(int count) {
+    return '$count개의 메시지가 삭제되었습니다.';
+  }
+
+  @override
+  String chatDetail_deleteConfirmCount(int count) {
+    return '선택한 $count개의 메시지를 삭제하시겠습니까?';
+  }
+
+  @override
+  String chatDetail_summarySubjectFallback(int count) {
+    return '$count개 메시지 요약';
+  }
+
+  @override
+  String chatDetail_durationHm(int hours, int minutes) {
+    return '$hours시간 $minutes분';
+  }
+
+  @override
+  String chatDetail_durationH(int hours) {
+    return '$hours시간';
+  }
+
+  @override
+  String chatDetail_durationM(int minutes) {
+    return '$minutes분';
+  }
+
+  @override
+  String settings_featureBasicMsgCap(int count) {
+    return '메시지 최대 $count개까지 요약';
+  }
+
+  @override
+  String settings_featureFreeLimit(int count) {
+    return '하루 최대 $count회 무료 요약';
+  }
+
+  @override
+  String settings_featureFreeMsgCap(int count) {
+    return '메시지 최대 $count개 요약';
+  }
+
+  @override
+  String settings_featureAdRewards(int count) {
+    return '$count회는 광고 시청 시 제공';
+  }
+
+  @override
+  String settings_countRegistered(int count) {
+    return '$count건 등록됨';
+  }
+
+  @override
+  String main_updateVersionMsg(String version) {
+    return '앱을 계속 사용하려면\n최신 버전($version)으로\n업데이트해 주세요.';
+  }
 }

@@ -1350,4 +1350,194 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get main_update => 'Update';
+
+  @override
+  String chatList_autoSummaryReach(int count) {
+    return 'Auto-summarize when $count messages pile up';
+  }
+
+  @override
+  String chatList_markReadCount(int count) {
+    return 'Mark $count unread messages as read';
+  }
+
+  @override
+  String chatList_roomNotifOn(String room) {
+    return 'Notifications for $room are on.';
+  }
+
+  @override
+  String chatList_roomNotifOff(String room) {
+    return 'Notifications for $room are off.';
+  }
+
+  @override
+  String chatList_blockConfirmMsg(String room) {
+    return 'Block $room?\n\nBlocked chats are hidden from the list,\nand new messages won\'t be saved.\n\nYou can unblock from Settings > Manage blocked chats.';
+  }
+
+  @override
+  String chatList_roomBlocked(String room) {
+    return '$room has been blocked.';
+  }
+
+  @override
+  String chatList_roomDeleted(String room) {
+    return '$room has been deleted.';
+  }
+
+  @override
+  String chatList_noRoomsForPkg(String name) {
+    return 'No $name chats';
+  }
+
+  @override
+  String chatList_planSet(String plan) {
+    return 'Plan set to $plan.';
+  }
+
+  @override
+  String chatDetail_msgCountNeed5(int count) {
+    return 'There are $count messages. Summaries need at least 5.';
+  }
+
+  @override
+  String chatDetail_countRangeHint(int max, int current) {
+    return 'Up to $max (currently $current selected)';
+  }
+
+  @override
+  String chatDetail_countRangeError(int max) {
+    return 'Enter a number between 5 and $max.';
+  }
+
+  @override
+  String chatDetail_roomNotifOff(String room) {
+    return 'Notifications for $room are off.';
+  }
+
+  @override
+  String chatDetail_roomNotifOn(String room) {
+    return 'Notifications for $room are on.';
+  }
+
+  @override
+  String chatDetail_leftRoom(String room) {
+    return 'You left $room.';
+  }
+
+  @override
+  String chatDetail_participantCount(int count) {
+    return '$count';
+  }
+
+  @override
+  String chatDetail_openMessenger(String name) {
+    return 'Open $name';
+  }
+
+  @override
+  String chatDetail_newMessages(int count) {
+    return '$count new messages';
+  }
+
+  @override
+  String chatDetail_noMsgForDate(String date) {
+    return 'No messages for $date';
+  }
+
+  @override
+  String chatDetail_messagesSelected(int count) {
+    return '$count messages selected';
+  }
+
+  @override
+  String chatDetail_summaryCount(int count) {
+    return '$count summaries';
+  }
+
+  @override
+  String chatDetail_totalBasic(int count) {
+    return '$count total · BASIC 200';
+  }
+
+  @override
+  String chatDetail_freePlanMax(int max) {
+    return 'On the free plan you can summarize up to $max.';
+  }
+
+  @override
+  String chatDetail_todayRemaining(int remaining) {
+    return 'Remaining today: $remaining/3';
+  }
+
+  @override
+  String chatDetail_msgCountValue(int count) {
+    return '$count';
+  }
+
+  @override
+  String chatDetail_deleteSelectedCount(int count) {
+    return 'Delete $count';
+  }
+
+  @override
+  String chatDetail_deletedCount(int count) {
+    return '$count messages deleted.';
+  }
+
+  @override
+  String chatDetail_deleteConfirmCount(int count) {
+    return 'Delete the $count selected messages?';
+  }
+
+  @override
+  String chatDetail_summarySubjectFallback(int count) {
+    return 'Summary of $count messages';
+  }
+
+  @override
+  String chatDetail_durationHm(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String chatDetail_durationH(int hours) {
+    return '${hours}h';
+  }
+
+  @override
+  String chatDetail_durationM(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String settings_featureBasicMsgCap(int count) {
+    return 'Summarize up to $count messages';
+  }
+
+  @override
+  String settings_featureFreeLimit(int count) {
+    return 'Up to $count free summaries per day';
+  }
+
+  @override
+  String settings_featureFreeMsgCap(int count) {
+    return 'Summarize up to $count messages';
+  }
+
+  @override
+  String settings_featureAdRewards(int count) {
+    return '$count provided by watching ads';
+  }
+
+  @override
+  String settings_countRegistered(int count) {
+    return '$count registered';
+  }
+
+  @override
+  String main_updateVersionMsg(String version) {
+    return 'To keep using the app,\nplease update to the latest version ($version).';
+  }
 }

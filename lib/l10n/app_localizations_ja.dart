@@ -1293,4 +1293,194 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get main_update => 'アップデート';
+
+  @override
+  String chatList_autoSummaryReach(int count) {
+    return '$count件のメッセージが溜まると自動要約';
+  }
+
+  @override
+  String chatList_markReadCount(int count) {
+    return '$count件の未読メッセージを既読にする';
+  }
+
+  @override
+  String chatList_roomNotifOn(String room) {
+    return '$roomの通知をオンにしました。';
+  }
+
+  @override
+  String chatList_roomNotifOff(String room) {
+    return '$roomの通知をオフにしました。';
+  }
+
+  @override
+  String chatList_blockConfirmMsg(String room) {
+    return '$roomをブロックしますか？\n\nブロックしたチャットは一覧から非表示になり、\n新しいメッセージも保存されません。\n\n設定 > ブロックしたチャットの管理で解除できます。';
+  }
+
+  @override
+  String chatList_roomBlocked(String room) {
+    return '$roomをブロックしました。';
+  }
+
+  @override
+  String chatList_roomDeleted(String room) {
+    return '$roomを削除しました。';
+  }
+
+  @override
+  String chatList_noRoomsForPkg(String name) {
+    return '$nameのチャットがありません';
+  }
+
+  @override
+  String chatList_planSet(String plan) {
+    return 'プランを$planに設定しました。';
+  }
+
+  @override
+  String chatDetail_msgCountNeed5(int count) {
+    return 'メッセージは$count件です。要約には5件以上必要です。';
+  }
+
+  @override
+  String chatDetail_countRangeHint(int max, int current) {
+    return '最大$max件まで（現在$current件選択中）';
+  }
+
+  @override
+  String chatDetail_countRangeError(int max) {
+    return '5〜$maxの数字を入力してください。';
+  }
+
+  @override
+  String chatDetail_roomNotifOff(String room) {
+    return '$roomの通知をオフにしました。';
+  }
+
+  @override
+  String chatDetail_roomNotifOn(String room) {
+    return '$roomの通知をオンにしました。';
+  }
+
+  @override
+  String chatDetail_leftRoom(String room) {
+    return '$roomを退出しました。';
+  }
+
+  @override
+  String chatDetail_participantCount(int count) {
+    return '$count人';
+  }
+
+  @override
+  String chatDetail_openMessenger(String name) {
+    return '$nameを開く';
+  }
+
+  @override
+  String chatDetail_newMessages(int count) {
+    return '新着メッセージ $count件';
+  }
+
+  @override
+  String chatDetail_noMsgForDate(String date) {
+    return '$dateのメッセージがありません';
+  }
+
+  @override
+  String chatDetail_messagesSelected(int count) {
+    return '$count件のメッセージを選択中';
+  }
+
+  @override
+  String chatDetail_summaryCount(int count) {
+    return '$count件の要約';
+  }
+
+  @override
+  String chatDetail_totalBasic(int count) {
+    return '計$count件 · BASIC 200件';
+  }
+
+  @override
+  String chatDetail_freePlanMax(int max) {
+    return '無料プランでは最大$max件まで要約できます。';
+  }
+
+  @override
+  String chatDetail_todayRemaining(int remaining) {
+    return '本日の残り回数: $remaining/3';
+  }
+
+  @override
+  String chatDetail_msgCountValue(int count) {
+    return '$count件';
+  }
+
+  @override
+  String chatDetail_deleteSelectedCount(int count) {
+    return '$count件削除';
+  }
+
+  @override
+  String chatDetail_deletedCount(int count) {
+    return '$count件のメッセージを削除しました。';
+  }
+
+  @override
+  String chatDetail_deleteConfirmCount(int count) {
+    return '選択した$count件のメッセージを削除しますか？';
+  }
+
+  @override
+  String chatDetail_summarySubjectFallback(int count) {
+    return '$count件のメッセージの要約';
+  }
+
+  @override
+  String chatDetail_durationHm(int hours, int minutes) {
+    return '$hours時間$minutes分';
+  }
+
+  @override
+  String chatDetail_durationH(int hours) {
+    return '$hours時間';
+  }
+
+  @override
+  String chatDetail_durationM(int minutes) {
+    return '$minutes分';
+  }
+
+  @override
+  String settings_featureBasicMsgCap(int count) {
+    return 'メッセージ最大$count件まで要約';
+  }
+
+  @override
+  String settings_featureFreeLimit(int count) {
+    return '1日最大$count回の無料要約';
+  }
+
+  @override
+  String settings_featureFreeMsgCap(int count) {
+    return 'メッセージ最大$count件要約';
+  }
+
+  @override
+  String settings_featureAdRewards(int count) {
+    return '$count回は広告視聴で提供';
+  }
+
+  @override
+  String settings_countRegistered(int count) {
+    return '$count件登録済み';
+  }
+
+  @override
+  String main_updateVersionMsg(String version) {
+    return 'アプリを使い続けるには\n最新バージョン（$version）に\nアップデートしてください。';
+  }
 }

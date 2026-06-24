@@ -420,5 +420,315 @@
   "main_settings": "설정",
   "main_getNotif": "알림 받기",
   "main_updateNeeded": "업데이트가 필요합니다",
-  "main_update": "업데이트하기"
+  "main_update": "업데이트하기",
+  "chatList_autoSummaryReach": "{count}개 메시지 도달 시 자동 요약",
+  "@chatList_autoSummaryReach": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatList_markReadCount": "{count}개의 안 읽은 메시지를 읽음으로 표시",
+  "@chatList_markReadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatList_roomNotifOn": "{room} 알림이 켜졌습니다.",
+  "@chatList_roomNotifOn": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_roomNotifOff": "{room} 알림이 꺼졌습니다.",
+  "@chatList_roomNotifOff": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_blockConfirmMsg": "{room}을(를) 차단하시겠습니까?\n\n차단된 채팅방은 목록에서 숨겨지고,\n새 메시지도 저장되지 않습니다.\n\n설정 > 차단방 관리에서 해제할 수 있습니다.",
+  "@chatList_blockConfirmMsg": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_roomBlocked": "{room} 채팅방이 차단되었습니다.",
+  "@chatList_roomBlocked": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_roomDeleted": "{room} 대화방이 삭제되었습니다.",
+  "@chatList_roomDeleted": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_noRoomsForPkg": "{name} 대화방이 없습니다",
+  "@chatList_noRoomsForPkg": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatList_planSet": "플랜이 {plan}로 설정되었습니다.",
+  "@chatList_planSet": {
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_msgCountNeed5": "메시지가 {count}개입니다. 요약은 5개 이상의 메시지가 필요합니다.",
+  "@chatDetail_msgCountNeed5": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_countRangeHint": "최대 {max}개까지 가능 (현재 {current}개 선택됨)",
+  "@chatDetail_countRangeHint": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      },
+      "current": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_countRangeError": "5 ~ {max} 사이의 숫자를 입력해주세요.",
+  "@chatDetail_countRangeError": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_roomNotifOff": "{room} 알림이 꺼졌습니다.",
+  "@chatDetail_roomNotifOff": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_roomNotifOn": "{room} 알림이 켜졌습니다.",
+  "@chatDetail_roomNotifOn": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_leftRoom": "{room} 대화방에서 나갔습니다.",
+  "@chatDetail_leftRoom": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_participantCount": "{count}명",
+  "@chatDetail_participantCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_openMessenger": "{name} 열기",
+  "@chatDetail_openMessenger": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_newMessages": "새 메시지 {count}개",
+  "@chatDetail_newMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_noMsgForDate": "{date}의 메시지가 없습니다",
+  "@chatDetail_noMsgForDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "chatDetail_messagesSelected": "{count}개 메시지 선택됨",
+  "@chatDetail_messagesSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_summaryCount": "{count}개 요약",
+  "@chatDetail_summaryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_totalBasic": "총 {count}개 · BASIC 200개",
+  "@chatDetail_totalBasic": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_freePlanMax": "무료 플랜에서는 최대 {max}개까지만 요약할 수 있습니다.",
+  "@chatDetail_freePlanMax": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_todayRemaining": "오늘 남은 횟수: {remaining}/3",
+  "@chatDetail_todayRemaining": {
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_msgCountValue": "{count}개",
+  "@chatDetail_msgCountValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_deleteSelectedCount": "{count}개 삭제",
+  "@chatDetail_deleteSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_deletedCount": "{count}개의 메시지가 삭제되었습니다.",
+  "@chatDetail_deletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_deleteConfirmCount": "선택한 {count}개의 메시지를 삭제하시겠습니까?",
+  "@chatDetail_deleteConfirmCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_summarySubjectFallback": "{count}개 메시지 요약",
+  "@chatDetail_summarySubjectFallback": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_durationHm": "{hours}시간 {minutes}분",
+  "@chatDetail_durationHm": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_durationH": "{hours}시간",
+  "@chatDetail_durationH": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_durationM": "{minutes}분",
+  "@chatDetail_durationM": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_featureBasicMsgCap": "메시지 최대 {count}개까지 요약",
+  "@settings_featureBasicMsgCap": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_featureFreeLimit": "하루 최대 {count}회 무료 요약",
+  "@settings_featureFreeLimit": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_featureFreeMsgCap": "메시지 최대 {count}개 요약",
+  "@settings_featureFreeMsgCap": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_featureAdRewards": "{count}회는 광고 시청 시 제공",
+  "@settings_featureAdRewards": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_countRegistered": "{count}건 등록됨",
+  "@settings_countRegistered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "main_updateVersionMsg": "앱을 계속 사용하려면\n최신 버전({version})으로\n업데이트해 주세요.",
+  "@main_updateVersionMsg": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }
