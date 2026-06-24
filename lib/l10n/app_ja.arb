@@ -353,5 +353,6 @@
   "chatDetail_imageSaved": "画像をギャラリーに保存しました。",
   "chatDetail_imageSaveFailed": "画像の保存に失敗しました。",
   "chatDetail_imageSaveError": "画像の保存中にエラーが発生しました。",
-  "chatDetail_save": "保存"
+  "chatDetail_save": "保存",
+  "chatDetail_msgDeleteFailed": "メッセージの削除に失敗しました。"
 }

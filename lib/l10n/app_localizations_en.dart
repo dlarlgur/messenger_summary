@@ -1147,4 +1147,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatDetail_save => 'Save';
+
+  @override
+  String get chatDetail_msgDeleteFailed => 'Failed to delete the message.';
 }

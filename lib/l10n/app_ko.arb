@@ -356,5 +356,6 @@
   "chatDetail_imageSaved": "이미지가 갤러리에 저장되었습니다.",
   "chatDetail_imageSaveFailed": "이미지 저장에 실패했습니다.",
   "chatDetail_imageSaveError": "이미지 저장 중 오류가 발생했습니다.",
-  "chatDetail_save": "저장"
+  "chatDetail_save": "저장",
+  "chatDetail_msgDeleteFailed": "메시지 삭제에 실패했습니다."
 }

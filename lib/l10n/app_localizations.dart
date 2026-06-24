@@ -2223,6 +2223,12 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'저장'**
   String get chatDetail_save;
+
+  /// No description provided for @chatDetail_msgDeleteFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 삭제에 실패했습니다.'**
+  String get chatDetail_msgDeleteFailed;
 }
 
 class _AppLocalizationsDelegate

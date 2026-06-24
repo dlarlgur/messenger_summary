@@ -353,5 +353,6 @@
   "chatDetail_imageSaved": "Image saved to your gallery.",
   "chatDetail_imageSaveFailed": "Failed to save the image.",
   "chatDetail_imageSaveError": "An error occurred while saving the image.",
-  "chatDetail_save": "Save"
+  "chatDetail_save": "Save",
+  "chatDetail_msgDeleteFailed": "Failed to delete the message."
 }

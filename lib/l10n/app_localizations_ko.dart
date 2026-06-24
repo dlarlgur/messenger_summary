@@ -1099,4 +1099,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get chatDetail_save => '저장';
+
+  @override
+  String get chatDetail_msgDeleteFailed => '메시지 삭제에 실패했습니다.';
 }

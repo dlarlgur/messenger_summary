@@ -5146,7 +5146,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _showDetail ? '상세보기 접기' : '상세보기',
+                          _showDetail ? AppLocalizations.of(context).chatDetail_detailCollapse : AppLocalizations.of(context).chatDetail_detailExpand,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -5197,7 +5197,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              '상세 내용',
+                              AppLocalizations.of(context).chatDetail_detailContent,
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -5393,9 +5393,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               color: const Color(0xFF8BA4B8).withOpacity(0.25),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              '여기까지 읽었습니다',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context).chatDetail_readHere,
+              style: const TextStyle(
                 color: Color(0xFF6B8599),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -5563,9 +5563,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   debugPrint('링크 열기 실패: $e');
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('링크를 열 수 없습니다.'),
-                        duration: Duration(seconds: 1),
+                      SnackBar(
+                        content: Text(AppLocalizations.of(context).chatDetail_linkOpenFailed),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   }
@@ -5609,9 +5609,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       await Clipboard.setData(ClipboardData(text: message));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('메시지가 복사되었습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_messageCopied),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -5620,10 +5620,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('메시지 복사 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('메시지 복사에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_copyFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -5655,9 +5655,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             children: [
               Icon(Icons.copy, color: Color(AppColors.summaryPrimary), size: 20),
               const SizedBox(width: 12),
-              const Text(
-                '전체 복사',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).chatDetail_copyAll,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -5670,9 +5670,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               Icon(Icons.content_copy,
                   color: Color(AppColors.summaryPrimary), size: 20),
               const SizedBox(width: 12),
-              const Text(
-                '일부만 복사',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              Text(
+                AppLocalizations.of(context).chatDetail_copyPartial,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -5686,7 +5686,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   color: Color(AppColors.summaryPrimary), size: 20),
               const SizedBox(width: 12),
               Text(
-                '메시지 삭제',
+                AppLocalizations.of(context).chatDetail_deleteMessage,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -5744,9 +5744,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               Icon(Icons.content_copy,
                   color: Color(AppColors.summaryPrimary), size: 22),
               const SizedBox(width: 8),
-              const Text(
-                '텍스트 선택',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              Text(
+                AppLocalizations.of(context).chatDetail_selectText,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -5757,7 +5757,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '복사할 부분을 드래그하여 선택하세요',
+                  AppLocalizations.of(context).chatDetail_dragToSelect,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -5829,7 +5829,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 Navigator.pop(dialogContext);
               },
               child: Text(
-                '취소',
+                AppLocalizations.of(context).chatDetail_cancel,
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ),
@@ -5855,7 +5855,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text('선택 복사'),
+              child: Text(AppLocalizations.of(context).chatDetail_copySelected),
             ),
           ],
         ),
@@ -5899,19 +5899,19 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('메시지 삭제'),
+        title: Text(AppLocalizations.of(context).chatDetail_deleteMessage),
         content: Text(
           '선택한 ${_selectedMessageIds.length}개의 메시지를 삭제하시겠습니까?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).chatDetail_cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
+            child: Text(AppLocalizations.of(context).chatDetail_delete),
           ),
         ],
       ),
@@ -5942,10 +5942,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('메시지 삭제 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('메시지 삭제에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_msgDeleteFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -5978,9 +5978,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               // 취소 버튼
               TextButton(
                 onPressed: _exitDeleteMode,
-                child: const Text(
-                  '취소',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).chatDetail_cancel,
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
                   ),
@@ -5991,7 +5991,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               Expanded(
                 child: Center(
                   child: Text(
-                    selectedCount > 0 ? '$selectedCount개 삭제' : '메시지 선택',
+                    selectedCount > 0 ? '$selectedCount개 삭제' : AppLocalizations.of(context).chatDetail_selectMessages,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -6012,9 +6012,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  '삭제',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).chatDetail_delete,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -6412,14 +6412,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         width: maxImageWidth,
         height: 200,
         color: Colors.grey[200],
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.broken_image, color: Colors.grey),
-            SizedBox(height: 4),
+            const Icon(Icons.broken_image, color: Colors.grey),
+            const SizedBox(height: 4),
             Text(
-              '이미지를 불러올 수 없습니다',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
+              AppLocalizations.of(context).chatDetail_imageLoadFailed,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
             ),
           ],
         ),
@@ -6436,14 +6436,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         width: maxImageWidth,
         height: 200,
         color: Colors.grey[200],
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.broken_image, color: Colors.grey),
-            SizedBox(height: 4),
+            const Icon(Icons.broken_image, color: Colors.grey),
+            const SizedBox(height: 4),
             Text(
-              '이미지를 찾을 수 없습니다',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
+              AppLocalizations.of(context).chatDetail_imageNotFound,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
             ),
           ],
         ),
@@ -6466,14 +6466,14 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               width: maxImageWidth,
               height: 200,
               color: Colors.grey[200],
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.broken_image, color: Colors.grey),
-                  SizedBox(height: 4),
+                  const Icon(Icons.broken_image, color: Colors.grey),
+                  const SizedBox(height: 4),
                   Text(
-                    '이미지 로드 실패',
-                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                    AppLocalizations.of(context).chatDetail_imageLoadError,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ],
               ),
@@ -6667,8 +6667,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
     if (!file.existsSync()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이미지 파일을 찾을 수 없습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatDetail_imageFileNotFound),
           backgroundColor: Colors.red,
         ),
       );
@@ -6693,8 +6693,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (!file.existsSync()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('이미지 파일을 찾을 수 없습니다.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).chatDetail_imageFileNotFound),
               backgroundColor: Colors.red,
             ),
           );
@@ -6706,10 +6706,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이미지가 갤러리에 저장되었습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_imageSaved),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
         HapticFeedback.mediumImpact();
@@ -6718,10 +6718,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('이미지 저장 실패 (GalException): ${e.type}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이미지 저장에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_imageSaveFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -6729,10 +6729,10 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('이미지 저장 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이미지 저장 중 오류가 발생했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_imageSaveError),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -7511,7 +7511,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            _showDetail ? '상세보기 접기' : '상세보기',
+                            _showDetail ? AppLocalizations.of(context).chatDetail_detailCollapse : AppLocalizations.of(context).chatDetail_detailExpand,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -7581,7 +7581,7 @@ class _SummaryHistoryOverlayState extends State<_SummaryHistoryOverlay> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '상세 내용',
+                                    AppLocalizations.of(context).chatDetail_detailContent,
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
@@ -7724,7 +7724,7 @@ class _FullScreenImageViewer extends StatelessWidget {
               onSave();
               Navigator.pop(context);
             },
-            tooltip: '저장',
+            tooltip: AppLocalizations.of(context).chatDetail_save,
           ),
         ],
       ),
@@ -7736,15 +7736,15 @@ class _FullScreenImageViewer extends StatelessWidget {
             File(imagePath),
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.broken_image, color: Colors.white, size: 64),
-                    SizedBox(height: 16),
+                    const Icon(Icons.broken_image, color: Colors.white, size: 64),
+                    const SizedBox(height: 16),
                     Text(
-                      '이미지를 불러올 수 없습니다',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      AppLocalizations.of(context).chatDetail_imageLoadFailed,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ],
                 ),

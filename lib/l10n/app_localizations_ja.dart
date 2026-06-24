@@ -1099,4 +1099,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get chatDetail_save => '保存';
+
+  @override
+  String get chatDetail_msgDeleteFailed => 'メッセージの削除に失敗しました。';
 }
