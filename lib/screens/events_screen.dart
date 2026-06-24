@@ -5,6 +5,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'subscription_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -25,7 +26,7 @@ class _EventsScreenState extends State<EventsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('이벤트')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).events_appBarTitle)),
       body: FutureBuilder<List<EventItem>>(
         future: _future,
         builder: (context, snap) {
@@ -36,8 +37,8 @@ class _EventsScreenState extends State<EventsScreen> {
           if (items.isEmpty) {
             return _empty(
               icon: Icons.celebration_outlined,
-              title: '진행 중인 이벤트가 없습니다',
-              description: '새 이벤트가 시작되면 여기서 알려드릴게요.',
+              title: AppLocalizations.of(context).events_emptyTitle,
+              description: AppLocalizations.of(context).events_emptyDescription,
               isDark: isDark,
             );
           }
@@ -163,7 +164,7 @@ class EventDetailScreen extends StatelessWidget {
     // 본문의 링크(<a>)는 네이티브 CTA 버튼으로 분리해 예쁘게 렌더.
     final split = _splitEventCtas(event.bodyHtml);
     return Scaffold(
-      appBar: AppBar(title: const Text('이벤트')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).events_appBarTitle)),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [

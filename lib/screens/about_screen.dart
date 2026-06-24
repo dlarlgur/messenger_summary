@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// AI 톡비서 소개 화면
 class AboutScreen extends StatelessWidget {
@@ -12,7 +13,7 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       // 색·AppBar 는 global theme 사용 (AppTokens.bg + appBarTheme)
       appBar: AppBar(
-        title: const Text('AI 톡비서 란'),
+        title: Text(AppLocalizations.of(context).about_appBarTitle),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -21,11 +22,11 @@ class AboutScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 메인 소개 카드
-              _buildIntroCard(),
+              _buildIntroCard(context),
               const SizedBox(height: 24),
 
               // 주요 기능 섹션
-              _buildFeaturesSection(),
+              _buildFeaturesSection(context),
               const SizedBox(height: 32),
             ],
           ),
@@ -35,7 +36,7 @@ class AboutScreen extends StatelessWidget {
   }
 
   /// 메인 소개 카드
-  Widget _buildIntroCard() {
+  Widget _buildIntroCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         // 톤다운 — accent → accent2 부드러운 그라데이션
@@ -111,10 +112,10 @@ class AboutScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'AI 톡비서',
-                        style: TextStyle(
+                        AppLocalizations.of(context).about_appTitle,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -124,9 +125,9 @@ class AboutScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'AI 톡비서는 카카오톡, 라인 등의 메신저 대화를 AI로 요약해주는 스마트한 메신저 어시스턴트입니다.',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).about_introDescription,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     height: 1.6,
@@ -141,7 +142,7 @@ class AboutScreen extends StatelessWidget {
   }
 
   /// 주요 기능 섹션
-  Widget _buildFeaturesSection() {
+  Widget _buildFeaturesSection(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -174,9 +175,9 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  '주요 기능',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).about_featuresTitle,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A1A1A),
@@ -188,29 +189,29 @@ class AboutScreen extends StatelessWidget {
             _buildFeatureItem(
               icon: Icons.collections_bookmark,
               iconColor: AppTokens.accent,
-              title: '메신저 대화 자동 수집',
-              description: '카카오톡, 라인 등 다양한 메신저의 대화를 자동으로 수집하여 저장합니다.',
+              title: AppLocalizations.of(context).about_featureCollectTitle,
+              description: AppLocalizations.of(context).about_featureCollectDescription,
             ),
             const SizedBox(height: 20),
             _buildFeatureItem(
               icon: Icons.auto_awesome,
               iconColor: Colors.purple,
-              title: 'AI 기반 대화 자동 요약',
-              description: '강력한 AI 기술로 긴 대화 내용을 간결하고 명확하게 요약해드립니다.',
+              title: AppLocalizations.of(context).about_featureSummaryTitle,
+              description: AppLocalizations.of(context).about_featureSummaryDescription,
             ),
             const SizedBox(height: 20),
             _buildFeatureItem(
               icon: Icons.history,
               iconColor: Colors.orange,
-              title: '요약 히스토리 관리',
-              description: '과거 요약 내역을 확인하고 관리할 수 있습니다.',
+              title: AppLocalizations.of(context).about_featureHistoryTitle,
+              description: AppLocalizations.of(context).about_featureHistoryDescription,
             ),
             const SizedBox(height: 20),
             _buildFeatureItem(
               icon: Icons.visibility,
               iconColor: Colors.green,
-              title: '삭제된 메시지 보기 및 미리보기',
-              description: '상대방이 삭제한 메시지도 확인할 수 있으며, 미리보기 기능을 제공합니다.',
+              title: AppLocalizations.of(context).about_featureDeletedTitle,
+              description: AppLocalizations.of(context).about_featureDeletedDescription,
             ),
           ],
         ),

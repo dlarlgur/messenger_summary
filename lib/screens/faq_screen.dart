@@ -2,6 +2,7 @@ import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 
 const Color _accent = Color(0xFF2563EB);
 
@@ -24,7 +25,7 @@ class _FaqScreenState extends State<FaqScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('자주 묻는 질문')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).faq_appBarTitle)),
       body: FutureBuilder<List<FaqItem>>(
         future: _future,
         builder: (context, snap) {
@@ -35,8 +36,8 @@ class _FaqScreenState extends State<FaqScreen> {
           if (items.isEmpty) {
             return _empty(
               icon: Icons.help_outline_rounded,
-              title: '등록된 질문이 없습니다',
-              description: '준비되는 대로 여기에 표시됩니다.',
+              title: AppLocalizations.of(context).faq_emptyTitle,
+              description: AppLocalizations.of(context).faq_emptyDescription,
               isDark: isDark,
             );
           }
@@ -45,7 +46,7 @@ class _FaqScreenState extends State<FaqScreen> {
           for (final f in items) {
             final key = (f.category?.trim().isNotEmpty ?? false)
                 ? f.category!
-                : '기타';
+                : AppLocalizations.of(context).faq_categoryOther;
             groups.putIfAbsent(key, () => []).add(f);
           }
           return RefreshIndicator(

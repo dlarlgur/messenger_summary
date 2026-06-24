@@ -5,6 +5,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'subscription_screen.dart';
+import '../l10n/app_localizations.dart';
 
 const Color _accent = Color(0xFF2563EB);
 
@@ -28,7 +29,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cached = DkswCore.lastBootstrap?.notices ?? const <NoticeItem>[];
     return Scaffold(
-      appBar: AppBar(title: const Text('공지사항')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).notices_appBarTitle)),
       body: FutureBuilder<List<NoticeItem>>(
         future: _future,
         initialData: cached.isNotEmpty ? cached : null,
@@ -40,8 +41,8 @@ class _NoticesScreenState extends State<NoticesScreen> {
           if (items.isEmpty) {
             return _empty(
               icon: Icons.notifications_none_rounded,
-              title: '등록된 공지가 없습니다',
-              description: '새 공지가 올라오면 여기서 확인할 수 있어요.',
+              title: AppLocalizations.of(context).notices_emptyTitle,
+              description: AppLocalizations.of(context).notices_emptyDescription,
               isDark: isDark,
             );
           }
@@ -81,7 +82,7 @@ class _NoticeRow extends StatelessWidget {
     final muted = isDark ? Colors.white54 : const Color(0xFF9CA3AF);
 
     final isBanner = notice.type == 'banner';
-    final typeLabel = isBanner ? '서비스 공지' : '공지';
+    final typeLabel = isBanner ? AppLocalizations.of(context).notices_typeBanner : AppLocalizations.of(context).notices_typeNotice;
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -132,10 +133,10 @@ class NoticeDetailScreen extends StatelessWidget {
     final primary = isDark ? Colors.white : const Color(0xFF1F2937);
     final muted = isDark ? Colors.white54 : const Color(0xFF9CA3AF);
     final isBanner = notice.type == 'banner';
-    final typeLabel = isBanner ? '서비스 공지' : '공지';
+    final typeLabel = isBanner ? AppLocalizations.of(context).notices_typeBanner : AppLocalizations.of(context).notices_typeNotice;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('공지사항')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).notices_appBarTitle)),
       body: ListView(
         padding: EdgeInsets.zero,
         children: [

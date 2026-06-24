@@ -1137,6 +1137,240 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'자동 요약 기능은 베이직 플랜에서만 사용 가능합니다.'**
   String get usageAutoSummaryBasicOnly;
+
+  /// No description provided for @about_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 란'**
+  String get about_appBarTitle;
+
+  /// No description provided for @about_appTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서'**
+  String get about_appTitle;
+
+  /// No description provided for @about_introDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서는 카카오톡, 라인 등의 메신저 대화를 AI로 요약해주는 스마트한 메신저 어시스턴트입니다.'**
+  String get about_introDescription;
+
+  /// No description provided for @about_featuresTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'주요 기능'**
+  String get about_featuresTitle;
+
+  /// No description provided for @about_featureCollectTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'메신저 대화 자동 수집'**
+  String get about_featureCollectTitle;
+
+  /// No description provided for @about_featureCollectDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오톡, 라인 등 다양한 메신저의 대화를 자동으로 수집하여 저장합니다.'**
+  String get about_featureCollectDescription;
+
+  /// No description provided for @about_featureSummaryTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 기반 대화 자동 요약'**
+  String get about_featureSummaryTitle;
+
+  /// No description provided for @about_featureSummaryDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'강력한 AI 기술로 긴 대화 내용을 간결하고 명확하게 요약해드립니다.'**
+  String get about_featureSummaryDescription;
+
+  /// No description provided for @about_featureHistoryTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 히스토리 관리'**
+  String get about_featureHistoryTitle;
+
+  /// No description provided for @about_featureHistoryDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'과거 요약 내역을 확인하고 관리할 수 있습니다.'**
+  String get about_featureHistoryDescription;
+
+  /// No description provided for @about_featureDeletedTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제된 메시지 보기 및 미리보기'**
+  String get about_featureDeletedTitle;
+
+  /// No description provided for @about_featureDeletedDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'상대방이 삭제한 메시지도 확인할 수 있으며, 미리보기 기능을 제공합니다.'**
+  String get about_featureDeletedDescription;
+
+  /// No description provided for @events_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'이벤트'**
+  String get events_appBarTitle;
+
+  /// No description provided for @events_emptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'진행 중인 이벤트가 없습니다'**
+  String get events_emptyTitle;
+
+  /// No description provided for @events_emptyDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 이벤트가 시작되면 여기서 알려드릴게요.'**
+  String get events_emptyDescription;
+
+  /// No description provided for @faq_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'자주 묻는 질문'**
+  String get faq_appBarTitle;
+
+  /// No description provided for @faq_emptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'등록된 질문이 없습니다'**
+  String get faq_emptyTitle;
+
+  /// No description provided for @faq_emptyDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'준비되는 대로 여기에 표시됩니다.'**
+  String get faq_emptyDescription;
+
+  /// No description provided for @faq_categoryOther.
+  ///
+  /// In ko, this message translates to:
+  /// **'기타'**
+  String get faq_categoryOther;
+
+  /// No description provided for @maintenance_exitApp.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 종료'**
+  String get maintenance_exitApp;
+
+  /// No description provided for @maintenance_defaultTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'점검 중입니다'**
+  String get maintenance_defaultTitle;
+
+  /// No description provided for @maintenance_defaultBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.'**
+  String get maintenance_defaultBody;
+
+  /// No description provided for @messengerSettings_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'메신저 관리'**
+  String get messengerSettings_appBarTitle;
+
+  /// No description provided for @messengerSettings_guide.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용할 메신저를 선택하고, 탭에 표시되는 순서를 변경할 수 있습니다.'**
+  String get messengerSettings_guide;
+
+  /// No description provided for @messengerSettings_enabledSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'활성 메신저 (드래그하여 순서 변경)'**
+  String get messengerSettings_enabledSection;
+
+  /// No description provided for @messengerSettings_disabledSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'비활성 메신저'**
+  String get messengerSettings_disabledSection;
+
+  /// No description provided for @messengerSettings_allEnabled.
+  ///
+  /// In ko, this message translates to:
+  /// **'모든 메신저가 활성화되어 있습니다.'**
+  String get messengerSettings_allEnabled;
+
+  /// No description provided for @messengerSettings_basicRequired.
+  ///
+  /// In ko, this message translates to:
+  /// **'Basic 플랜 필요'**
+  String get messengerSettings_basicRequired;
+
+  /// No description provided for @messengerSettings_upgradeContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'카카오톡 외 다른 메신저를 사용하려면\nBasic 플랜으로 업그레이드하세요.'**
+  String get messengerSettings_upgradeContent;
+
+  /// No description provided for @messengerSettings_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get messengerSettings_cancel;
+
+  /// No description provided for @messengerSettings_upgrade.
+  ///
+  /// In ko, this message translates to:
+  /// **'업그레이드'**
+  String get messengerSettings_upgrade;
+
+  /// No description provided for @notices_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'공지사항'**
+  String get notices_appBarTitle;
+
+  /// No description provided for @notices_emptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'등록된 공지가 없습니다'**
+  String get notices_emptyTitle;
+
+  /// No description provided for @notices_emptyDescription.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 공지가 올라오면 여기서 확인할 수 있어요.'**
+  String get notices_emptyDescription;
+
+  /// No description provided for @notices_typeBanner.
+  ///
+  /// In ko, this message translates to:
+  /// **'서비스 공지'**
+  String get notices_typeBanner;
+
+  /// No description provided for @notices_typeNotice.
+  ///
+  /// In ko, this message translates to:
+  /// **'공지'**
+  String get notices_typeNotice;
+
+  /// No description provided for @policies_appBarTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'정책 및 약관'**
+  String get policies_appBarTitle;
+
+  /// No description provided for @policies_emptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'등록된 문서가 없습니다'**
+  String get policies_emptyTitle;
+
+  /// No description provided for @policies_externalLink.
+  ///
+  /// In ko, this message translates to:
+  /// **'외부 링크'**
+  String get policies_externalLink;
 }
 
 class _AppLocalizationsDelegate

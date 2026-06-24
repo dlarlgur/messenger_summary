@@ -548,4 +548,127 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get usageAutoSummaryBasicOnly => '自動要約機能はベーシックプランでのみ利用できます。';
+
+  @override
+  String get about_appBarTitle => 'AIトークアシスタントとは';
+
+  @override
+  String get about_appTitle => 'AIトークアシスタント';
+
+  @override
+  String get about_introDescription =>
+      'AIトークアシスタントは、カカオトークやLINEなどのメッセンジャーの会話をAIで要約してくれるスマートなメッセンジャーアシスタントです。';
+
+  @override
+  String get about_featuresTitle => '主な機能';
+
+  @override
+  String get about_featureCollectTitle => 'メッセンジャー会話の自動収集';
+
+  @override
+  String get about_featureCollectDescription =>
+      'カカオトークやLINEなど、さまざまなメッセンジャーの会話を自動で収集して保存します。';
+
+  @override
+  String get about_featureSummaryTitle => 'AIによる会話の自動要約';
+
+  @override
+  String get about_featureSummaryDescription =>
+      '強力なAI技術で、長い会話の内容を簡潔かつ明確に要約します。';
+
+  @override
+  String get about_featureHistoryTitle => '要約履歴の管理';
+
+  @override
+  String get about_featureHistoryDescription => '過去の要約履歴を確認・管理できます。';
+
+  @override
+  String get about_featureDeletedTitle => '削除されたメッセージの表示とプレビュー';
+
+  @override
+  String get about_featureDeletedDescription =>
+      '相手が削除したメッセージも確認でき、プレビュー機能を提供します。';
+
+  @override
+  String get events_appBarTitle => 'イベント';
+
+  @override
+  String get events_emptyTitle => '進行中のイベントはありません';
+
+  @override
+  String get events_emptyDescription => '新しいイベントが始まったらここでお知らせします。';
+
+  @override
+  String get faq_appBarTitle => 'よくある質問';
+
+  @override
+  String get faq_emptyTitle => '登録された質問はありません';
+
+  @override
+  String get faq_emptyDescription => '準備でき次第ここに表示されます。';
+
+  @override
+  String get faq_categoryOther => 'その他';
+
+  @override
+  String get maintenance_exitApp => 'アプリを終了';
+
+  @override
+  String get maintenance_defaultTitle => 'メンテナンス中です';
+
+  @override
+  String get maintenance_defaultBody =>
+      'より良いサービスのためメンテナンス中です。\nしばらくしてからもう一度ご利用ください。';
+
+  @override
+  String get messengerSettings_appBarTitle => 'メッセンジャー管理';
+
+  @override
+  String get messengerSettings_guide => '使用するメッセンジャーを選択し、タブに表示される順序を変更できます。';
+
+  @override
+  String get messengerSettings_enabledSection => '有効なメッセンジャー（ドラッグして並べ替え）';
+
+  @override
+  String get messengerSettings_disabledSection => '無効なメッセンジャー';
+
+  @override
+  String get messengerSettings_allEnabled => 'すべてのメッセンジャーが有効です。';
+
+  @override
+  String get messengerSettings_basicRequired => 'Basicプランが必要です';
+
+  @override
+  String get messengerSettings_upgradeContent =>
+      'カカオトーク以外のメッセンジャーを使うには\nBasicプランにアップグレードしてください。';
+
+  @override
+  String get messengerSettings_cancel => 'キャンセル';
+
+  @override
+  String get messengerSettings_upgrade => 'アップグレード';
+
+  @override
+  String get notices_appBarTitle => 'お知らせ';
+
+  @override
+  String get notices_emptyTitle => '登録されたお知らせはありません';
+
+  @override
+  String get notices_emptyDescription => '新しいお知らせが投稿されるとここで確認できます。';
+
+  @override
+  String get notices_typeBanner => 'サービスのお知らせ';
+
+  @override
+  String get notices_typeNotice => 'お知らせ';
+
+  @override
+  String get policies_appBarTitle => 'ポリシーと規約';
+
+  @override
+  String get policies_emptyTitle => '登録された文書はありません';
+
+  @override
+  String get policies_externalLink => '外部リンク';
 }

@@ -1,6 +1,7 @@
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 
 const Color _accent = Color(0xFF2563EB);
 
@@ -43,7 +44,7 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('정책 및 약관')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).policies_appBarTitle)),
       body: FutureBuilder<List<LegalDocument>>(
         future: _future,
         builder: (context, snap) {
@@ -51,7 +52,7 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           final items = snap.data!;
-          if (items.isEmpty) return _empty(isDark);
+          if (items.isEmpty) return _empty(context, isDark);
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView.separated(
@@ -70,7 +71,7 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
     );
   }
 
-  Widget _empty(bool isDark) {
+  Widget _empty(BuildContext context, bool isDark) {
     final muted = isDark ? Colors.white54 : const Color(0xFF9CA3AF);
     return Center(
       child: Column(
@@ -78,7 +79,7 @@ class _PoliciesScreenState extends State<PoliciesScreen> {
         children: [
           Icon(Icons.description_outlined, size: 48, color: muted),
           const SizedBox(height: 12),
-          Text('등록된 문서가 없습니다',
+          Text(AppLocalizations.of(context).policies_emptyTitle,
               style: TextStyle(color: muted, fontSize: 14)),
         ],
       ),
@@ -110,7 +111,7 @@ class _PolicyTile extends StatelessWidget {
     if (doc.effectiveDate != null) {
       sub.add('시행 ${_fmtDate(doc.effectiveDate!)}');
     }
-    if (doc.isExternal) sub.add('외부 링크');
+    if (doc.isExternal) sub.add(AppLocalizations.of(context).policies_externalLink);
 
     return Material(
       color: Colors.transparent,

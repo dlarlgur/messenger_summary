@@ -4,6 +4,7 @@ import '../services/messenger_settings_service.dart';
 import '../services/plan_service.dart';
 import 'subscription_screen.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 메신저 관리 설정 화면
 class MessengerSettingsScreen extends StatefulWidget {
@@ -64,9 +65,9 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text(
-          '메신저 관리',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).messengerSettings_appBarTitle,
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 18,
             color: Colors.black87,
@@ -93,7 +94,7 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
           padding: const EdgeInsets.all(16),
           color: Colors.white,
           child: Text(
-            '사용할 메신저를 선택하고, 탭에 표시되는 순서를 변경할 수 있습니다.',
+            AppLocalizations.of(context).messengerSettings_guide,
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey[600],
@@ -104,13 +105,13 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
 
         // 활성화된 메신저 (순서 변경 가능)
         if (_enabledPackages.isNotEmpty) ...[
-          _buildSectionHeader('활성 메신저 (드래그하여 순서 변경)'),
+          _buildSectionHeader(AppLocalizations.of(context).messengerSettings_enabledSection),
           _buildEnabledMessengersList(),
           const SizedBox(height: 8),
         ],
 
         // 비활성화된 메신저
-        _buildSectionHeader('비활성 메신저'),
+        _buildSectionHeader(AppLocalizations.of(context).messengerSettings_disabledSection),
         _buildDisabledMessengersList(),
       ],
     );
@@ -208,7 +209,7 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
         color: Colors.white,
         child: Center(
           child: Text(
-            '모든 메신저가 활성화되어 있습니다.',
+            AppLocalizations.of(context).messengerSettings_allEnabled,
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ),
@@ -247,7 +248,7 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
                         Icon(Icons.lock, size: 12, color: Colors.orange[400]),
                         const SizedBox(width: 4),
                         Text(
-                          'Basic 플랜 필요',
+                          AppLocalizations.of(context).messengerSettings_basicRequired,
                           style: TextStyle(fontSize: 12, color: Colors.orange[400]),
                         ),
                       ],
@@ -292,12 +293,12 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Basic 플랜 필요'),
-        content: const Text('카카오톡 외 다른 메신저를 사용하려면\nBasic 플랜으로 업그레이드하세요.'),
+        title: Text(AppLocalizations.of(context).messengerSettings_basicRequired),
+        content: Text(AppLocalizations.of(context).messengerSettings_upgradeContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).messengerSettings_cancel),
           ),
           TextButton(
             onPressed: () {
@@ -307,7 +308,7 @@ class _MessengerSettingsScreenState extends State<MessengerSettingsScreen> {
                 MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
               );
             },
-            child: const Text('업그레이드'),
+            child: Text(AppLocalizations.of(context).messengerSettings_upgrade),
           ),
         ],
       ),

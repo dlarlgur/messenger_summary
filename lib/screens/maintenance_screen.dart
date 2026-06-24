@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 
 /// 서버 점검 안내 풀스크린.
 /// 부트스트랩에서 [Maintenance]가 응답되면 진입 차단용으로 노출.
@@ -52,8 +53,8 @@ class MaintenanceScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('앱 종료',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    child: Text(AppLocalizations.of(context).maintenance_exitApp,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),
@@ -84,7 +85,7 @@ class MaintenanceScreen extends StatelessWidget {
             const SizedBox(height: 28),
             Text(
               _plainText(maintenance.title).isEmpty
-                  ? '점검 중입니다'
+                  ? AppLocalizations.of(context).maintenance_defaultTitle
                   : _plainText(maintenance.title),
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -97,7 +98,7 @@ class MaintenanceScreen extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               _plainText(maintenance.body).isEmpty
-                  ? '더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.'
+                  ? AppLocalizations.of(context).maintenance_defaultBody
                   : _plainText(maintenance.body),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 15, height: 1.6, color: bodyColor),

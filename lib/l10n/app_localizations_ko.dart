@@ -547,4 +547,128 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get usageAutoSummaryBasicOnly => '자동 요약 기능은 베이직 플랜에서만 사용 가능합니다.';
+
+  @override
+  String get about_appBarTitle => 'AI 톡비서 란';
+
+  @override
+  String get about_appTitle => 'AI 톡비서';
+
+  @override
+  String get about_introDescription =>
+      'AI 톡비서는 카카오톡, 라인 등의 메신저 대화를 AI로 요약해주는 스마트한 메신저 어시스턴트입니다.';
+
+  @override
+  String get about_featuresTitle => '주요 기능';
+
+  @override
+  String get about_featureCollectTitle => '메신저 대화 자동 수집';
+
+  @override
+  String get about_featureCollectDescription =>
+      '카카오톡, 라인 등 다양한 메신저의 대화를 자동으로 수집하여 저장합니다.';
+
+  @override
+  String get about_featureSummaryTitle => 'AI 기반 대화 자동 요약';
+
+  @override
+  String get about_featureSummaryDescription =>
+      '강력한 AI 기술로 긴 대화 내용을 간결하고 명확하게 요약해드립니다.';
+
+  @override
+  String get about_featureHistoryTitle => '요약 히스토리 관리';
+
+  @override
+  String get about_featureHistoryDescription => '과거 요약 내역을 확인하고 관리할 수 있습니다.';
+
+  @override
+  String get about_featureDeletedTitle => '삭제된 메시지 보기 및 미리보기';
+
+  @override
+  String get about_featureDeletedDescription =>
+      '상대방이 삭제한 메시지도 확인할 수 있으며, 미리보기 기능을 제공합니다.';
+
+  @override
+  String get events_appBarTitle => '이벤트';
+
+  @override
+  String get events_emptyTitle => '진행 중인 이벤트가 없습니다';
+
+  @override
+  String get events_emptyDescription => '새 이벤트가 시작되면 여기서 알려드릴게요.';
+
+  @override
+  String get faq_appBarTitle => '자주 묻는 질문';
+
+  @override
+  String get faq_emptyTitle => '등록된 질문이 없습니다';
+
+  @override
+  String get faq_emptyDescription => '준비되는 대로 여기에 표시됩니다.';
+
+  @override
+  String get faq_categoryOther => '기타';
+
+  @override
+  String get maintenance_exitApp => '앱 종료';
+
+  @override
+  String get maintenance_defaultTitle => '점검 중입니다';
+
+  @override
+  String get maintenance_defaultBody =>
+      '더 나은 서비스를 위해 점검 중입니다.\n잠시 후 다시 이용해주세요.';
+
+  @override
+  String get messengerSettings_appBarTitle => '메신저 관리';
+
+  @override
+  String get messengerSettings_guide =>
+      '사용할 메신저를 선택하고, 탭에 표시되는 순서를 변경할 수 있습니다.';
+
+  @override
+  String get messengerSettings_enabledSection => '활성 메신저 (드래그하여 순서 변경)';
+
+  @override
+  String get messengerSettings_disabledSection => '비활성 메신저';
+
+  @override
+  String get messengerSettings_allEnabled => '모든 메신저가 활성화되어 있습니다.';
+
+  @override
+  String get messengerSettings_basicRequired => 'Basic 플랜 필요';
+
+  @override
+  String get messengerSettings_upgradeContent =>
+      '카카오톡 외 다른 메신저를 사용하려면\nBasic 플랜으로 업그레이드하세요.';
+
+  @override
+  String get messengerSettings_cancel => '취소';
+
+  @override
+  String get messengerSettings_upgrade => '업그레이드';
+
+  @override
+  String get notices_appBarTitle => '공지사항';
+
+  @override
+  String get notices_emptyTitle => '등록된 공지가 없습니다';
+
+  @override
+  String get notices_emptyDescription => '새 공지가 올라오면 여기서 확인할 수 있어요.';
+
+  @override
+  String get notices_typeBanner => '서비스 공지';
+
+  @override
+  String get notices_typeNotice => '공지';
+
+  @override
+  String get policies_appBarTitle => '정책 및 약관';
+
+  @override
+  String get policies_emptyTitle => '등록된 문서가 없습니다';
+
+  @override
+  String get policies_externalLink => '외부 링크';
 }

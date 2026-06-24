@@ -573,4 +573,135 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get usageAutoSummaryBasicOnly =>
       'Auto summary is available only on the Basic plan.';
+
+  @override
+  String get about_appBarTitle => 'About AI Talk Assistant';
+
+  @override
+  String get about_appTitle => 'AI Talk Assistant';
+
+  @override
+  String get about_introDescription =>
+      'AI Talk Assistant is a smart messenger assistant that uses AI to summarize your messenger conversations, such as those on KakaoTalk and LINE.';
+
+  @override
+  String get about_featuresTitle => 'Key Features';
+
+  @override
+  String get about_featureCollectTitle =>
+      'Automatic Messenger Conversation Collection';
+
+  @override
+  String get about_featureCollectDescription =>
+      'Automatically collects and saves conversations from various messengers such as KakaoTalk and LINE.';
+
+  @override
+  String get about_featureSummaryTitle =>
+      'AI-Powered Automatic Conversation Summary';
+
+  @override
+  String get about_featureSummaryDescription =>
+      'Powerful AI technology summarizes long conversations concisely and clearly.';
+
+  @override
+  String get about_featureHistoryTitle => 'Summary History Management';
+
+  @override
+  String get about_featureHistoryDescription =>
+      'View and manage your past summary history.';
+
+  @override
+  String get about_featureDeletedTitle => 'View Deleted Messages and Preview';
+
+  @override
+  String get about_featureDeletedDescription =>
+      'View messages that the other party has deleted, with a preview feature provided.';
+
+  @override
+  String get events_appBarTitle => 'Events';
+
+  @override
+  String get events_emptyTitle => 'No events in progress';
+
+  @override
+  String get events_emptyDescription =>
+      'We\'ll let you know here when a new event starts.';
+
+  @override
+  String get faq_appBarTitle => 'FAQ';
+
+  @override
+  String get faq_emptyTitle => 'No questions yet';
+
+  @override
+  String get faq_emptyDescription =>
+      'They\'ll appear here as soon as they\'re ready.';
+
+  @override
+  String get faq_categoryOther => 'Other';
+
+  @override
+  String get maintenance_exitApp => 'Exit app';
+
+  @override
+  String get maintenance_defaultTitle => 'Under maintenance';
+
+  @override
+  String get maintenance_defaultBody =>
+      'We\'re performing maintenance to improve our service.\nPlease try again shortly.';
+
+  @override
+  String get messengerSettings_appBarTitle => 'Manage Messengers';
+
+  @override
+  String get messengerSettings_guide =>
+      'Choose the messengers to use and change the order they appear in the tabs.';
+
+  @override
+  String get messengerSettings_enabledSection =>
+      'Active messengers (drag to reorder)';
+
+  @override
+  String get messengerSettings_disabledSection => 'Inactive messengers';
+
+  @override
+  String get messengerSettings_allEnabled => 'All messengers are active.';
+
+  @override
+  String get messengerSettings_basicRequired => 'Basic plan required';
+
+  @override
+  String get messengerSettings_upgradeContent =>
+      'To use messengers other than KakaoTalk,\nupgrade to the Basic plan.';
+
+  @override
+  String get messengerSettings_cancel => 'Cancel';
+
+  @override
+  String get messengerSettings_upgrade => 'Upgrade';
+
+  @override
+  String get notices_appBarTitle => 'Notices';
+
+  @override
+  String get notices_emptyTitle => 'No notices yet';
+
+  @override
+  String get notices_emptyDescription =>
+      'New notices will appear here when they\'re posted.';
+
+  @override
+  String get notices_typeBanner => 'Service notice';
+
+  @override
+  String get notices_typeNotice => 'Notice';
+
+  @override
+  String get policies_appBarTitle => 'Policies & Terms';
+
+  @override
+  String get policies_emptyTitle => 'No documents yet';
+
+  @override
+  String get policies_externalLink => 'External link';
 }
