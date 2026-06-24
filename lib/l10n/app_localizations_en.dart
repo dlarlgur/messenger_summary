@@ -786,4 +786,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateDialog_updateNow => 'Update now';
+
+  @override
+  String get chatList_notifPermGranted => 'Notification permission granted.';
+
+  @override
+  String get chatList_loadFailed => 'Failed to load the chat list.';
+
+  @override
+  String get chatList_summaryToggleOn => 'Turn on AI summary';
+
+  @override
+  String get chatList_summaryToggleOff => 'Turn off AI summary';
+
+  @override
+  String get chatList_summaryEnabledSub => 'Summary is enabled';
+
+  @override
+  String get chatList_summaryDisabledSub => 'Summary is disabled';
+
+  @override
+  String get chatList_autoSummarySetting => 'Auto-summary settings';
+
+  @override
+  String get chatList_autoSummaryOff => 'Auto-summary is off';
+
+  @override
+  String get chatList_basicOnly => 'Available on the BASIC plan';
+
+  @override
+  String get chatList_markRead => 'Mark as read';
+
+  @override
+  String get chatList_pinOff => 'Unpin chat';
+
+  @override
+  String get chatList_pinOn => 'Pin chat to top';
+
+  @override
+  String get chatList_muteOn => 'Turn on chat notifications';
+
+  @override
+  String get chatList_muteOff => 'Turn off chat notifications';
+
+  @override
+  String get chatList_block => 'Block chat';
+
+  @override
+  String get chatList_deleteRoom => 'Delete chat';
+
+  @override
+  String get chatList_markAllRead => 'Mark all as read';
+
+  @override
+  String get chatList_appSettings => 'App settings';
+
+  @override
+  String get chatList_markReadFailed => 'Failed to mark as read.';
+
+  @override
+  String get chatList_allMarkedRead => 'All chats marked as read.';
+
+  @override
+  String get chatList_summaryOn => '✨ AI summary turned on.';
+
+  @override
+  String get chatList_summaryOff => 'AI summary turned off.';
+
+  @override
+  String get chatList_summaryToggleFailed =>
+      'Failed to change the summary setting.';
+
+  @override
+  String get chatList_pinned => 'Pinned to top.';
+
+  @override
+  String get chatList_unpinned => 'Unpinned.';
+
+  @override
+  String get chatList_blockConfirm => 'Block';
+
+  @override
+  String get chatList_blockFailed => 'Failed to block the chat.';
+
+  @override
+  String get chatList_deleteRoomConfirm =>
+      'All messages and summaries will be lost.\nAre you sure you want to delete?';
+
+  @override
+  String get chatList_delete => 'Delete';
+
+  @override
+  String get chatList_deleteRoomFailed => 'Failed to delete the chat.';
+
+  @override
+  String get chatList_sentEmoji => 'Sent an emoticon';
+
+  @override
+  String get chatList_sentPhoto => 'Sent a photo';
+
+  @override
+  String get chatList_noEnabledMessengers => 'No active messengers';
+
+  @override
+  String get chatList_retry => 'Retry';
+
+  @override
+  String get chatList_noRooms => 'No chats';
+
+  @override
+  String get chatList_unknownAlias => 'Unknown';
+
+  @override
+  String get chatList_deviceInfoFailed =>
+      'Couldn\'t get device info. Please restart the app.';
+
+  @override
+  String get chatList_planSelectTitle => 'Select plan (test)';
+
+  @override
+  String get chatList_planSelectContent =>
+      'Choose a plan to use.\n\n• Free: 3/day, up to 100 messages\n• Basic: 150/month, up to 200 messages';
+
+  @override
+  String get chatList_cancel => 'Cancel';
+
+  @override
+  String get chatList_planSetFailed => 'Failed to set the plan.';
+
+  @override
+  String get chatList_planSetError =>
+      'An error occurred while setting the plan. Please try again shortly.';
 }

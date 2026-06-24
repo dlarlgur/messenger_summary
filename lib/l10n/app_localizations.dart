@@ -1533,6 +1533,258 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'지금 업데이트'**
   String get updateDialog_updateNow;
+
+  /// No description provided for @chatList_notifPermGranted.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 권한이 허용되었습니다.'**
+  String get chatList_notifPermGranted;
+
+  /// No description provided for @chatList_loadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방 목록을 불러오는데 실패했습니다.'**
+  String get chatList_loadFailed;
+
+  /// No description provided for @chatList_summaryToggleOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 기능 켜기'**
+  String get chatList_summaryToggleOn;
+
+  /// No description provided for @chatList_summaryToggleOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 기능 끄기'**
+  String get chatList_summaryToggleOff;
+
+  /// No description provided for @chatList_summaryEnabledSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능이 활성화되어 있습니다'**
+  String get chatList_summaryEnabledSub;
+
+  /// No description provided for @chatList_summaryDisabledSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능이 비활성화되어 있습니다'**
+  String get chatList_summaryDisabledSub;
+
+  /// No description provided for @chatList_autoSummarySetting.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동요약기능설정'**
+  String get chatList_autoSummarySetting;
+
+  /// No description provided for @chatList_autoSummaryOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약이 꺼져 있습니다'**
+  String get chatList_autoSummaryOff;
+
+  /// No description provided for @chatList_basicOnly.
+  ///
+  /// In ko, this message translates to:
+  /// **'BASIC 플랜에서 사용 가능'**
+  String get chatList_basicOnly;
+
+  /// No description provided for @chatList_markRead.
+  ///
+  /// In ko, this message translates to:
+  /// **'읽음 처리'**
+  String get chatList_markRead;
+
+  /// No description provided for @chatList_pinOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 고정 해제'**
+  String get chatList_pinOff;
+
+  /// No description provided for @chatList_pinOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 상단 고정'**
+  String get chatList_pinOn;
+
+  /// No description provided for @chatList_muteOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 알림 켜기'**
+  String get chatList_muteOn;
+
+  /// No description provided for @chatList_muteOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 알림 끄기'**
+  String get chatList_muteOff;
+
+  /// No description provided for @chatList_block.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 차단'**
+  String get chatList_block;
+
+  /// No description provided for @chatList_deleteRoom.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방 삭제'**
+  String get chatList_deleteRoom;
+
+  /// No description provided for @chatList_markAllRead.
+  ///
+  /// In ko, this message translates to:
+  /// **'모두 읽음 처리'**
+  String get chatList_markAllRead;
+
+  /// No description provided for @chatList_appSettings.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 설정'**
+  String get chatList_appSettings;
+
+  /// No description provided for @chatList_markReadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'읽음 처리에 실패했습니다.'**
+  String get chatList_markReadFailed;
+
+  /// No description provided for @chatList_allMarkedRead.
+  ///
+  /// In ko, this message translates to:
+  /// **'모든 채팅방이 읽음 처리되었습니다.'**
+  String get chatList_allMarkedRead;
+
+  /// No description provided for @chatList_summaryOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'✨ AI 요약 기능이 켜졌습니다.'**
+  String get chatList_summaryOn;
+
+  /// No description provided for @chatList_summaryOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 기능이 꺼졌습니다.'**
+  String get chatList_summaryOff;
+
+  /// No description provided for @chatList_summaryToggleFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능 설정 변경에 실패했습니다.'**
+  String get chatList_summaryToggleFailed;
+
+  /// No description provided for @chatList_pinned.
+  ///
+  /// In ko, this message translates to:
+  /// **'상단에 고정되었습니다.'**
+  String get chatList_pinned;
+
+  /// No description provided for @chatList_unpinned.
+  ///
+  /// In ko, this message translates to:
+  /// **'고정이 해제되었습니다.'**
+  String get chatList_unpinned;
+
+  /// No description provided for @chatList_blockConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단'**
+  String get chatList_blockConfirm;
+
+  /// No description provided for @chatList_blockFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 차단에 실패했습니다.'**
+  String get chatList_blockFailed;
+
+  /// No description provided for @chatList_deleteRoomConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지, 요약 전부 사라집니다.\n정말 삭제하시겠습니까?'**
+  String get chatList_deleteRoomConfirm;
+
+  /// No description provided for @chatList_delete.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제'**
+  String get chatList_delete;
+
+  /// No description provided for @chatList_deleteRoomFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방 삭제에 실패했습니다.'**
+  String get chatList_deleteRoomFailed;
+
+  /// No description provided for @chatList_sentEmoji.
+  ///
+  /// In ko, this message translates to:
+  /// **'이모티콘을 보냈습니다'**
+  String get chatList_sentEmoji;
+
+  /// No description provided for @chatList_sentPhoto.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 보냈습니다'**
+  String get chatList_sentPhoto;
+
+  /// No description provided for @chatList_noEnabledMessengers.
+  ///
+  /// In ko, this message translates to:
+  /// **'활성화된 메신저가 없습니다'**
+  String get chatList_noEnabledMessengers;
+
+  /// No description provided for @chatList_retry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get chatList_retry;
+
+  /// No description provided for @chatList_noRooms.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방이 없습니다'**
+  String get chatList_noRooms;
+
+  /// No description provided for @chatList_unknownAlias.
+  ///
+  /// In ko, this message translates to:
+  /// **'알 수 없음'**
+  String get chatList_unknownAlias;
+
+  /// No description provided for @chatList_deviceInfoFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'**
+  String get chatList_deviceInfoFailed;
+
+  /// No description provided for @chatList_planSelectTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜 선택 (테스트용)'**
+  String get chatList_planSelectTitle;
+
+  /// No description provided for @chatList_planSelectContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용할 플랜을 선택하세요.\n\n• Free: 일 3회, 메시지 최대 100개\n• Basic: 월 150회, 메시지 최대 200개'**
+  String get chatList_planSelectContent;
+
+  /// No description provided for @chatList_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get chatList_cancel;
+
+  /// No description provided for @chatList_planSetFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜 설정에 실패했습니다.'**
+  String get chatList_planSetFailed;
+
+  /// No description provided for @chatList_planSetError.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
+  String get chatList_planSetError;
 }
 
 class _AppLocalizationsDelegate

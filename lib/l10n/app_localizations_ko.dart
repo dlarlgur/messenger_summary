@@ -752,4 +752,131 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get updateDialog_updateNow => '지금 업데이트';
+
+  @override
+  String get chatList_notifPermGranted => '알림 권한이 허용되었습니다.';
+
+  @override
+  String get chatList_loadFailed => '대화방 목록을 불러오는데 실패했습니다.';
+
+  @override
+  String get chatList_summaryToggleOn => 'AI 요약 기능 켜기';
+
+  @override
+  String get chatList_summaryToggleOff => 'AI 요약 기능 끄기';
+
+  @override
+  String get chatList_summaryEnabledSub => '요약 기능이 활성화되어 있습니다';
+
+  @override
+  String get chatList_summaryDisabledSub => '요약 기능이 비활성화되어 있습니다';
+
+  @override
+  String get chatList_autoSummarySetting => '자동요약기능설정';
+
+  @override
+  String get chatList_autoSummaryOff => '자동 요약이 꺼져 있습니다';
+
+  @override
+  String get chatList_basicOnly => 'BASIC 플랜에서 사용 가능';
+
+  @override
+  String get chatList_markRead => '읽음 처리';
+
+  @override
+  String get chatList_pinOff => '채팅방 고정 해제';
+
+  @override
+  String get chatList_pinOn => '채팅방 상단 고정';
+
+  @override
+  String get chatList_muteOn => '채팅방 알림 켜기';
+
+  @override
+  String get chatList_muteOff => '채팅방 알림 끄기';
+
+  @override
+  String get chatList_block => '채팅방 차단';
+
+  @override
+  String get chatList_deleteRoom => '대화방 삭제';
+
+  @override
+  String get chatList_markAllRead => '모두 읽음 처리';
+
+  @override
+  String get chatList_appSettings => '앱 설정';
+
+  @override
+  String get chatList_markReadFailed => '읽음 처리에 실패했습니다.';
+
+  @override
+  String get chatList_allMarkedRead => '모든 채팅방이 읽음 처리되었습니다.';
+
+  @override
+  String get chatList_summaryOn => '✨ AI 요약 기능이 켜졌습니다.';
+
+  @override
+  String get chatList_summaryOff => 'AI 요약 기능이 꺼졌습니다.';
+
+  @override
+  String get chatList_summaryToggleFailed => '요약 기능 설정 변경에 실패했습니다.';
+
+  @override
+  String get chatList_pinned => '상단에 고정되었습니다.';
+
+  @override
+  String get chatList_unpinned => '고정이 해제되었습니다.';
+
+  @override
+  String get chatList_blockConfirm => '차단';
+
+  @override
+  String get chatList_blockFailed => '채팅방 차단에 실패했습니다.';
+
+  @override
+  String get chatList_deleteRoomConfirm => '메시지, 요약 전부 사라집니다.\n정말 삭제하시겠습니까?';
+
+  @override
+  String get chatList_delete => '삭제';
+
+  @override
+  String get chatList_deleteRoomFailed => '대화방 삭제에 실패했습니다.';
+
+  @override
+  String get chatList_sentEmoji => '이모티콘을 보냈습니다';
+
+  @override
+  String get chatList_sentPhoto => '사진을 보냈습니다';
+
+  @override
+  String get chatList_noEnabledMessengers => '활성화된 메신저가 없습니다';
+
+  @override
+  String get chatList_retry => '다시 시도';
+
+  @override
+  String get chatList_noRooms => '대화방이 없습니다';
+
+  @override
+  String get chatList_unknownAlias => '알 수 없음';
+
+  @override
+  String get chatList_deviceInfoFailed => '기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.';
+
+  @override
+  String get chatList_planSelectTitle => '플랜 선택 (테스트용)';
+
+  @override
+  String get chatList_planSelectContent =>
+      '사용할 플랜을 선택하세요.\n\n• Free: 일 3회, 메시지 최대 100개\n• Basic: 월 150회, 메시지 최대 200개';
+
+  @override
+  String get chatList_cancel => '취소';
+
+  @override
+  String get chatList_planSetFailed => '플랜 설정에 실패했습니다.';
+
+  @override
+  String get chatList_planSetError => '플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
 }

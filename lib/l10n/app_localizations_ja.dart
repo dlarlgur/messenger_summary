@@ -752,4 +752,131 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get updateDialog_updateNow => '今すぐ更新';
+
+  @override
+  String get chatList_notifPermGranted => '通知の権限が許可されました。';
+
+  @override
+  String get chatList_loadFailed => 'チャット一覧の読み込みに失敗しました。';
+
+  @override
+  String get chatList_summaryToggleOn => 'AI要約をオン';
+
+  @override
+  String get chatList_summaryToggleOff => 'AI要約をオフ';
+
+  @override
+  String get chatList_summaryEnabledSub => '要約機能は有効です';
+
+  @override
+  String get chatList_summaryDisabledSub => '要約機能は無効です';
+
+  @override
+  String get chatList_autoSummarySetting => '自動要約の設定';
+
+  @override
+  String get chatList_autoSummaryOff => '自動要約はオフです';
+
+  @override
+  String get chatList_basicOnly => 'BASICプランで利用可能';
+
+  @override
+  String get chatList_markRead => '既読にする';
+
+  @override
+  String get chatList_pinOff => '固定を解除';
+
+  @override
+  String get chatList_pinOn => 'チャットを上部に固定';
+
+  @override
+  String get chatList_muteOn => 'チャット通知をオン';
+
+  @override
+  String get chatList_muteOff => 'チャット通知をオフ';
+
+  @override
+  String get chatList_block => 'チャットをブロック';
+
+  @override
+  String get chatList_deleteRoom => 'チャットを削除';
+
+  @override
+  String get chatList_markAllRead => 'すべて既読にする';
+
+  @override
+  String get chatList_appSettings => 'アプリ設定';
+
+  @override
+  String get chatList_markReadFailed => '既読にできませんでした。';
+
+  @override
+  String get chatList_allMarkedRead => 'すべてのチャットを既読にしました。';
+
+  @override
+  String get chatList_summaryOn => '✨ AI要約をオンにしました。';
+
+  @override
+  String get chatList_summaryOff => 'AI要約をオフにしました。';
+
+  @override
+  String get chatList_summaryToggleFailed => '要約機能の設定変更に失敗しました。';
+
+  @override
+  String get chatList_pinned => '上部に固定しました。';
+
+  @override
+  String get chatList_unpinned => '固定を解除しました。';
+
+  @override
+  String get chatList_blockConfirm => 'ブロック';
+
+  @override
+  String get chatList_blockFailed => 'チャットのブロックに失敗しました。';
+
+  @override
+  String get chatList_deleteRoomConfirm => 'メッセージと要約がすべて消えます。\n本当に削除しますか？';
+
+  @override
+  String get chatList_delete => '削除';
+
+  @override
+  String get chatList_deleteRoomFailed => 'チャットの削除に失敗しました。';
+
+  @override
+  String get chatList_sentEmoji => 'スタンプを送信しました';
+
+  @override
+  String get chatList_sentPhoto => '写真を送信しました';
+
+  @override
+  String get chatList_noEnabledMessengers => '有効なメッセンジャーがありません';
+
+  @override
+  String get chatList_retry => '再試行';
+
+  @override
+  String get chatList_noRooms => 'チャットがありません';
+
+  @override
+  String get chatList_unknownAlias => '不明';
+
+  @override
+  String get chatList_deviceInfoFailed => '端末情報を取得できませんでした。アプリを再起動してください。';
+
+  @override
+  String get chatList_planSelectTitle => 'プラン選択（テスト用）';
+
+  @override
+  String get chatList_planSelectContent =>
+      '使用するプランを選択してください。\n\n• Free: 1日3回、メッセージ最大100件\n• Basic: 月150回、メッセージ最大200件';
+
+  @override
+  String get chatList_cancel => 'キャンセル';
+
+  @override
+  String get chatList_planSetFailed => 'プランの設定に失敗しました。';
+
+  @override
+  String get chatList_planSetError => 'プラン設定中にエラーが発生しました。しばらくしてからもう一度お試しください。';
 }

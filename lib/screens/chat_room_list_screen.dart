@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:dksw_app_core/dksw_app_core.dart';
 import '../models/chat_room.dart';
+import '../l10n/app_localizations.dart';
 import '../services/local_db_service.dart';
 import '../services/notification_settings_service.dart';
 import '../services/profile_image_service.dart';
@@ -818,9 +819,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           false;
       if (hasPermission && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('알림 권한이 허용되었습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_notifPermGranted),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -996,7 +997,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       if (mounted) {
         setState(() {
           if (!silent) {
-            _error = '대화방 목록을 불러오는데 실패했습니다.';
+            _error = AppLocalizations.of(context).chatList_loadFailed;
           }
           // silent 모드에서도 로딩 상태를 false로 설정
           _isLoading = false;
@@ -1175,8 +1176,8 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               // AI 요약 기능 켜기/끄기
               _buildMenuItem(
                 icon: Icons.auto_awesome,
-                title: room.summaryEnabled ? 'AI 요약 기능 끄기' : 'AI 요약 기능 켜기',
-                subtitle: room.summaryEnabled ? '요약 기능이 활성화되어 있습니다' : '요약 기능이 비활성화되어 있습니다',
+                title: room.summaryEnabled ? AppLocalizations.of(context).chatList_summaryToggleOff : AppLocalizations.of(context).chatList_summaryToggleOn,
+                subtitle: room.summaryEnabled ? AppLocalizations.of(context).chatList_summaryEnabledSub : AppLocalizations.of(context).chatList_summaryDisabledSub,
                 isEnabled: room.summaryEnabled,
                 iconColor: room.summaryEnabled ? AppTokens.accent : null,
                 onTap: () async {
@@ -1188,12 +1189,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               if (room.summaryEnabled)
                 _buildMenuItem(
                   icon: isBasicPlan ? Icons.schedule : Icons.lock_outline,
-                  title: '자동요약기능설정',
+                  title: AppLocalizations.of(context).chatList_autoSummarySetting,
                   subtitle: isBasicPlan
                       ? (room.autoSummaryEnabled
                           ? '${room.autoSummaryMessageCount}개 메시지 도달 시 자동 요약'
-                          : '자동 요약이 꺼져 있습니다')
-                      : 'BASIC 플랜에서 사용 가능',
+                          : AppLocalizations.of(context).chatList_autoSummaryOff)
+                      : AppLocalizations.of(context).chatList_basicOnly,
                   isEnabled: isBasicPlan && room.autoSummaryEnabled,
                   iconColor: isBasicPlan && room.autoSummaryEnabled ? AppTokens.accent : null,
                   onTap: () {
@@ -1213,7 +1214,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               if (room.unreadCount > 0)
                 _buildMenuItem(
                   icon: Icons.done_all,
-                  title: '읽음 처리',
+                  title: AppLocalizations.of(context).chatList_markRead,
                   subtitle: '${room.unreadCount}개의 안 읽은 메시지를 읽음으로 표시',
                   iconColor: AppTokens.accent,
                   onTap: () async {
@@ -1224,7 +1225,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               // 채팅방 상단 고정
               _buildMenuItem(
                 icon: room.pinned ? Icons.push_pin : Icons.push_pin_outlined,
-                title: room.pinned ? '채팅방 고정 해제' : '채팅방 상단 고정',
+                title: room.pinned ? AppLocalizations.of(context).chatList_pinOff : AppLocalizations.of(context).chatList_pinOn,
                 isEnabled: room.pinned,
                 iconColor: room.pinned ? AppTokens.accent : null,
                 onTap: () async {
@@ -1237,7 +1238,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 icon: isMuted
                     ? Icons.notifications_off_outlined
                     : Icons.notifications_active_outlined,
-                title: isMuted ? '채팅방 알림 켜기' : '채팅방 알림 끄기',
+                title: isMuted ? AppLocalizations.of(context).chatList_muteOn : AppLocalizations.of(context).chatList_muteOff,
                 isEnabled: !isMuted,
                 iconColor: !isMuted ? AppTokens.accent : null,
                 onTap: () async {
@@ -1266,7 +1267,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               // 채팅방 차단 — 톤 통일 (절제된 회색)
               _buildMenuItem(
                 icon: Icons.block_outlined,
-                title: '채팅방 차단',
+                title: AppLocalizations.of(context).chatList_block,
                 textColor: AppTokens.text2,
                 iconColor: AppTokens.text2,
                 onTap: () {
@@ -1277,7 +1278,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               // 대화방 삭제 — 톤 통일 (절제된 회색, confirm 단계에서만 warn 강조)
               _buildMenuItem(
                 icon: Icons.delete_outline,
-                title: '대화방 삭제',
+                title: AppLocalizations.of(context).chatList_deleteRoom,
                 textColor: AppTokens.text2,
                 iconColor: AppTokens.text2,
                 onTap: () {
@@ -1316,9 +1317,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                child: const Text(
-                  '모두 읽음 처리',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).chatList_markAllRead,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF1A1A1A),
@@ -1344,9 +1345,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                child: const Text(
-                  '앱 설정',
-                  style: TextStyle(
+                child: Text(
+                  AppLocalizations.of(context).chatList_appSettings,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF1A1A1A),
@@ -1377,10 +1378,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       debugPrint('읽음 처리 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('읽음 처리에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_markReadFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -1399,9 +1400,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('모든 채팅방이 읽음 처리되었습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_allMarkedRead),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -1409,10 +1410,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       debugPrint('모두 읽음 처리 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('읽음 처리에 실패했습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_markReadFailed),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -1445,17 +1446,17 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(newSummaryEnabled
-              ? '✨ AI 요약 기능이 켜졌습니다.'
-              : 'AI 요약 기능이 꺼졌습니다.'),
+              ? AppLocalizations.of(context).chatList_summaryOn
+              : AppLocalizations.of(context).chatList_summaryOff),
           duration: const Duration(seconds: 1),
         ),
       );
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('요약 기능 설정 변경에 실패했습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_summaryToggleFailed),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -1477,7 +1478,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newPinned ? '상단에 고정되었습니다.' : '고정이 해제되었습니다.'),
+          content: Text(newPinned ? AppLocalizations.of(context).chatList_pinned : AppLocalizations.of(context).chatList_unpinned),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -1633,12 +1634,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('채팅방 차단'),
+        title: Text(AppLocalizations.of(context).chatList_block),
         content: Text('${room.roomName}을(를) 차단하시겠습니까?\n\n차단된 채팅방은 목록에서 숨겨지고,\n새 메시지도 저장되지 않습니다.\n\n설정 > 차단방 관리에서 해제할 수 있습니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).chatList_cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -1646,7 +1647,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               await _blockRoom(room);
             },
             style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
-            child: const Text('차단'),
+            child: Text(AppLocalizations.of(context).chatList_blockConfirm),
           ),
         ],
       ),
@@ -1669,10 +1670,10 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('채팅방 차단에 실패했습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatList_blockFailed),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -1683,12 +1684,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('대화방 삭제'),
-        content: const Text('메시지, 요약 전부 사라집니다.\n정말 삭제하시겠습니까?'),
+        title: Text(AppLocalizations.of(context).chatList_deleteRoom),
+        content: Text(AppLocalizations.of(context).chatList_deleteRoomConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).chatList_cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -1708,16 +1709,16 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('대화방 삭제에 실패했습니다.'),
+                  SnackBar(
+                    content: Text(AppLocalizations.of(context).chatList_deleteRoomFailed),
                     backgroundColor: Colors.red,
-                    duration: Duration(seconds: 1),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               }
             },
             style: TextButton.styleFrom(foregroundColor: AppTokens.accent),
-            child: const Text('삭제'),
+            child: Text(AppLocalizations.of(context).chatList_delete),
           ),
         ],
       ),
@@ -1741,7 +1742,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     // 이미지만 있고 텍스트가 없으면 원본 메시지에서 이모티콘/스티커 여부 확인
     if (formattedMessage.isEmpty && hasImage) {
       final isEmojiOrSticker = message.contains('이모티콘') || message.contains('스티커');
-      return isEmojiOrSticker ? '이모티콘을 보냈습니다' : '사진을 보냈습니다';
+      return isEmojiOrSticker ? AppLocalizations.of(context).chatList_sentEmoji : AppLocalizations.of(context).chatList_sentPhoto;
     }
     
     // 이미지와 텍스트가 모두 있으면 텍스트만 반환
@@ -1842,13 +1843,13 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'mark_all_read',
-                child: Text('모두 읽음 처리'),
+                child: Text(AppLocalizations.of(context).chatList_markAllRead),
               ),
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'app_settings',
-                child: Text('앱 설정'),
+                child: Text(AppLocalizations.of(context).chatList_appSettings),
               ),
             ],
           ),
@@ -1867,7 +1868,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
               builder: (context) {
                 final messengers = MessengerSettingsService().getEnabledMessengers();
                 if (messengers.isEmpty) {
-                  return const Center(child: Text('활성화된 메신저가 없습니다'));
+                  return Center(child: Text(AppLocalizations.of(context).chatList_noEnabledMessengers));
                 }
                 return PageView.builder(
                   controller: _pageController,
@@ -1912,7 +1913,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadChatRooms,
-                              child: const Text('다시 시도'),
+                              child: Text(AppLocalizations.of(context).chatList_retry),
                             ),
                           ],
                         ),
@@ -1926,7 +1927,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
                           children: [
                             Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[300]),
                             const SizedBox(height: 16),
-                            Text('대화방이 없습니다',
+                            Text(AppLocalizations.of(context).chatList_noRooms,
                                 style: TextStyle(fontSize: 18, color: Colors.grey[500])),
                             const SizedBox(height: 8),
                             Text(
@@ -2754,9 +2755,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
   String _getPackageDisplayName(String packageName) {
     final messenger = LocalDbService.supportedMessengers.firstWhere(
       (m) => m['packageName'] == packageName,
-      orElse: () => {'alias': '알 수 없음'},
+      orElse: () => {'alias': AppLocalizations.of(context).chatList_unknownAlias},
     );
-    return messenger['alias'] ?? '알 수 없음';
+    return messenger['alias'] ?? AppLocalizations.of(context).chatList_unknownAlias;
   }
 
   /// 필터링된 채팅방 목록 반환
@@ -2837,9 +2838,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       if (deviceIdHash == null || deviceIdHash.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('기기 정보를 가져올 수 없습니다. 앱을 재시작해주세요.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_deviceInfoFailed),
+            duration: const Duration(seconds: 1),
           ),
         );
         return;
@@ -2850,16 +2851,12 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('플랜 선택 (테스트용)'),
-          content: const Text(
-            '사용할 플랜을 선택하세요.\n\n'
-            '• Free: 일 3회, 메시지 최대 100개\n'
-            '• Basic: 월 150회, 메시지 최대 200개',
-          ),
+          title: Text(AppLocalizations.of(context).chatList_planSelectTitle),
+          content: Text(AppLocalizations.of(context).chatList_planSelectContent),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
+              child: Text(AppLocalizations.of(context).chatList_cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -2933,9 +2930,9 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('플랜 설정에 실패했습니다.'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatList_planSetFailed),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -2944,7 +2941,7 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
       Navigator.pop(context); // 로딩 다이얼로그 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+          content: Text(AppLocalizations.of(context).chatList_planSetError),
           duration: const Duration(seconds: 1),
         ),
       );
