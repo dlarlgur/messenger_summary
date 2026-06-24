@@ -455,5 +455,10 @@
   "settings_featureFreeMsgCap": "Summarize up to {count} messages",
   "settings_featureAdRewards": "{count} provided by watching ads",
   "settings_countRegistered": "{count} registered",
-  "main_updateVersionMsg": "To keep using the app,\nplease update to the latest version ({version})."
+  "main_updateVersionMsg": "To keep using the app,\nplease update to the latest version ({version}).",
+  "chatList_yesterday": "Yesterday",
+  "chatDetail_loadFailed": "Failed to load the conversation.",
+  "chatDetail_msgSelectedSuffix": " messages selected",
+  "chatDetail_selectedChars": "Selected: {count} chars",
+  "chatDetail_totalChars": "Total: {count} chars"
 }

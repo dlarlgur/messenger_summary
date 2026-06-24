@@ -107,7 +107,7 @@ void main() async {
   runApp(const MyApp());
 
   // 모두 백그라운드에서 초기화 (UI를 블록하지 않음)
-  unawaited(initializeDateFormatting('ko_KR', null));
+  unawaited(initializeDateFormatting());
   unawaited(LocalDbService().initialize());
   unawaited(MessengerSettingsService().initialize());
   unawaited(ProfileImageService().initialize());

@@ -2835,6 +2835,36 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'앱을 계속 사용하려면\n최신 버전({version})으로\n업데이트해 주세요.'**
   String main_updateVersionMsg(String version);
+
+  /// No description provided for @chatList_yesterday.
+  ///
+  /// In ko, this message translates to:
+  /// **'어제'**
+  String get chatList_yesterday;
+
+  /// No description provided for @chatDetail_loadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 내용을 불러오는데 실패했습니다.'**
+  String get chatDetail_loadFailed;
+
+  /// No description provided for @chatDetail_msgSelectedSuffix.
+  ///
+  /// In ko, this message translates to:
+  /// **'개 메시지 선택됨'**
+  String get chatDetail_msgSelectedSuffix;
+
+  /// No description provided for @chatDetail_selectedChars.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택됨: {count}자'**
+  String chatDetail_selectedChars(int count);
+
+  /// No description provided for @chatDetail_totalChars.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체: {count}자'**
+  String chatDetail_totalChars(int count);
 }
 
 class _AppLocalizationsDelegate

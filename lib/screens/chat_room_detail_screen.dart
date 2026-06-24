@@ -875,7 +875,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('스택 트레이스: $stackTrace');
       if (!mounted) return;
       setState(() {
-        _error = '대화 내용을 불러오는데 실패했습니다: $e';
+        _error = AppLocalizations.of(context).chatDetail_loadFailed;
         _isLoading = false;
       });
     }
@@ -912,21 +912,17 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   String _formatTime(DateTime time) {
-    return DateFormat('a h:mm', 'ko_KR').format(time);
+    return DateFormat.jm(Localizations.localeOf(context).toString()).format(time);
   }
 
   String _formatDate(DateTime time) {
-    // "2026년 1월 30일 금요일" 형식으로 표시
-    final weekday = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
-    final weekdayName = weekday[time.weekday - 1];
-    return DateFormat('yyyy년 M월 d일', 'ko_KR').format(time) + ' $weekdayName';
+    return DateFormat.yMMMMEEEEd(Localizations.localeOf(context).toString()).format(time);
   }
 
-  /// 스크롤 인디케이터용 날짜 포맷 ("2026.01.30. 금" 형식)
+  /// 스크롤 인디케이터용 날짜 포맷
   String _formatDateForIndicator(DateTime time) {
-    final weekday = ['월', '화', '수', '목', '금', '토', '일'];
-    final weekdayName = weekday[time.weekday - 1];
-    return DateFormat('yyyy.MM.dd.', 'ko_KR').format(time) + ' $weekdayName';
+    final loc = Localizations.localeOf(context).toString();
+    return '${DateFormat.yMd(loc).format(time)} ${DateFormat.E(loc).format(time)}';
   }
 
   bool _shouldShowDate(int index) {
@@ -3446,7 +3442,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              AppLocalizations.of(context).chatDetail_noMsgForDate(DateFormat('yyyy년 M월 d일').format(targetDate))),
+              AppLocalizations.of(context).chatDetail_noMsgForDate(DateFormat.yMMMd(Localizations.localeOf(context).toString()).format(targetDate))),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 1),
         ),
@@ -3518,7 +3514,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '개 메시지 선택됨',
+                          AppLocalizations.of(context).chatDetail_msgSelectedSuffix,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -5311,7 +5307,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     } else if (minutes > 0) {
       return AppLocalizations.of(context).chatDetail_durationM(minutes);
     } else {
-      return '1분 미만';
+      return AppLocalizations.of(context).chatDetail_timeUnderMin;
     }
   }
 
@@ -5806,8 +5802,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         hasSelection ? selection.end - selection.start : 0;
                     return Text(
                       hasSelection
-                          ? '선택됨: $selectedLength자'
-                          : '전체: ${message.length}자',
+                          ? AppLocalizations.of(context).chatDetail_selectedChars(selectedLength)
+                          : AppLocalizations.of(context).chatDetail_totalChars(message.length),
                       style: TextStyle(
                         fontSize: 12,
                         color: hasSelection
@@ -6514,7 +6510,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('링크를 열 수 없습니다: $fullUrl')),
+                      SnackBar(content: Text(AppLocalizations.of(context).chatDetail_linkOpenFailed)),
                     );
                   }
                 }

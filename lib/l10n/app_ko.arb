@@ -730,5 +730,24 @@
         "type": "String"
       }
     }
+  },
+  "chatList_yesterday": "어제",
+  "chatDetail_loadFailed": "대화 내용을 불러오는데 실패했습니다.",
+  "chatDetail_msgSelectedSuffix": "개 메시지 선택됨",
+  "chatDetail_selectedChars": "선택됨: {count}자",
+  "@chatDetail_selectedChars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatDetail_totalChars": "전체: {count}자",
+  "@chatDetail_totalChars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

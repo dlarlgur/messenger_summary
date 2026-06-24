@@ -1540,4 +1540,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String main_updateVersionMsg(String version) {
     return 'To keep using the app,\nplease update to the latest version ($version).';
   }
+
+  @override
+  String get chatList_yesterday => 'Yesterday';
+
+  @override
+  String get chatDetail_loadFailed => 'Failed to load the conversation.';
+
+  @override
+  String get chatDetail_msgSelectedSuffix => ' messages selected';
+
+  @override
+  String chatDetail_selectedChars(int count) {
+    return 'Selected: $count chars';
+  }
+
+  @override
+  String chatDetail_totalChars(int count) {
+    return 'Total: $count chars';
+  }
 }

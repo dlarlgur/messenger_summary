@@ -1483,4 +1483,23 @@ class AppLocalizationsKo extends AppLocalizations {
   String main_updateVersionMsg(String version) {
     return '앱을 계속 사용하려면\n최신 버전($version)으로\n업데이트해 주세요.';
   }
+
+  @override
+  String get chatList_yesterday => '어제';
+
+  @override
+  String get chatDetail_loadFailed => '대화 내용을 불러오는데 실패했습니다.';
+
+  @override
+  String get chatDetail_msgSelectedSuffix => '개 메시지 선택됨';
+
+  @override
+  String chatDetail_selectedChars(int count) {
+    return '선택됨: $count자';
+  }
+
+  @override
+  String chatDetail_totalChars(int count) {
+    return '전체: $count자';
+  }
 }

@@ -1483,4 +1483,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String main_updateVersionMsg(String version) {
     return 'アプリを使い続けるには\n最新バージョン（$version）に\nアップデートしてください。';
   }
+
+  @override
+  String get chatList_yesterday => '昨日';
+
+  @override
+  String get chatDetail_loadFailed => '会話の読み込みに失敗しました。';
+
+  @override
+  String get chatDetail_msgSelectedSuffix => '件のメッセージを選択中';
+
+  @override
+  String chatDetail_selectedChars(int count) {
+    return '選択中: $count文字';
+  }
+
+  @override
+  String chatDetail_totalChars(int count) {
+    return '全体: $count文字';
+  }
 }

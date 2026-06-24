@@ -1754,14 +1754,15 @@ class ChatRoomListScreenState extends State<ChatRoomListScreen> with WidgetsBind
     final now = DateTime.now();
     final diff = now.difference(time);
 
+    final loc = Localizations.localeOf(context).toString();
     if (diff.inDays == 0) {
-      return DateFormat('a h:mm', 'ko_KR').format(time);
+      return DateFormat.jm(loc).format(time);
     } else if (diff.inDays == 1) {
-      return '어제';
+      return AppLocalizations.of(context).chatList_yesterday;
     } else if (diff.inDays < 7) {
-      return DateFormat('E', 'ko_KR').format(time);
+      return DateFormat.E(loc).format(time);
     } else {
-      return DateFormat('M월 d일').format(time);
+      return DateFormat.MMMd(loc).format(time);
     }
   }
 
