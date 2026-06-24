@@ -848,11 +848,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('자동 요약 알림'),
-        content: const Text(
-          '자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n'
-          '알림을 받으려면 알림 권한이 필요합니다.',
-        ),
+        title: Text(AppLocalizations.of(context).main_autoSummaryNotifTitle),
+        content: Text(AppLocalizations.of(context).main_autoSummaryNotifContent),
         actions: [
           TextButton(
             onPressed: () async {
@@ -862,7 +859,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 Navigator.of(context).pop();
               }
             },
-            child: const Text('나중에'),
+            child: Text(AppLocalizations.of(context).main_later),
           ),
           TextButton(
             onPressed: () async {
@@ -877,9 +874,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   // 시스템 권한이 없으면 설정 화면으로 이동 안내
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'),
+                      content: Text(AppLocalizations.of(context).main_notifPermSnack),
                       action: SnackBarAction(
-                        label: '설정',
+                        label: AppLocalizations.of(context).main_settings,
                         onPressed: () async {
                           try {
                             await methodChannel.invokeMethod('openAppSettings');
@@ -894,7 +891,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 }
               }
             },
-            child: const Text('알림 받기'),
+            child: Text(AppLocalizations.of(context).main_getNotif),
           ),
         ],
       ),
@@ -1307,9 +1304,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   color: Colors.orange,
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  '업데이트가 필요합니다',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context).main_updateNeeded,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1331,7 +1328,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     }
                   },
                   icon: const Icon(Icons.download),
-                  label: const Text('업데이트하기'),
+                  label: Text(AppLocalizations.of(context).main_update),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTokens.accent,
                     foregroundColor: Colors.white,

@@ -412,5 +412,13 @@
   "settings_autoSummaryNotif": "자동 요약 알림",
   "settings_autoSummaryNotifNeedPerm": "알림 권한이 필요합니다",
   "settings_autoSummaryNotifOn": "자동 요약 완료 시 푸시 알림을 받습니다",
-  "settings_autoSummaryNotifOff": "자동 요약 알림이 꺼져 있습니다"
+  "settings_autoSummaryNotifOff": "자동 요약 알림이 꺼져 있습니다",
+  "main_autoSummaryNotifTitle": "자동 요약 알림",
+  "main_autoSummaryNotifContent": "자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n알림을 받으려면 알림 권한이 필요합니다.",
+  "main_later": "나중에",
+  "main_notifPermSnack": "알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.",
+  "main_settings": "설정",
+  "main_getNotif": "알림 받기",
+  "main_updateNeeded": "업데이트가 필요합니다",
+  "main_update": "업데이트하기"
 }

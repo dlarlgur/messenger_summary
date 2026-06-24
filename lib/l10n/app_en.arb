@@ -409,5 +409,13 @@
   "settings_autoSummaryNotif": "Auto-summary notifications",
   "settings_autoSummaryNotifNeedPerm": "Notification permission required",
   "settings_autoSummaryNotifOn": "Get a push when auto-summary completes",
-  "settings_autoSummaryNotifOff": "Auto-summary notifications are off"
+  "settings_autoSummaryNotifOff": "Auto-summary notifications are off",
+  "main_autoSummaryNotifTitle": "Auto-summary notifications",
+  "main_autoSummaryNotifContent": "Get a push notification when auto-summary completes?\n\nNotification permission is required.",
+  "main_later": "Later",
+  "main_notifPermSnack": "Notification permission is required. Please allow notifications in Settings.",
+  "main_settings": "Settings",
+  "main_getNotif": "Get notifications",
+  "main_updateNeeded": "Update required",
+  "main_update": "Update"
 }

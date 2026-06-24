@@ -2559,6 +2559,54 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'자동 요약 알림이 꺼져 있습니다'**
   String get settings_autoSummaryNotifOff;
+
+  /// No description provided for @main_autoSummaryNotifTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 알림'**
+  String get main_autoSummaryNotifTitle;
+
+  /// No description provided for @main_autoSummaryNotifContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n알림을 받으려면 알림 권한이 필요합니다.'**
+  String get main_autoSummaryNotifContent;
+
+  /// No description provided for @main_later.
+  ///
+  /// In ko, this message translates to:
+  /// **'나중에'**
+  String get main_later;
+
+  /// No description provided for @main_notifPermSnack.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.'**
+  String get main_notifPermSnack;
+
+  /// No description provided for @main_settings.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정'**
+  String get main_settings;
+
+  /// No description provided for @main_getNotif.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 받기'**
+  String get main_getNotif;
+
+  /// No description provided for @main_updateNeeded.
+  ///
+  /// In ko, this message translates to:
+  /// **'업데이트가 필요합니다'**
+  String get main_updateNeeded;
+
+  /// No description provided for @main_update.
+  ///
+  /// In ko, this message translates to:
+  /// **'업데이트하기'**
+  String get main_update;
 }
 
 class _AppLocalizationsDelegate

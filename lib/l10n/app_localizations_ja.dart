@@ -1268,4 +1268,29 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_autoSummaryNotifOff => '自動要約の通知はオフです';
+
+  @override
+  String get main_autoSummaryNotifTitle => '自動要約の通知';
+
+  @override
+  String get main_autoSummaryNotifContent =>
+      '自動要約が完了したらプッシュ通知を受け取りますか？\n\n通知には権限が必要です。';
+
+  @override
+  String get main_later => 'あとで';
+
+  @override
+  String get main_notifPermSnack => '通知の権限が必要です。設定で通知を許可してください。';
+
+  @override
+  String get main_settings => '設定';
+
+  @override
+  String get main_getNotif => '通知を受け取る';
+
+  @override
+  String get main_updateNeeded => 'アップデートが必要です';
+
+  @override
+  String get main_update => 'アップデート';
 }

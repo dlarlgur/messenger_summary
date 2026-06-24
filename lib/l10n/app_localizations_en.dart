@@ -1324,4 +1324,30 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_autoSummaryNotifOff =>
       'Auto-summary notifications are off';
+
+  @override
+  String get main_autoSummaryNotifTitle => 'Auto-summary notifications';
+
+  @override
+  String get main_autoSummaryNotifContent =>
+      'Get a push notification when auto-summary completes?\n\nNotification permission is required.';
+
+  @override
+  String get main_later => 'Later';
+
+  @override
+  String get main_notifPermSnack =>
+      'Notification permission is required. Please allow notifications in Settings.';
+
+  @override
+  String get main_settings => 'Settings';
+
+  @override
+  String get main_getNotif => 'Get notifications';
+
+  @override
+  String get main_updateNeeded => 'Update required';
+
+  @override
+  String get main_update => 'Update';
 }

@@ -1268,4 +1268,29 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settings_autoSummaryNotifOff => '자동 요약 알림이 꺼져 있습니다';
+
+  @override
+  String get main_autoSummaryNotifTitle => '자동 요약 알림';
+
+  @override
+  String get main_autoSummaryNotifContent =>
+      '자동 요약이 완료되면 푸시 알림을 받으시겠습니까?\n\n알림을 받으려면 알림 권한이 필요합니다.';
+
+  @override
+  String get main_later => '나중에';
+
+  @override
+  String get main_notifPermSnack => '알림 권한이 필요합니다. 설정에서 알림을 허용해주세요.';
+
+  @override
+  String get main_settings => '설정';
+
+  @override
+  String get main_getNotif => '알림 받기';
+
+  @override
+  String get main_updateNeeded => '업데이트가 필요합니다';
+
+  @override
+  String get main_update => '업데이트하기';
 }

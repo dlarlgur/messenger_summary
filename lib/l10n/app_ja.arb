@@ -409,5 +409,13 @@
   "settings_autoSummaryNotif": "自動要約の通知",
   "settings_autoSummaryNotifNeedPerm": "通知の権限が必要です",
   "settings_autoSummaryNotifOn": "自動要約の完了時にプッシュ通知を受け取ります",
-  "settings_autoSummaryNotifOff": "自動要約の通知はオフです"
+  "settings_autoSummaryNotifOff": "自動要約の通知はオフです",
+  "main_autoSummaryNotifTitle": "自動要約の通知",
+  "main_autoSummaryNotifContent": "自動要約が完了したらプッシュ通知を受け取りますか？\n\n通知には権限が必要です。",
+  "main_later": "あとで",
+  "main_notifPermSnack": "通知の権限が必要です。設定で通知を許可してください。",
+  "main_settings": "設定",
+  "main_getNotif": "通知を受け取る",
+  "main_updateNeeded": "アップデートが必要です",
+  "main_update": "アップデート"
 }
