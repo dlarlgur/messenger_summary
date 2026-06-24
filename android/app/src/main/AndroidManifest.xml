@@ -110,6 +110,7 @@
         <package android:name="com.kakao.talk"/>
         <package android:name="com.microsoft.teams"/>
         <package android:name="com.facebook.orca"/>
+        <package android:name="com.whatsapp"/>
         <!-- 딥링크 스킴 선언 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />

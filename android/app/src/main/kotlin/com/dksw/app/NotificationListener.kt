@@ -60,6 +60,7 @@ class NotificationListener : NotificationListenerService() {
             "com.Slack" to "Slack",
             "com.microsoft.teams" to "Teams",
             "com.facebook.orca" to "Messenger",
+            "com.whatsapp" to "WhatsApp",
             "com.nhn.android.band" to "네이버 밴드",
             // 문자(SMS) — 가상 패키지. 실제 알림은 기기 기본 문자앱(삼성·구글 등)에서 오고,
             // onNotificationPosted 에서 normalizePackage() 가 기본 문자앱 패키지를 "sms" 로 정규화.
@@ -1298,6 +1299,7 @@ class NotificationListener : NotificationListenerService() {
             "com.Slack" -> parseSlack(title, text, subText)
             "com.microsoft.teams" -> parseTeams(title, text, subText, conversationTitle, isGroupConversation)
             "com.facebook.orca" -> parseFacebookMessenger(title, text, subText, conversationTitle, isGroupConversation)
+            "com.whatsapp" -> parseWhatsApp(title, text, subText, conversationTitle, isGroupConversation)
             "com.nhn.android.band" -> parseBand(title, text, subText, conversationTitle, isGroupConversation)
             "sms" -> parseSms(title, text, subText, conversationTitle)
             else -> null
@@ -1361,6 +1363,34 @@ class NotificationListener : NotificationListenerService() {
             return ParsedNotification(roomName, sender, text, false)
         }
         // 개인 DM: title=발신자=대화방이름, text=메시지
+        return ParsedNotification(title, title, text, true)
+    }
+
+    /**
+     * WhatsApp 알림 파싱. WhatsApp 도 MessagingStyle 발송 → LINE/Telegram 과 동일 구조.
+     *  - 개인(1:1): title=상대방 이름, text=메시지, conversationTitle 비어있음
+     *  - 그룹: conversationTitle=그룹명, title=발신자(또는 "그룹명: 발신자"), text=메시지
+     *  - 미디어: text 가 "📷 Photo"/"🎥 Video"/"🎤 Voice message" 등(언어별 상이) — 텍스트 그대로 캡처
+     * ⚠️ 정확한 필드 매핑은 DEBUG_NOTIFICATION_DATA 덤프로 실기기 검증 후 미세조정 권장.
+     */
+    private fun parseWhatsApp(
+        title: String, text: String, subText: String,
+        conversationTitle: String, isGroupConversation: Boolean
+    ): ParsedNotification {
+        val isGroup = isGroupConversation || conversationTitle.isNotEmpty() ||
+            (subText.isNotEmpty() && subText != title && subText.contains(", "))
+        if (isGroup) {
+            // 그룹명: conversationTitle > subText > title
+            val roomName = conversationTitle.ifEmpty { subText.ifEmpty { title } }
+            // "그룹명: 발신자" prefix 형식이면 떼서 발신자만
+            val sender = if (roomName.isNotEmpty() && title.startsWith("$roomName: ")) {
+                title.removePrefix("$roomName: ")
+            } else {
+                title
+            }
+            return ParsedNotification(roomName, sender, text, false)
+        }
+        // 개인 DM: title=상대방=대화방, text=메시지
         return ParsedNotification(title, title, text, true)
     }
 

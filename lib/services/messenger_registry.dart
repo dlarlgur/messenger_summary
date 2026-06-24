@@ -62,6 +62,12 @@ class MessengerRegistry {
       icon: Icons.message,
     ),
     MessengerInfo(
+      packageName: 'com.whatsapp',
+      alias: 'WhatsApp',
+      brandColor: Color(0xFF25D366),
+      icon: Icons.chat,
+    ),
+    MessengerInfo(
       packageName: 'org.telegram.messenger',
       alias: 'Telegram',
       brandColor: Color(0xFF0088CC),
