@@ -1785,6 +1785,444 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
   String get chatList_planSetError;
+
+  /// No description provided for @chatDetail_sendFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 전송에 실패했습니다.'**
+  String get chatDetail_sendFailed;
+
+  /// No description provided for @chatDetail_sendError.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
+  String get chatDetail_sendError;
+
+  /// No description provided for @chatDetail_leaveTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방 나가기'**
+  String get chatDetail_leaveTitle;
+
+  /// No description provided for @chatDetail_leaveConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지, 요약 전부 사라집니다.\n나가시겠습니까?'**
+  String get chatDetail_leaveConfirm;
+
+  /// No description provided for @chatDetail_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get chatDetail_cancel;
+
+  /// No description provided for @chatDetail_leave.
+  ///
+  /// In ko, this message translates to:
+  /// **'나가기'**
+  String get chatDetail_leave;
+
+  /// No description provided for @chatDetail_selectUser.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용자 선택'**
+  String get chatDetail_selectUser;
+
+  /// No description provided for @chatDetail_all.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체'**
+  String get chatDetail_all;
+
+  /// No description provided for @chatDetail_noMessagesToSummarize.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약할 메시지가 없습니다.'**
+  String get chatDetail_noMessagesToSummarize;
+
+  /// No description provided for @chatDetail_messageCountInput.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 개수 입력'**
+  String get chatDetail_messageCountInput;
+
+  /// No description provided for @chatDetail_countInputHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'개수 입력'**
+  String get chatDetail_countInputHint;
+
+  /// No description provided for @chatDetail_countUnit.
+  ///
+  /// In ko, this message translates to:
+  /// **'개'**
+  String get chatDetail_countUnit;
+
+  /// No description provided for @chatDetail_confirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'확인'**
+  String get chatDetail_confirm;
+
+  /// No description provided for @chatDetail_selectStart.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 시작'**
+  String get chatDetail_selectStart;
+
+  /// No description provided for @chatDetail_selectEnd.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 끝'**
+  String get chatDetail_selectEnd;
+
+  /// No description provided for @chatDetail_pinned.
+  ///
+  /// In ko, this message translates to:
+  /// **'상단에 고정되었습니다.'**
+  String get chatDetail_pinned;
+
+  /// No description provided for @chatDetail_unpinned.
+  ///
+  /// In ko, this message translates to:
+  /// **'고정이 해제되었습니다.'**
+  String get chatDetail_unpinned;
+
+  /// No description provided for @chatDetail_pinFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'고정 설정 변경에 실패했습니다.'**
+  String get chatDetail_pinFailed;
+
+  /// No description provided for @chatDetail_summaryOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'✨ AI 요약 기능이 켜졌습니다.'**
+  String get chatDetail_summaryOn;
+
+  /// No description provided for @chatDetail_summaryOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 기능이 꺼졌습니다.'**
+  String get chatDetail_summaryOff;
+
+  /// No description provided for @chatDetail_summaryToggleFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 기능 설정 변경에 실패했습니다.'**
+  String get chatDetail_summaryToggleFailed;
+
+  /// No description provided for @chatDetail_leaveFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화방 나가기에 실패했습니다.'**
+  String get chatDetail_leaveFailed;
+
+  /// No description provided for @chatDetail_deleteMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 삭제'**
+  String get chatDetail_deleteMessage;
+
+  /// No description provided for @chatDetail_summaryHistory.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 히스토리'**
+  String get chatDetail_summaryHistory;
+
+  /// No description provided for @chatDetail_messengerFallback.
+  ///
+  /// In ko, this message translates to:
+  /// **'메신저'**
+  String get chatDetail_messengerFallback;
+
+  /// No description provided for @chatDetail_retry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get chatDetail_retry;
+
+  /// No description provided for @chatDetail_noConversation.
+  ///
+  /// In ko, this message translates to:
+  /// **'아직 대화가 없습니다'**
+  String get chatDetail_noConversation;
+
+  /// No description provided for @chatDetail_summaryMode.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약 모드'**
+  String get chatDetail_summaryMode;
+
+  /// No description provided for @chatDetail_searchHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 검색'**
+  String get chatDetail_searchHint;
+
+  /// No description provided for @chatDetail_summary.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약'**
+  String get chatDetail_summary;
+
+  /// No description provided for @chatDetail_zeroCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'0개'**
+  String get chatDetail_zeroCount;
+
+  /// No description provided for @chatDetail_noResults.
+  ///
+  /// In ko, this message translates to:
+  /// **'결과 없음'**
+  String get chatDetail_noResults;
+
+  /// No description provided for @chatDetail_datePickerHelp.
+  ///
+  /// In ko, this message translates to:
+  /// **'이동할 날짜 선택'**
+  String get chatDetail_datePickerHelp;
+
+  /// No description provided for @chatDetail_datePickerMove.
+  ///
+  /// In ko, this message translates to:
+  /// **'이동'**
+  String get chatDetail_datePickerMove;
+
+  /// No description provided for @chatDetail_messageInputHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 입력'**
+  String get chatDetail_messageInputHint;
+
+  /// No description provided for @chatDetail_aiSummaryTooltip.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 요약'**
+  String get chatDetail_aiSummaryTooltip;
+
+  /// No description provided for @chatDetail_autoSummaryBasic.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동요약 BASIC'**
+  String get chatDetail_autoSummaryBasic;
+
+  /// No description provided for @chatDetail_selectMessagesToSummarize.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약할 메시지를 선택해주세요.'**
+  String get chatDetail_selectMessagesToSummarize;
+
+  /// No description provided for @chatDetail_summaryGenFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 생성에 실패했습니다. 다시 시도해주세요.'**
+  String get chatDetail_summaryGenFailed;
+
+  /// No description provided for @chatDetail_summaryTimeout.
+  ///
+  /// In ko, this message translates to:
+  /// **'요청 시간이 초과되었습니다. 다시 시도해주세요.'**
+  String get chatDetail_summaryTimeout;
+
+  /// No description provided for @chatDetail_summaryError.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'**
+  String get chatDetail_summaryError;
+
+  /// No description provided for @chatDetail_resetMidnight.
+  ///
+  /// In ko, this message translates to:
+  /// **'내일 자정에 초기화됩니다'**
+  String get chatDetail_resetMidnight;
+
+  /// No description provided for @chatDetail_watchAdGetSummary.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고를 시청하고 무료 요약 1회 획득'**
+  String get chatDetail_watchAdGetSummary;
+
+  /// No description provided for @chatDetail_watchAdToSummarize.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고 보고 요약하기'**
+  String get chatDetail_watchAdToSummarize;
+
+  /// No description provided for @chatDetail_close.
+  ///
+  /// In ko, this message translates to:
+  /// **'닫기'**
+  String get chatDetail_close;
+
+  /// No description provided for @chatDetail_adNotCompleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고 시청이 완료되지 않아 무료 요약 횟수가 추가되지 않았습니다.'**
+  String get chatDetail_adNotCompleted;
+
+  /// No description provided for @chatDetail_summaryFallbackTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 요약'**
+  String get chatDetail_summaryFallbackTitle;
+
+  /// No description provided for @chatDetail_messages.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지'**
+  String get chatDetail_messages;
+
+  /// No description provided for @chatDetail_participants.
+  ///
+  /// In ko, this message translates to:
+  /// **'참여자'**
+  String get chatDetail_participants;
+
+  /// No description provided for @chatDetail_duration.
+  ///
+  /// In ko, this message translates to:
+  /// **'시간'**
+  String get chatDetail_duration;
+
+  /// No description provided for @chatDetail_detailCollapse.
+  ///
+  /// In ko, this message translates to:
+  /// **'상세보기 접기'**
+  String get chatDetail_detailCollapse;
+
+  /// No description provided for @chatDetail_detailExpand.
+  ///
+  /// In ko, this message translates to:
+  /// **'상세보기'**
+  String get chatDetail_detailExpand;
+
+  /// No description provided for @chatDetail_detailContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'상세 내용'**
+  String get chatDetail_detailContent;
+
+  /// No description provided for @chatDetail_timeUnderMin.
+  ///
+  /// In ko, this message translates to:
+  /// **'1분 미만'**
+  String get chatDetail_timeUnderMin;
+
+  /// No description provided for @chatDetail_readHere.
+  ///
+  /// In ko, this message translates to:
+  /// **'여기까지 읽었습니다'**
+  String get chatDetail_readHere;
+
+  /// No description provided for @chatDetail_linkOpenFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'링크를 열 수 없습니다.'**
+  String get chatDetail_linkOpenFailed;
+
+  /// No description provided for @chatDetail_messageCopied.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지가 복사되었습니다.'**
+  String get chatDetail_messageCopied;
+
+  /// No description provided for @chatDetail_copyFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 복사에 실패했습니다.'**
+  String get chatDetail_copyFailed;
+
+  /// No description provided for @chatDetail_copyAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 복사'**
+  String get chatDetail_copyAll;
+
+  /// No description provided for @chatDetail_copyPartial.
+  ///
+  /// In ko, this message translates to:
+  /// **'일부만 복사'**
+  String get chatDetail_copyPartial;
+
+  /// No description provided for @chatDetail_selectText.
+  ///
+  /// In ko, this message translates to:
+  /// **'텍스트 선택'**
+  String get chatDetail_selectText;
+
+  /// No description provided for @chatDetail_dragToSelect.
+  ///
+  /// In ko, this message translates to:
+  /// **'복사할 부분을 드래그하여 선택하세요'**
+  String get chatDetail_dragToSelect;
+
+  /// No description provided for @chatDetail_copySelected.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택 복사'**
+  String get chatDetail_copySelected;
+
+  /// No description provided for @chatDetail_delete.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제'**
+  String get chatDetail_delete;
+
+  /// No description provided for @chatDetail_selectMessages.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 선택'**
+  String get chatDetail_selectMessages;
+
+  /// No description provided for @chatDetail_imageLoadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지를 불러올 수 없습니다'**
+  String get chatDetail_imageLoadFailed;
+
+  /// No description provided for @chatDetail_imageNotFound.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지를 찾을 수 없습니다'**
+  String get chatDetail_imageNotFound;
+
+  /// No description provided for @chatDetail_imageLoadError.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 로드 실패'**
+  String get chatDetail_imageLoadError;
+
+  /// No description provided for @chatDetail_imageFileNotFound.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 파일을 찾을 수 없습니다.'**
+  String get chatDetail_imageFileNotFound;
+
+  /// No description provided for @chatDetail_imageSaved.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지가 갤러리에 저장되었습니다.'**
+  String get chatDetail_imageSaved;
+
+  /// No description provided for @chatDetail_imageSaveFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 저장에 실패했습니다.'**
+  String get chatDetail_imageSaveFailed;
+
+  /// No description provided for @chatDetail_imageSaveError.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 저장 중 오류가 발생했습니다.'**
+  String get chatDetail_imageSaveError;
+
+  /// No description provided for @chatDetail_save.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장'**
+  String get chatDetail_save;
 }
 
 class _AppLocalizationsDelegate

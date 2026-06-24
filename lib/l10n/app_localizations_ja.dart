@@ -879,4 +879,224 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get chatList_planSetError => 'プラン設定中にエラーが発生しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get chatDetail_sendFailed => 'メッセージの送信に失敗しました。';
+
+  @override
+  String get chatDetail_sendError => 'メッセージ送信中にエラーが発生しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get chatDetail_leaveTitle => 'チャットを退出';
+
+  @override
+  String get chatDetail_leaveConfirm => 'メッセージと要約がすべて消えます。\n退出しますか？';
+
+  @override
+  String get chatDetail_cancel => 'キャンセル';
+
+  @override
+  String get chatDetail_leave => '退出';
+
+  @override
+  String get chatDetail_selectUser => 'ユーザーを選択';
+
+  @override
+  String get chatDetail_all => 'すべて';
+
+  @override
+  String get chatDetail_noMessagesToSummarize => '要約するメッセージがありません。';
+
+  @override
+  String get chatDetail_messageCountInput => 'メッセージ数を入力';
+
+  @override
+  String get chatDetail_countInputHint => '件数を入力';
+
+  @override
+  String get chatDetail_countUnit => '件';
+
+  @override
+  String get chatDetail_confirm => '確認';
+
+  @override
+  String get chatDetail_selectStart => '選択開始';
+
+  @override
+  String get chatDetail_selectEnd => '選択終了';
+
+  @override
+  String get chatDetail_pinned => '上部に固定しました。';
+
+  @override
+  String get chatDetail_unpinned => '固定を解除しました。';
+
+  @override
+  String get chatDetail_pinFailed => '固定設定の変更に失敗しました。';
+
+  @override
+  String get chatDetail_summaryOn => '✨ AI要約をオンにしました。';
+
+  @override
+  String get chatDetail_summaryOff => 'AI要約をオフにしました。';
+
+  @override
+  String get chatDetail_summaryToggleFailed => '要約機能の設定変更に失敗しました。';
+
+  @override
+  String get chatDetail_leaveFailed => 'チャットの退出に失敗しました。';
+
+  @override
+  String get chatDetail_deleteMessage => 'メッセージを削除';
+
+  @override
+  String get chatDetail_summaryHistory => 'AI要約履歴';
+
+  @override
+  String get chatDetail_messengerFallback => 'メッセンジャー';
+
+  @override
+  String get chatDetail_retry => '再試行';
+
+  @override
+  String get chatDetail_noConversation => 'まだ会話がありません';
+
+  @override
+  String get chatDetail_summaryMode => 'AI要約モード';
+
+  @override
+  String get chatDetail_searchHint => '会話を検索';
+
+  @override
+  String get chatDetail_summary => '要約';
+
+  @override
+  String get chatDetail_zeroCount => '0件';
+
+  @override
+  String get chatDetail_noResults => '結果なし';
+
+  @override
+  String get chatDetail_datePickerHelp => '移動する日付を選択';
+
+  @override
+  String get chatDetail_datePickerMove => '移動';
+
+  @override
+  String get chatDetail_messageInputHint => 'メッセージを入力';
+
+  @override
+  String get chatDetail_aiSummaryTooltip => 'AI要約';
+
+  @override
+  String get chatDetail_autoSummaryBasic => '自動要約 BASIC';
+
+  @override
+  String get chatDetail_selectMessagesToSummarize => '要約するメッセージを選択してください。';
+
+  @override
+  String get chatDetail_summaryGenFailed => '要約の生成に失敗しました。もう一度お試しください。';
+
+  @override
+  String get chatDetail_summaryTimeout => 'リクエストがタイムアウトしました。もう一度お試しください。';
+
+  @override
+  String get chatDetail_summaryError =>
+      '要約リクエスト中にエラーが発生しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get chatDetail_resetMidnight => '明日の0時にリセットされます';
+
+  @override
+  String get chatDetail_watchAdGetSummary => '広告を視聴して無料要約を1回獲得';
+
+  @override
+  String get chatDetail_watchAdToSummarize => '広告を見て要約する';
+
+  @override
+  String get chatDetail_close => '閉じる';
+
+  @override
+  String get chatDetail_adNotCompleted => '広告の視聴が完了しなかったため、無料要約の回数は追加されませんでした。';
+
+  @override
+  String get chatDetail_summaryFallbackTitle => '会話の要約';
+
+  @override
+  String get chatDetail_messages => 'メッセージ';
+
+  @override
+  String get chatDetail_participants => '参加者';
+
+  @override
+  String get chatDetail_duration => '所要時間';
+
+  @override
+  String get chatDetail_detailCollapse => '詳細を閉じる';
+
+  @override
+  String get chatDetail_detailExpand => '詳細を見る';
+
+  @override
+  String get chatDetail_detailContent => '詳細内容';
+
+  @override
+  String get chatDetail_timeUnderMin => '1分未満';
+
+  @override
+  String get chatDetail_readHere => 'ここまで既読';
+
+  @override
+  String get chatDetail_linkOpenFailed => 'リンクを開けませんでした。';
+
+  @override
+  String get chatDetail_messageCopied => 'メッセージをコピーしました。';
+
+  @override
+  String get chatDetail_copyFailed => 'メッセージのコピーに失敗しました。';
+
+  @override
+  String get chatDetail_copyAll => 'すべてコピー';
+
+  @override
+  String get chatDetail_copyPartial => '一部だけコピー';
+
+  @override
+  String get chatDetail_selectText => 'テキストを選択';
+
+  @override
+  String get chatDetail_dragToSelect => 'コピーしたい部分をドラッグして選択してください';
+
+  @override
+  String get chatDetail_copySelected => '選択範囲をコピー';
+
+  @override
+  String get chatDetail_delete => '削除';
+
+  @override
+  String get chatDetail_selectMessages => 'メッセージを選択';
+
+  @override
+  String get chatDetail_imageLoadFailed => '画像を読み込めませんでした';
+
+  @override
+  String get chatDetail_imageNotFound => '画像が見つかりません';
+
+  @override
+  String get chatDetail_imageLoadError => '画像の読み込みに失敗';
+
+  @override
+  String get chatDetail_imageFileNotFound => '画像ファイルが見つかりません。';
+
+  @override
+  String get chatDetail_imageSaved => '画像をギャラリーに保存しました。';
+
+  @override
+  String get chatDetail_imageSaveFailed => '画像の保存に失敗しました。';
+
+  @override
+  String get chatDetail_imageSaveError => '画像の保存中にエラーが発生しました。';
+
+  @override
+  String get chatDetail_save => '保存';
 }

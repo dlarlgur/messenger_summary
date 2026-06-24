@@ -11,6 +11,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:gal/gal.dart';
 import '../models/chat_room.dart';
 import '../models/chat_message.dart';
+import '../l10n/app_localizations.dart';
 import '../services/local_db_service.dart';
 import '../services/llm_service.dart';
 import '../services/notification_settings_service.dart';
@@ -694,9 +695,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         debugPrint('❌ 메시지 전송 실패');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('메시지 전송에 실패했습니다.'),
-              duration: Duration(seconds: 1),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).chatDetail_sendFailed),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -706,7 +707,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('메시지 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+            content: Text(AppLocalizations.of(context).chatDetail_sendError),
             duration: const Duration(seconds: 1),
           ),
         );
@@ -1046,12 +1047,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('대화방 나가기'),
-        content: const Text('메시지, 요약 전부 사라집니다.\n나가시겠습니까?'),
+        title: Text(AppLocalizations.of(context).chatDetail_leaveTitle),
+        content: Text(AppLocalizations.of(context).chatDetail_leaveConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context).chatDetail_cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -1059,7 +1060,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
               await _leaveRoom();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('나가기'),
+            child: Text(AppLocalizations.of(context).chatDetail_leave),
           ),
         ],
       ),
@@ -1167,9 +1168,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 20),
-          const Text(
-            '사용자 선택',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).chatDetail_selectUser,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -1184,7 +1185,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   // "전체" 옵션
                   return ListTile(
                     leading: const Icon(Icons.people, color: Colors.grey),
-                    title: const Text('전체'),
+                    title: Text(AppLocalizations.of(context).chatDetail_all),
                     onTap: () {
                       setState(() {
                         _selectedSender = null;
@@ -1337,8 +1338,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     // 메시지가 없으면 요약 모드 진입 불가
     if (_messages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('요약할 메시지가 없습니다.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).chatDetail_noMessagesToSummarize),
           backgroundColor: Colors.orange,
         ),
       );

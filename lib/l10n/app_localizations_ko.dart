@@ -879,4 +879,224 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get chatList_planSetError => '플랜 설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+
+  @override
+  String get chatDetail_sendFailed => '메시지 전송에 실패했습니다.';
+
+  @override
+  String get chatDetail_sendError => '메시지 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+
+  @override
+  String get chatDetail_leaveTitle => '대화방 나가기';
+
+  @override
+  String get chatDetail_leaveConfirm => '메시지, 요약 전부 사라집니다.\n나가시겠습니까?';
+
+  @override
+  String get chatDetail_cancel => '취소';
+
+  @override
+  String get chatDetail_leave => '나가기';
+
+  @override
+  String get chatDetail_selectUser => '사용자 선택';
+
+  @override
+  String get chatDetail_all => '전체';
+
+  @override
+  String get chatDetail_noMessagesToSummarize => '요약할 메시지가 없습니다.';
+
+  @override
+  String get chatDetail_messageCountInput => '메시지 개수 입력';
+
+  @override
+  String get chatDetail_countInputHint => '개수 입력';
+
+  @override
+  String get chatDetail_countUnit => '개';
+
+  @override
+  String get chatDetail_confirm => '확인';
+
+  @override
+  String get chatDetail_selectStart => '선택 시작';
+
+  @override
+  String get chatDetail_selectEnd => '선택 끝';
+
+  @override
+  String get chatDetail_pinned => '상단에 고정되었습니다.';
+
+  @override
+  String get chatDetail_unpinned => '고정이 해제되었습니다.';
+
+  @override
+  String get chatDetail_pinFailed => '고정 설정 변경에 실패했습니다.';
+
+  @override
+  String get chatDetail_summaryOn => '✨ AI 요약 기능이 켜졌습니다.';
+
+  @override
+  String get chatDetail_summaryOff => 'AI 요약 기능이 꺼졌습니다.';
+
+  @override
+  String get chatDetail_summaryToggleFailed => '요약 기능 설정 변경에 실패했습니다.';
+
+  @override
+  String get chatDetail_leaveFailed => '대화방 나가기에 실패했습니다.';
+
+  @override
+  String get chatDetail_deleteMessage => '메시지 삭제';
+
+  @override
+  String get chatDetail_summaryHistory => 'AI 요약 히스토리';
+
+  @override
+  String get chatDetail_messengerFallback => '메신저';
+
+  @override
+  String get chatDetail_retry => '다시 시도';
+
+  @override
+  String get chatDetail_noConversation => '아직 대화가 없습니다';
+
+  @override
+  String get chatDetail_summaryMode => 'AI 요약 모드';
+
+  @override
+  String get chatDetail_searchHint => '대화 검색';
+
+  @override
+  String get chatDetail_summary => '요약';
+
+  @override
+  String get chatDetail_zeroCount => '0개';
+
+  @override
+  String get chatDetail_noResults => '결과 없음';
+
+  @override
+  String get chatDetail_datePickerHelp => '이동할 날짜 선택';
+
+  @override
+  String get chatDetail_datePickerMove => '이동';
+
+  @override
+  String get chatDetail_messageInputHint => '메시지 입력';
+
+  @override
+  String get chatDetail_aiSummaryTooltip => 'AI 요약';
+
+  @override
+  String get chatDetail_autoSummaryBasic => '자동요약 BASIC';
+
+  @override
+  String get chatDetail_selectMessagesToSummarize => '요약할 메시지를 선택해주세요.';
+
+  @override
+  String get chatDetail_summaryGenFailed => '요약 생성에 실패했습니다. 다시 시도해주세요.';
+
+  @override
+  String get chatDetail_summaryTimeout => '요청 시간이 초과되었습니다. 다시 시도해주세요.';
+
+  @override
+  String get chatDetail_summaryError => '요약 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+
+  @override
+  String get chatDetail_resetMidnight => '내일 자정에 초기화됩니다';
+
+  @override
+  String get chatDetail_watchAdGetSummary => '광고를 시청하고 무료 요약 1회 획득';
+
+  @override
+  String get chatDetail_watchAdToSummarize => '광고 보고 요약하기';
+
+  @override
+  String get chatDetail_close => '닫기';
+
+  @override
+  String get chatDetail_adNotCompleted =>
+      '광고 시청이 완료되지 않아 무료 요약 횟수가 추가되지 않았습니다.';
+
+  @override
+  String get chatDetail_summaryFallbackTitle => '대화 요약';
+
+  @override
+  String get chatDetail_messages => '메시지';
+
+  @override
+  String get chatDetail_participants => '참여자';
+
+  @override
+  String get chatDetail_duration => '시간';
+
+  @override
+  String get chatDetail_detailCollapse => '상세보기 접기';
+
+  @override
+  String get chatDetail_detailExpand => '상세보기';
+
+  @override
+  String get chatDetail_detailContent => '상세 내용';
+
+  @override
+  String get chatDetail_timeUnderMin => '1분 미만';
+
+  @override
+  String get chatDetail_readHere => '여기까지 읽었습니다';
+
+  @override
+  String get chatDetail_linkOpenFailed => '링크를 열 수 없습니다.';
+
+  @override
+  String get chatDetail_messageCopied => '메시지가 복사되었습니다.';
+
+  @override
+  String get chatDetail_copyFailed => '메시지 복사에 실패했습니다.';
+
+  @override
+  String get chatDetail_copyAll => '전체 복사';
+
+  @override
+  String get chatDetail_copyPartial => '일부만 복사';
+
+  @override
+  String get chatDetail_selectText => '텍스트 선택';
+
+  @override
+  String get chatDetail_dragToSelect => '복사할 부분을 드래그하여 선택하세요';
+
+  @override
+  String get chatDetail_copySelected => '선택 복사';
+
+  @override
+  String get chatDetail_delete => '삭제';
+
+  @override
+  String get chatDetail_selectMessages => '메시지 선택';
+
+  @override
+  String get chatDetail_imageLoadFailed => '이미지를 불러올 수 없습니다';
+
+  @override
+  String get chatDetail_imageNotFound => '이미지를 찾을 수 없습니다';
+
+  @override
+  String get chatDetail_imageLoadError => '이미지 로드 실패';
+
+  @override
+  String get chatDetail_imageFileNotFound => '이미지 파일을 찾을 수 없습니다.';
+
+  @override
+  String get chatDetail_imageSaved => '이미지가 갤러리에 저장되었습니다.';
+
+  @override
+  String get chatDetail_imageSaveFailed => '이미지 저장에 실패했습니다.';
+
+  @override
+  String get chatDetail_imageSaveError => '이미지 저장 중 오류가 발생했습니다.';
+
+  @override
+  String get chatDetail_save => '저장';
 }

@@ -917,4 +917,234 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatList_planSetError =>
       'An error occurred while setting the plan. Please try again shortly.';
+
+  @override
+  String get chatDetail_sendFailed => 'Failed to send the message.';
+
+  @override
+  String get chatDetail_sendError =>
+      'An error occurred while sending. Please try again shortly.';
+
+  @override
+  String get chatDetail_leaveTitle => 'Leave chat';
+
+  @override
+  String get chatDetail_leaveConfirm =>
+      'All messages and summaries will be lost.\nAre you sure you want to leave?';
+
+  @override
+  String get chatDetail_cancel => 'Cancel';
+
+  @override
+  String get chatDetail_leave => 'Leave';
+
+  @override
+  String get chatDetail_selectUser => 'Select user';
+
+  @override
+  String get chatDetail_all => 'All';
+
+  @override
+  String get chatDetail_noMessagesToSummarize => 'No messages to summarize.';
+
+  @override
+  String get chatDetail_messageCountInput => 'Enter message count';
+
+  @override
+  String get chatDetail_countInputHint => 'Enter a number';
+
+  @override
+  String get chatDetail_countUnit => '';
+
+  @override
+  String get chatDetail_confirm => 'OK';
+
+  @override
+  String get chatDetail_selectStart => 'Start of selection';
+
+  @override
+  String get chatDetail_selectEnd => 'End of selection';
+
+  @override
+  String get chatDetail_pinned => 'Pinned to top.';
+
+  @override
+  String get chatDetail_unpinned => 'Unpinned.';
+
+  @override
+  String get chatDetail_pinFailed => 'Failed to change the pin setting.';
+
+  @override
+  String get chatDetail_summaryOn => '✨ AI summary turned on.';
+
+  @override
+  String get chatDetail_summaryOff => 'AI summary turned off.';
+
+  @override
+  String get chatDetail_summaryToggleFailed =>
+      'Failed to change the summary setting.';
+
+  @override
+  String get chatDetail_leaveFailed => 'Failed to leave the chat.';
+
+  @override
+  String get chatDetail_deleteMessage => 'Delete messages';
+
+  @override
+  String get chatDetail_summaryHistory => 'AI summary history';
+
+  @override
+  String get chatDetail_messengerFallback => 'Messenger';
+
+  @override
+  String get chatDetail_retry => 'Retry';
+
+  @override
+  String get chatDetail_noConversation => 'No conversation yet';
+
+  @override
+  String get chatDetail_summaryMode => 'AI summary mode';
+
+  @override
+  String get chatDetail_searchHint => 'Search conversation';
+
+  @override
+  String get chatDetail_summary => 'Summarize';
+
+  @override
+  String get chatDetail_zeroCount => '0';
+
+  @override
+  String get chatDetail_noResults => 'No results';
+
+  @override
+  String get chatDetail_datePickerHelp => 'Select a date to jump to';
+
+  @override
+  String get chatDetail_datePickerMove => 'Go';
+
+  @override
+  String get chatDetail_messageInputHint => 'Type a message';
+
+  @override
+  String get chatDetail_aiSummaryTooltip => 'AI summary';
+
+  @override
+  String get chatDetail_autoSummaryBasic => 'Auto-summary BASIC';
+
+  @override
+  String get chatDetail_selectMessagesToSummarize =>
+      'Please select messages to summarize.';
+
+  @override
+  String get chatDetail_summaryGenFailed =>
+      'Failed to generate the summary. Please try again.';
+
+  @override
+  String get chatDetail_summaryTimeout =>
+      'The request timed out. Please try again.';
+
+  @override
+  String get chatDetail_summaryError =>
+      'An error occurred during the summary request. Please try again shortly.';
+
+  @override
+  String get chatDetail_resetMidnight => 'Resets at midnight tonight';
+
+  @override
+  String get chatDetail_watchAdGetSummary =>
+      'Watch an ad to get 1 free summary';
+
+  @override
+  String get chatDetail_watchAdToSummarize => 'Watch ad to summarize';
+
+  @override
+  String get chatDetail_close => 'Close';
+
+  @override
+  String get chatDetail_adNotCompleted =>
+      'The ad wasn\'t finished, so no free summary was added.';
+
+  @override
+  String get chatDetail_summaryFallbackTitle => 'Conversation summary';
+
+  @override
+  String get chatDetail_messages => 'Messages';
+
+  @override
+  String get chatDetail_participants => 'Participants';
+
+  @override
+  String get chatDetail_duration => 'Duration';
+
+  @override
+  String get chatDetail_detailCollapse => 'Collapse details';
+
+  @override
+  String get chatDetail_detailExpand => 'View details';
+
+  @override
+  String get chatDetail_detailContent => 'Details';
+
+  @override
+  String get chatDetail_timeUnderMin => 'Under 1 min';
+
+  @override
+  String get chatDetail_readHere => 'Read up to here';
+
+  @override
+  String get chatDetail_linkOpenFailed => 'Couldn\'t open the link.';
+
+  @override
+  String get chatDetail_messageCopied => 'Message copied.';
+
+  @override
+  String get chatDetail_copyFailed => 'Failed to copy the message.';
+
+  @override
+  String get chatDetail_copyAll => 'Copy all';
+
+  @override
+  String get chatDetail_copyPartial => 'Copy part';
+
+  @override
+  String get chatDetail_selectText => 'Select text';
+
+  @override
+  String get chatDetail_dragToSelect =>
+      'Drag to select the part you want to copy';
+
+  @override
+  String get chatDetail_copySelected => 'Copy selection';
+
+  @override
+  String get chatDetail_delete => 'Delete';
+
+  @override
+  String get chatDetail_selectMessages => 'Select messages';
+
+  @override
+  String get chatDetail_imageLoadFailed => 'Couldn\'t load the image';
+
+  @override
+  String get chatDetail_imageNotFound => 'Image not found';
+
+  @override
+  String get chatDetail_imageLoadError => 'Image load failed';
+
+  @override
+  String get chatDetail_imageFileNotFound => 'Image file not found.';
+
+  @override
+  String get chatDetail_imageSaved => 'Image saved to your gallery.';
+
+  @override
+  String get chatDetail_imageSaveFailed => 'Failed to save the image.';
+
+  @override
+  String get chatDetail_imageSaveError =>
+      'An error occurred while saving the image.';
+
+  @override
+  String get chatDetail_save => 'Save';
 }
