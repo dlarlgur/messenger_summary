@@ -1102,4 +1102,170 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get chatDetail_msgDeleteFailed => '메시지 삭제에 실패했습니다.';
+
+  @override
+  String get settings_sectionAppNotif => 'AI 톡비서 알림';
+
+  @override
+  String get settings_sectionChat => '채팅방 설정';
+
+  @override
+  String get settings_messengerManage => '메신저 관리';
+
+  @override
+  String get settings_messengerManageSub => '사용할 메신저 선택 및 순서 변경';
+
+  @override
+  String get settings_blockedRooms => '차단된 채팅방 관리';
+
+  @override
+  String get settings_blockedRoomsSub => '요약에서 제외할 채팅방';
+
+  @override
+  String get settings_summaryManage => '요약 관리';
+
+  @override
+  String get settings_summaryManageSub => '요약 사용량 및 설정';
+
+  @override
+  String get settings_sectionSupport => '소식·도움말';
+
+  @override
+  String get settings_notices => '공지사항';
+
+  @override
+  String get settings_noticesFallback => '새 공지를 확인해보세요';
+
+  @override
+  String get settings_events => '이벤트';
+
+  @override
+  String get settings_eventsFallback => '진행 중 이벤트가 있을 수 있어요';
+
+  @override
+  String get settings_faq => '자주 묻는 질문';
+
+  @override
+  String get settings_faqFallback => '궁금한 점을 확인해보세요';
+
+  @override
+  String get settings_inquiry => '1:1 문의하기';
+
+  @override
+  String get settings_inquirySub => '궁금한 점을 남기면 답변을 드려요';
+
+  @override
+  String get settings_sectionNotif => '알림';
+
+  @override
+  String get settings_review => '리뷰를 남겨주세요';
+
+  @override
+  String get settings_reviewSub => '소중한 리뷰가 큰 힘이 됩니다';
+
+  @override
+  String get settings_share => '친구에게 추천하기';
+
+  @override
+  String get settings_shareSub => '앱을 친구와 공유해보세요';
+
+  @override
+  String get settings_howToUse => 'AI 톡비서 사용방법';
+
+  @override
+  String get settings_howToUseSub => '앱 사용 가이드';
+
+  @override
+  String get settings_about => 'AI 톡비서 란';
+
+  @override
+  String get settings_aboutSub => '앱 소개 및 기능 안내';
+
+  @override
+  String get settings_policies => '정책 및 약관';
+
+  @override
+  String get settings_policiesSub => '개인정보처리방침·이용약관 등';
+
+  @override
+  String get settings_planBasicActive => 'Basic 플랜 이용 중';
+
+  @override
+  String get settings_planBasicActiveSub => '구독 관리 및 혜택 확인';
+
+  @override
+  String get settings_planFree => '무료 플랜';
+
+  @override
+  String get settings_planFreeSub => 'Basic으로 업그레이드해 더 많이 요약하세요';
+
+  @override
+  String get settings_featureAutoManual => '월 150회 대화 요약 (자동+수동)';
+
+  @override
+  String get settings_featureAutoPush => '자동요약 + 푸시 알림';
+
+  @override
+  String get settings_featureNoAds => '방해 광고 제거 (전면·리워드 X)';
+
+  @override
+  String get settings_marketingTitle => '마케팅 정보 수신';
+
+  @override
+  String get settings_marketingToggle => '이벤트·혜택 알림 받기';
+
+  @override
+  String get settings_marketingToggleSub => '이벤트·프로모션 등 광고성 정보 수신 (선택)';
+
+  @override
+  String get settings_playStoreOpenFailed => '플레이스토어를 열 수 없습니다.';
+
+  @override
+  String get settings_storeOpenFailed => '스토어를 열 수 없습니다.';
+
+  @override
+  String get settings_sound => '소리';
+
+  @override
+  String get settings_vibration => '진동';
+
+  @override
+  String get settings_notifOff => '알림이 꺼져 있습니다';
+
+  @override
+  String get settings_soundOn => '소리가 켜져 있습니다';
+
+  @override
+  String get settings_soundOff => '소리가 꺼져 있습니다';
+
+  @override
+  String get settings_vibrationOn => '진동이 켜져 있습니다';
+
+  @override
+  String get settings_vibrationOff => '진동이 꺼져 있습니다';
+
+  @override
+  String get settings_notifPermTitle => '알림 권한 필요';
+
+  @override
+  String get settings_notifPermContent =>
+      '자동 요약 알림을 받으려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.';
+
+  @override
+  String get settings_cancel => '취소';
+
+  @override
+  String get settings_goToSettings => '설정으로 이동';
+
+  @override
+  String get settings_autoSummaryNotif => '자동 요약 알림';
+
+  @override
+  String get settings_autoSummaryNotifNeedPerm => '알림 권한이 필요합니다';
+
+  @override
+  String get settings_autoSummaryNotifOn => '자동 요약 완료 시 푸시 알림을 받습니다';
+
+  @override
+  String get settings_autoSummaryNotifOff => '자동 요약 알림이 꺼져 있습니다';
 }

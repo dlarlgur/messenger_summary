@@ -1150,4 +1150,178 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatDetail_msgDeleteFailed => 'Failed to delete the message.';
+
+  @override
+  String get settings_sectionAppNotif => 'App notifications';
+
+  @override
+  String get settings_sectionChat => 'Chat settings';
+
+  @override
+  String get settings_messengerManage => 'Manage messengers';
+
+  @override
+  String get settings_messengerManageSub =>
+      'Choose messengers and change their order';
+
+  @override
+  String get settings_blockedRooms => 'Manage blocked chats';
+
+  @override
+  String get settings_blockedRoomsSub => 'Chats to exclude from summaries';
+
+  @override
+  String get settings_summaryManage => 'Summary management';
+
+  @override
+  String get settings_summaryManageSub => 'Summary usage and settings';
+
+  @override
+  String get settings_sectionSupport => 'News & Help';
+
+  @override
+  String get settings_notices => 'Notices';
+
+  @override
+  String get settings_noticesFallback => 'Check out the latest notices';
+
+  @override
+  String get settings_events => 'Events';
+
+  @override
+  String get settings_eventsFallback => 'There may be events going on';
+
+  @override
+  String get settings_faq => 'FAQ';
+
+  @override
+  String get settings_faqFallback => 'Find answers to your questions';
+
+  @override
+  String get settings_inquiry => 'Contact us';
+
+  @override
+  String get settings_inquirySub => 'Leave a question and we\'ll reply';
+
+  @override
+  String get settings_sectionNotif => 'Notifications';
+
+  @override
+  String get settings_review => 'Leave a review';
+
+  @override
+  String get settings_reviewSub => 'Your review means a lot to us';
+
+  @override
+  String get settings_share => 'Recommend to a friend';
+
+  @override
+  String get settings_shareSub => 'Share the app with friends';
+
+  @override
+  String get settings_howToUse => 'How to use the app';
+
+  @override
+  String get settings_howToUseSub => 'App usage guide';
+
+  @override
+  String get settings_about => 'About the app';
+
+  @override
+  String get settings_aboutSub => 'App intro and features';
+
+  @override
+  String get settings_policies => 'Policies & Terms';
+
+  @override
+  String get settings_policiesSub => 'Privacy policy, terms of service, etc.';
+
+  @override
+  String get settings_planBasicActive => 'On the Basic plan';
+
+  @override
+  String get settings_planBasicActiveSub =>
+      'Manage subscription and view benefits';
+
+  @override
+  String get settings_planFree => 'Free plan';
+
+  @override
+  String get settings_planFreeSub => 'Upgrade to Basic to summarize more';
+
+  @override
+  String get settings_featureAutoManual =>
+      '150 summaries/month (auto + manual)';
+
+  @override
+  String get settings_featureAutoPush => 'Auto-summary + push notifications';
+
+  @override
+  String get settings_featureNoAds =>
+      'No intrusive ads (no interstitial/rewarded)';
+
+  @override
+  String get settings_marketingTitle => 'Receive marketing info';
+
+  @override
+  String get settings_marketingToggle => 'Get event and benefit alerts';
+
+  @override
+  String get settings_marketingToggleSub =>
+      'Receive promotional info such as events (optional)';
+
+  @override
+  String get settings_playStoreOpenFailed => 'Couldn\'t open the Play Store.';
+
+  @override
+  String get settings_storeOpenFailed => 'Couldn\'t open the store.';
+
+  @override
+  String get settings_sound => 'Sound';
+
+  @override
+  String get settings_vibration => 'Vibration';
+
+  @override
+  String get settings_notifOff => 'Notifications are off';
+
+  @override
+  String get settings_soundOn => 'Sound is on';
+
+  @override
+  String get settings_soundOff => 'Sound is off';
+
+  @override
+  String get settings_vibrationOn => 'Vibration is on';
+
+  @override
+  String get settings_vibrationOff => 'Vibration is off';
+
+  @override
+  String get settings_notifPermTitle => 'Notification permission needed';
+
+  @override
+  String get settings_notifPermContent =>
+      'To receive auto-summary notifications,\nnotification permission is required.\n\nPlease allow notifications in Settings.';
+
+  @override
+  String get settings_cancel => 'Cancel';
+
+  @override
+  String get settings_goToSettings => 'Go to Settings';
+
+  @override
+  String get settings_autoSummaryNotif => 'Auto-summary notifications';
+
+  @override
+  String get settings_autoSummaryNotifNeedPerm =>
+      'Notification permission required';
+
+  @override
+  String get settings_autoSummaryNotifOn =>
+      'Get a push when auto-summary completes';
+
+  @override
+  String get settings_autoSummaryNotifOff =>
+      'Auto-summary notifications are off';
 }

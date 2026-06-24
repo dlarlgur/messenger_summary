@@ -146,18 +146,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           _buildPremiumBanner(),
 
           // AI 톡비서 알림 섹션 (맨 위)
-          _buildSectionHeaderStyled('AI 톡비서 알림', Icons.notifications_active),
+          _buildSectionHeaderStyled(AppLocalizations.of(context).settings_sectionAppNotif, Icons.notifications_active),
           _buildAutoSummaryNotificationMenuItem(context),
           _buildSoundMenuItem(context),
           _buildVibrationMenuItem(context),
           const SizedBox(height: 16),
 
           // 채팅방 설정 섹션
-          _buildSectionHeaderStyled('채팅방 설정', Icons.chat_bubble_outline),
+          _buildSectionHeaderStyled(AppLocalizations.of(context).settings_sectionChat, Icons.chat_bubble_outline),
           _buildStyledMenuItem(
             icon: Icons.forum,
-            title: '메신저 관리',
-            subtitle: '사용할 메신저 선택 및 순서 변경',
+            title: AppLocalizations.of(context).settings_messengerManage,
+            subtitle: AppLocalizations.of(context).settings_messengerManageSub,
             isFirst: true,
             onTap: () {
               Navigator.of(context).push(
@@ -169,8 +169,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.block,
-            title: '차단된 채팅방 관리',
-            subtitle: '요약에서 제외할 채팅방',
+            title: AppLocalizations.of(context).settings_blockedRooms,
+            subtitle: AppLocalizations.of(context).settings_blockedRoomsSub,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -181,8 +181,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.auto_awesome,
-            title: '요약 관리',
-            subtitle: '요약 사용량 및 설정',
+            title: AppLocalizations.of(context).settings_summaryManage,
+            subtitle: AppLocalizations.of(context).settings_summaryManageSub,
             isLast: true,
             onTap: () {
               Navigator.of(context).push(
@@ -195,11 +195,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           const SizedBox(height: 16),
 
           // 소식·도움말 섹션 (콘솔 등록 콘텐츠)
-          _buildSectionHeaderStyled('소식·도움말', Icons.support_agent),
+          _buildSectionHeaderStyled(AppLocalizations.of(context).settings_sectionSupport, Icons.support_agent),
           _buildStyledMenuItem(
             icon: Icons.campaign,
-            title: '공지사항',
-            subtitle: _supportCountSubtitle('notices', '새 공지를 확인해보세요'),
+            title: AppLocalizations.of(context).settings_notices,
+            subtitle: _supportCountSubtitle('notices', AppLocalizations.of(context).settings_noticesFallback),
             iconColor: AppTokens.accent,
             isFirst: true,
             onTap: () {
@@ -210,9 +210,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.celebration,
-            title: '이벤트',
+            title: AppLocalizations.of(context).settings_events,
             subtitle:
-                _supportCountSubtitle('events', '진행 중 이벤트가 있을 수 있어요'),
+                _supportCountSubtitle('events', AppLocalizations.of(context).settings_eventsFallback),
             iconColor: Colors.deepOrange,
             onTap: () {
               Navigator.of(context).push(
@@ -222,8 +222,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.help_center,
-            title: '자주 묻는 질문',
-            subtitle: _supportCountSubtitle('faqs', '궁금한 점을 확인해보세요'),
+            title: AppLocalizations.of(context).settings_faq,
+            subtitle: _supportCountSubtitle('faqs', AppLocalizations.of(context).settings_faqFallback),
             iconColor: Colors.teal,
             onTap: () {
               Navigator.of(context).push(
@@ -233,8 +233,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.support_agent_rounded,
-            title: '1:1 문의하기',
-            subtitle: '궁금한 점을 남기면 답변을 드려요',
+            title: AppLocalizations.of(context).settings_inquiry,
+            subtitle: AppLocalizations.of(context).settings_inquirySub,
             iconColor: const Color(0xFF3B82F6),
             onTap: () {
               // 네이티브 배너는 플랜 무관 항상 노출 (구독자도 유지 — 주 수익원).
@@ -252,7 +252,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           const SizedBox(height: 16),
 
           // 알림 설정 섹션 — 마케팅(광고성) 수신 동의 토글 (정보통신망법상 상시 철회 가능)
-          _buildSectionHeaderStyled('알림', Icons.notifications_active),
+          _buildSectionHeaderStyled(AppLocalizations.of(context).settings_sectionNotif, Icons.notifications_active),
           _buildMarketingToggle(),
           const SizedBox(height: 16),
 
@@ -270,8 +270,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.star,
-            title: '리뷰를 남겨주세요',
-            subtitle: '소중한 리뷰가 큰 힘이 됩니다',
+            title: AppLocalizations.of(context).settings_review,
+            subtitle: AppLocalizations.of(context).settings_reviewSub,
             iconColor: Colors.amber,
             onTap: () {
               _openStoreReview();
@@ -279,8 +279,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.share,
-            title: '친구에게 추천하기',
-            subtitle: '앱을 친구와 공유해보세요',
+            title: AppLocalizations.of(context).settings_share,
+            subtitle: AppLocalizations.of(context).settings_shareSub,
             iconColor: Colors.green,
             onTap: () {
               _openStoreShare();
@@ -288,8 +288,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.help_outline,
-            title: 'AI 톡비서 사용방법',
-            subtitle: '앱 사용 가이드',
+            title: AppLocalizations.of(context).settings_howToUse,
+            subtitle: AppLocalizations.of(context).settings_howToUseSub,
             iconColor: _primaryBlue,
             onTap: () {
               Navigator.of(context).push(
@@ -301,8 +301,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.info_outline,
-            title: 'AI 톡비서 란',
-            subtitle: '앱 소개 및 기능 안내',
+            title: AppLocalizations.of(context).settings_about,
+            subtitle: AppLocalizations.of(context).settings_aboutSub,
             iconColor: _primaryBlue,
             onTap: () {
               Navigator.of(context).push(
@@ -314,8 +314,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           ),
           _buildStyledMenuItem(
             icon: Icons.policy_outlined,
-            title: '정책 및 약관',
-            subtitle: '개인정보처리방침·이용약관 등',
+            title: AppLocalizations.of(context).settings_policies,
+            subtitle: AppLocalizations.of(context).settings_policiesSub,
             iconColor: Colors.indigo,
             onTap: () {
               Navigator.of(context).push(
@@ -368,12 +368,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
 
     switch (_currentPlanType) {
       case 'basic':
-        planDisplayName = 'Basic 플랜 이용 중';
-        planDescription = '구독 관리 및 혜택 확인';
+        planDisplayName = AppLocalizations.of(context).settings_planBasicActive;
+        planDescription = AppLocalizations.of(context).settings_planBasicActiveSub;
         break;
       default:
-        planDisplayName = '무료 플랜';
-        planDescription = 'Basic으로 업그레이드해 더 많이 요약하세요';
+        planDisplayName = AppLocalizations.of(context).settings_planFree;
+        planDescription = AppLocalizations.of(context).settings_planFreeSub;
     }
 
     return GestureDetector(
@@ -524,13 +524,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       case 'basic':
         final basicMsg = _basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback;
         return [
-          _buildFeatureItem('월 150회 대화 요약 (자동+수동)'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureAutoManual),
           const SizedBox(height: 8),
           _buildFeatureItem('메시지 최대 ${basicMsg}개까지 요약'),
           const SizedBox(height: 8),
-          _buildFeatureItem('자동요약 + 푸시 알림'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureAutoPush),
           const SizedBox(height: 8),
-          _buildFeatureItem('방해 광고 제거 (전면·리워드 X)'),
+          _buildFeatureItem(AppLocalizations.of(context).settings_featureNoAds),
         ];
       default: // free
         final maxLimit = _freePlanMaxLimit ?? UsageConstants.freePlanMaxLimitFallback;
@@ -806,19 +806,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                       size: 22, color: Colors.deepOrange),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('이벤트·혜택 알림 받기',
-                          style: TextStyle(
+                      Text(AppLocalizations.of(context).settings_marketingToggle,
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppTokens.text)),
-                      SizedBox(height: 2),
-                      Text('이벤트·프로모션 등 광고성 정보 수신 (선택)',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E))),
+                      const SizedBox(height: 2),
+                      Text(AppLocalizations.of(context).settings_marketingToggleSub,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF9E9E9E))),
                     ],
                   ),
                 ),
@@ -847,8 +847,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       debugPrint('플레이스토어 열기 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('플레이스토어를 열 수 없습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).settings_playStoreOpenFailed),
           ),
         );
       }
@@ -867,8 +867,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       debugPrint('스토어 열기 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('스토어를 열 수 없습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).settings_storeOpenFailed),
           ),
         );
       }
@@ -928,7 +928,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '소리',
+                            AppLocalizations.of(context).settings_sound,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -938,8 +938,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                           const SizedBox(height: 2),
                           Text(
                             !canToggle
-                                ? '알림이 꺼져 있습니다'
-                                : (isSoundEnabled ? '소리가 켜져 있습니다' : '소리가 꺼져 있습니다'),
+                                ? AppLocalizations.of(context).settings_notifOff
+                                : (isSoundEnabled ? AppLocalizations.of(context).settings_soundOn : AppLocalizations.of(context).settings_soundOff),
                             style: TextStyle(
                               fontSize: 12,
                               color: canToggle ? Colors.grey[500] : Colors.grey[400],
@@ -1023,7 +1023,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '진동',
+                            AppLocalizations.of(context).settings_vibration,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -1033,8 +1033,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                           const SizedBox(height: 2),
                           Text(
                             !canToggle
-                                ? '알림이 꺼져 있습니다'
-                                : (isVibrationEnabled ? '진동이 켜져 있습니다' : '진동이 꺼져 있습니다'),
+                                ? AppLocalizations.of(context).settings_notifOff
+                                : (isVibrationEnabled ? AppLocalizations.of(context).settings_vibrationOn : AppLocalizations.of(context).settings_vibrationOff),
                             style: TextStyle(
                               fontSize: 12,
                               color: canToggle ? Colors.grey[500] : Colors.grey[400],
@@ -1095,12 +1095,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                     showDialog(
                       context: context,
                       builder: (dialogContext) => AlertDialog(
-                        title: const Text('알림 권한 필요'),
-                        content: const Text('자동 요약 알림을 받으려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.'),
+                        title: Text(AppLocalizations.of(context).settings_notifPermTitle),
+                        content: Text(AppLocalizations.of(context).settings_notifPermContent),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text('취소'),
+                            child: Text(AppLocalizations.of(context).settings_cancel),
                           ),
                           ElevatedButton(
                             onPressed: () async {
@@ -1117,7 +1117,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                               backgroundColor: AppTokens.accent,
                               foregroundColor: Colors.white,
                             ),
-                            child: const Text('설정으로 이동'),
+                            child: Text(AppLocalizations.of(context).settings_goToSettings),
                           ),
                         ],
                       ),
@@ -1156,9 +1156,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            '자동 요약 알림',
-                            style: TextStyle(
+                          Text(
+                            AppLocalizations.of(context).settings_autoSummaryNotif,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppTokens.text,
@@ -1167,10 +1167,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                           const SizedBox(height: 2),
                           Text(
                             !systemPermissionEnabled
-                                ? '알림 권한이 필요합니다'
+                                ? AppLocalizations.of(context).settings_autoSummaryNotifNeedPerm
                                 : isEnabled
-                                    ? '자동 요약 완료 시 푸시 알림을 받습니다'
-                                    : '자동 요약 알림이 꺼져 있습니다',
+                                    ? AppLocalizations.of(context).settings_autoSummaryNotifOn
+                                    : AppLocalizations.of(context).settings_autoSummaryNotifOff,
                             style: TextStyle(
                               fontSize: 12,
                               color: !systemPermissionEnabled ? Colors.orange[700] : Colors.grey[500],
@@ -1214,8 +1214,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
       debugPrint('스토어 열기 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('스토어를 열 수 없습니다.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).settings_storeOpenFailed),
           ),
         );
       }

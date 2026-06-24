@@ -2229,6 +2229,336 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'메시지 삭제에 실패했습니다.'**
   String get chatDetail_msgDeleteFailed;
+
+  /// No description provided for @settings_sectionAppNotif.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 알림'**
+  String get settings_sectionAppNotif;
+
+  /// No description provided for @settings_sectionChat.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방 설정'**
+  String get settings_sectionChat;
+
+  /// No description provided for @settings_messengerManage.
+  ///
+  /// In ko, this message translates to:
+  /// **'메신저 관리'**
+  String get settings_messengerManage;
+
+  /// No description provided for @settings_messengerManageSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용할 메신저 선택 및 순서 변경'**
+  String get settings_messengerManageSub;
+
+  /// No description provided for @settings_blockedRooms.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단된 채팅방 관리'**
+  String get settings_blockedRooms;
+
+  /// No description provided for @settings_blockedRoomsSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약에서 제외할 채팅방'**
+  String get settings_blockedRoomsSub;
+
+  /// No description provided for @settings_summaryManage.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 관리'**
+  String get settings_summaryManage;
+
+  /// No description provided for @settings_summaryManageSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 사용량 및 설정'**
+  String get settings_summaryManageSub;
+
+  /// No description provided for @settings_sectionSupport.
+  ///
+  /// In ko, this message translates to:
+  /// **'소식·도움말'**
+  String get settings_sectionSupport;
+
+  /// No description provided for @settings_notices.
+  ///
+  /// In ko, this message translates to:
+  /// **'공지사항'**
+  String get settings_notices;
+
+  /// No description provided for @settings_noticesFallback.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 공지를 확인해보세요'**
+  String get settings_noticesFallback;
+
+  /// No description provided for @settings_events.
+  ///
+  /// In ko, this message translates to:
+  /// **'이벤트'**
+  String get settings_events;
+
+  /// No description provided for @settings_eventsFallback.
+  ///
+  /// In ko, this message translates to:
+  /// **'진행 중 이벤트가 있을 수 있어요'**
+  String get settings_eventsFallback;
+
+  /// No description provided for @settings_faq.
+  ///
+  /// In ko, this message translates to:
+  /// **'자주 묻는 질문'**
+  String get settings_faq;
+
+  /// No description provided for @settings_faqFallback.
+  ///
+  /// In ko, this message translates to:
+  /// **'궁금한 점을 확인해보세요'**
+  String get settings_faqFallback;
+
+  /// No description provided for @settings_inquiry.
+  ///
+  /// In ko, this message translates to:
+  /// **'1:1 문의하기'**
+  String get settings_inquiry;
+
+  /// No description provided for @settings_inquirySub.
+  ///
+  /// In ko, this message translates to:
+  /// **'궁금한 점을 남기면 답변을 드려요'**
+  String get settings_inquirySub;
+
+  /// No description provided for @settings_sectionNotif.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림'**
+  String get settings_sectionNotif;
+
+  /// No description provided for @settings_review.
+  ///
+  /// In ko, this message translates to:
+  /// **'리뷰를 남겨주세요'**
+  String get settings_review;
+
+  /// No description provided for @settings_reviewSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'소중한 리뷰가 큰 힘이 됩니다'**
+  String get settings_reviewSub;
+
+  /// No description provided for @settings_share.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구에게 추천하기'**
+  String get settings_share;
+
+  /// No description provided for @settings_shareSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱을 친구와 공유해보세요'**
+  String get settings_shareSub;
+
+  /// No description provided for @settings_howToUse.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 사용방법'**
+  String get settings_howToUse;
+
+  /// No description provided for @settings_howToUseSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 사용 가이드'**
+  String get settings_howToUseSub;
+
+  /// No description provided for @settings_about.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서 란'**
+  String get settings_about;
+
+  /// No description provided for @settings_aboutSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 소개 및 기능 안내'**
+  String get settings_aboutSub;
+
+  /// No description provided for @settings_policies.
+  ///
+  /// In ko, this message translates to:
+  /// **'정책 및 약관'**
+  String get settings_policies;
+
+  /// No description provided for @settings_policiesSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'개인정보처리방침·이용약관 등'**
+  String get settings_policiesSub;
+
+  /// No description provided for @settings_planBasicActive.
+  ///
+  /// In ko, this message translates to:
+  /// **'Basic 플랜 이용 중'**
+  String get settings_planBasicActive;
+
+  /// No description provided for @settings_planBasicActiveSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'구독 관리 및 혜택 확인'**
+  String get settings_planBasicActiveSub;
+
+  /// No description provided for @settings_planFree.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 플랜'**
+  String get settings_planFree;
+
+  /// No description provided for @settings_planFreeSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'Basic으로 업그레이드해 더 많이 요약하세요'**
+  String get settings_planFreeSub;
+
+  /// No description provided for @settings_featureAutoManual.
+  ///
+  /// In ko, this message translates to:
+  /// **'월 150회 대화 요약 (자동+수동)'**
+  String get settings_featureAutoManual;
+
+  /// No description provided for @settings_featureAutoPush.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동요약 + 푸시 알림'**
+  String get settings_featureAutoPush;
+
+  /// No description provided for @settings_featureNoAds.
+  ///
+  /// In ko, this message translates to:
+  /// **'방해 광고 제거 (전면·리워드 X)'**
+  String get settings_featureNoAds;
+
+  /// No description provided for @settings_marketingTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'마케팅 정보 수신'**
+  String get settings_marketingTitle;
+
+  /// No description provided for @settings_marketingToggle.
+  ///
+  /// In ko, this message translates to:
+  /// **'이벤트·혜택 알림 받기'**
+  String get settings_marketingToggle;
+
+  /// No description provided for @settings_marketingToggleSub.
+  ///
+  /// In ko, this message translates to:
+  /// **'이벤트·프로모션 등 광고성 정보 수신 (선택)'**
+  String get settings_marketingToggleSub;
+
+  /// No description provided for @settings_playStoreOpenFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'플레이스토어를 열 수 없습니다.'**
+  String get settings_playStoreOpenFailed;
+
+  /// No description provided for @settings_storeOpenFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'스토어를 열 수 없습니다.'**
+  String get settings_storeOpenFailed;
+
+  /// No description provided for @settings_sound.
+  ///
+  /// In ko, this message translates to:
+  /// **'소리'**
+  String get settings_sound;
+
+  /// No description provided for @settings_vibration.
+  ///
+  /// In ko, this message translates to:
+  /// **'진동'**
+  String get settings_vibration;
+
+  /// No description provided for @settings_notifOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림이 꺼져 있습니다'**
+  String get settings_notifOff;
+
+  /// No description provided for @settings_soundOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'소리가 켜져 있습니다'**
+  String get settings_soundOn;
+
+  /// No description provided for @settings_soundOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'소리가 꺼져 있습니다'**
+  String get settings_soundOff;
+
+  /// No description provided for @settings_vibrationOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'진동이 켜져 있습니다'**
+  String get settings_vibrationOn;
+
+  /// No description provided for @settings_vibrationOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'진동이 꺼져 있습니다'**
+  String get settings_vibrationOff;
+
+  /// No description provided for @settings_notifPermTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 권한 필요'**
+  String get settings_notifPermTitle;
+
+  /// No description provided for @settings_notifPermContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 알림을 받으려면\n알림 권한이 필요합니다.\n\n설정에서 알림을 허용해주세요.'**
+  String get settings_notifPermContent;
+
+  /// No description provided for @settings_cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get settings_cancel;
+
+  /// No description provided for @settings_goToSettings.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정으로 이동'**
+  String get settings_goToSettings;
+
+  /// No description provided for @settings_autoSummaryNotif.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 알림'**
+  String get settings_autoSummaryNotif;
+
+  /// No description provided for @settings_autoSummaryNotifNeedPerm.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 권한이 필요합니다'**
+  String get settings_autoSummaryNotifNeedPerm;
+
+  /// No description provided for @settings_autoSummaryNotifOn.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 완료 시 푸시 알림을 받습니다'**
+  String get settings_autoSummaryNotifOn;
+
+  /// No description provided for @settings_autoSummaryNotifOff.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동 요약 알림이 꺼져 있습니다'**
+  String get settings_autoSummaryNotifOff;
 }
 
 class _AppLocalizationsDelegate

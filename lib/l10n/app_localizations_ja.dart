@@ -1102,4 +1102,170 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get chatDetail_msgDeleteFailed => 'メッセージの削除に失敗しました。';
+
+  @override
+  String get settings_sectionAppNotif => 'アプリの通知';
+
+  @override
+  String get settings_sectionChat => 'チャット設定';
+
+  @override
+  String get settings_messengerManage => 'メッセンジャー管理';
+
+  @override
+  String get settings_messengerManageSub => '使用するメッセンジャーの選択と並べ替え';
+
+  @override
+  String get settings_blockedRooms => 'ブロックしたチャットの管理';
+
+  @override
+  String get settings_blockedRoomsSub => '要約から除外するチャット';
+
+  @override
+  String get settings_summaryManage => '要約の管理';
+
+  @override
+  String get settings_summaryManageSub => '要約の使用量と設定';
+
+  @override
+  String get settings_sectionSupport => 'お知らせ・ヘルプ';
+
+  @override
+  String get settings_notices => 'お知らせ';
+
+  @override
+  String get settings_noticesFallback => '新しいお知らせをご確認ください';
+
+  @override
+  String get settings_events => 'イベント';
+
+  @override
+  String get settings_eventsFallback => '開催中のイベントがあるかもしれません';
+
+  @override
+  String get settings_faq => 'よくある質問';
+
+  @override
+  String get settings_faqFallback => '気になる点を確認しましょう';
+
+  @override
+  String get settings_inquiry => '1:1お問い合わせ';
+
+  @override
+  String get settings_inquirySub => 'ご質問を残していただければお答えします';
+
+  @override
+  String get settings_sectionNotif => '通知';
+
+  @override
+  String get settings_review => 'レビューを書く';
+
+  @override
+  String get settings_reviewSub => 'レビューが大きな励みになります';
+
+  @override
+  String get settings_share => '友達におすすめ';
+
+  @override
+  String get settings_shareSub => 'アプリを友達と共有しましょう';
+
+  @override
+  String get settings_howToUse => 'アプリの使い方';
+
+  @override
+  String get settings_howToUseSub => 'アプリ利用ガイド';
+
+  @override
+  String get settings_about => 'アプリについて';
+
+  @override
+  String get settings_aboutSub => 'アプリの紹介と機能案内';
+
+  @override
+  String get settings_policies => 'ポリシーと規約';
+
+  @override
+  String get settings_policiesSub => 'プライバシーポリシー・利用規約など';
+
+  @override
+  String get settings_planBasicActive => 'Basicプラン利用中';
+
+  @override
+  String get settings_planBasicActiveSub => 'サブスク管理と特典確認';
+
+  @override
+  String get settings_planFree => '無料プラン';
+
+  @override
+  String get settings_planFreeSub => 'Basicにアップグレードしてもっと要約しましょう';
+
+  @override
+  String get settings_featureAutoManual => '月150回の会話要約（自動+手動）';
+
+  @override
+  String get settings_featureAutoPush => '自動要約＋プッシュ通知';
+
+  @override
+  String get settings_featureNoAds => '煩わしい広告を非表示（全面・リワードなし）';
+
+  @override
+  String get settings_marketingTitle => 'マーケティング情報の受信';
+
+  @override
+  String get settings_marketingToggle => 'イベント・特典の通知を受け取る';
+
+  @override
+  String get settings_marketingToggleSub => 'イベント・プロモーションなどの広告情報を受信（任意）';
+
+  @override
+  String get settings_playStoreOpenFailed => 'Playストアを開けませんでした。';
+
+  @override
+  String get settings_storeOpenFailed => 'ストアを開けませんでした。';
+
+  @override
+  String get settings_sound => 'サウンド';
+
+  @override
+  String get settings_vibration => 'バイブレーション';
+
+  @override
+  String get settings_notifOff => '通知はオフです';
+
+  @override
+  String get settings_soundOn => 'サウンドはオンです';
+
+  @override
+  String get settings_soundOff => 'サウンドはオフです';
+
+  @override
+  String get settings_vibrationOn => 'バイブはオンです';
+
+  @override
+  String get settings_vibrationOff => 'バイブはオフです';
+
+  @override
+  String get settings_notifPermTitle => '通知の権限が必要です';
+
+  @override
+  String get settings_notifPermContent =>
+      '自動要約の通知を受け取るには\n通知の権限が必要です。\n\n設定で通知を許可してください。';
+
+  @override
+  String get settings_cancel => 'キャンセル';
+
+  @override
+  String get settings_goToSettings => '設定へ移動';
+
+  @override
+  String get settings_autoSummaryNotif => '自動要約の通知';
+
+  @override
+  String get settings_autoSummaryNotifNeedPerm => '通知の権限が必要です';
+
+  @override
+  String get settings_autoSummaryNotifOn => '自動要約の完了時にプッシュ通知を受け取ります';
+
+  @override
+  String get settings_autoSummaryNotifOff => '自動要約の通知はオフです';
 }
