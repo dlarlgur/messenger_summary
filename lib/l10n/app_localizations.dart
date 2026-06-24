@@ -129,6 +129,72 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'시스템 기본값'**
   String get languageSystemDefault;
+
+  /// No description provided for @permHeaderTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'원활한 앱 서비스 이용을 위해\n아래 권한을 확인해 주세요'**
+  String get permHeaderTitle;
+
+  /// No description provided for @permRequiredSectionLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'필수 권한'**
+  String get permRequiredSectionLabel;
+
+  /// No description provided for @permNotificationTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'알림 접근'**
+  String get permNotificationTitle;
+
+  /// No description provided for @permNotificationDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서가 메신저 메시지를 수신하고 표시하기 위해 필요한 권한입니다'**
+  String get permNotificationDesc;
+
+  /// No description provided for @permBatteryTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'배터리 사용량 최적화 중지'**
+  String get permBatteryTitle;
+
+  /// No description provided for @permBatteryDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 톡비서가 원활하게 메시지를 수신할 수 있도록 배터리 사용 최적화 목록에서 제외해 주세요'**
+  String get permBatteryDesc;
+
+  /// No description provided for @permRequiredNote.
+  ///
+  /// In ko, this message translates to:
+  /// **'* 필수 권한은 모두 허용 후에 앱을 이용할 수 있습니다.'**
+  String get permRequiredNote;
+
+  /// No description provided for @permStart.
+  ///
+  /// In ko, this message translates to:
+  /// **'시작하기'**
+  String get permStart;
+
+  /// No description provided for @permGrantAllPrompt.
+  ///
+  /// In ko, this message translates to:
+  /// **'위 권한을 모두 허용해주세요'**
+  String get permGrantAllPrompt;
+
+  /// No description provided for @permGranted.
+  ///
+  /// In ko, this message translates to:
+  /// **'허용됨'**
+  String get permGranted;
+
+  /// No description provided for @permRequiredBadge.
+  ///
+  /// In ko, this message translates to:
+  /// **'필수'**
+  String get permRequiredBadge;
 }
 
 class _AppLocalizationsDelegate

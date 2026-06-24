@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../main.dart';
 import '../theme/app_tokens.dart';
+import '../l10n/app_localizations.dart';
 
 /// 권한 설정 화면
 class PermissionScreen extends StatefulWidget {
@@ -124,9 +125,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               const SizedBox(height: 40),
 
               // 헤더
-              const Text(
-                '원활한 앱 서비스 이용을 위해\n아래 권한을 확인해 주세요',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).permHeaderTitle,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   height: 1.4,
@@ -136,7 +137,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               const SizedBox(height: 12),
 
               Text(
-                '필수 권한',
+                AppLocalizations.of(context).permRequiredSectionLabel,
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey[600],
@@ -165,8 +166,8 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                           _buildPermissionItem(
                             icon: Icons.notifications_active,
                             iconColor: const Color(0xFFFF9800),
-                            title: '알림 접근',
-                            description: 'AI 톡비서가 카카오톡 메시지를 수신하고 표시하기 위해 필요한 권한입니다',
+                            title: AppLocalizations.of(context).permNotificationTitle,
+                            description: AppLocalizations.of(context).permNotificationDesc,
                             isRequired: true,
                             isGranted: _notificationPermissionGranted,
                             onTap: _openNotificationSettings,
@@ -178,8 +179,8 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                           _buildPermissionItem(
                             icon: Icons.battery_saver,
                             iconColor: const Color(0xFF4CAF50),
-                            title: '배터리 사용량 최적화 중지',
-                            description: 'AI 톡비서가 원활하게 메시지를 수신할 수 있도록 배터리 사용 최적화 목록에서 제외해 주세요',
+                            title: AppLocalizations.of(context).permBatteryTitle,
+                            description: AppLocalizations.of(context).permBatteryDesc,
                             isRequired: true,
                             isGranted: _batteryOptimizationDisabled,
                             onTap: _openBatteryOptimizationSettings,
@@ -192,7 +193,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  '* 필수 권한은 모두 허용 후에 앱을 이용할 수 있습니다.',
+                  AppLocalizations.of(context).permRequiredNote,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[500],
@@ -224,7 +225,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                     ),
                   ),
                   child: Text(
-                    _allRequiredPermissionsGranted ? '시작하기' : '위 권한을 모두 허용해주세요',
+                    _allRequiredPermissionsGranted
+                        ? AppLocalizations.of(context).permStart
+                        : AppLocalizations.of(context).permGrantAllPrompt,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -308,7 +311,9 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isGranted ? '허용됨' : '필수',
+                          isGranted
+                              ? AppLocalizations.of(context).permGranted
+                              : AppLocalizations.of(context).permRequiredBadge,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,

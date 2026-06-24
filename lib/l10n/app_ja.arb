@@ -4,5 +4,16 @@
   "sectionGeneral": "一般",
   "language": "言語",
   "languageSelectTitle": "言語を選択",
-  "languageSystemDefault": "システムの既定"
+  "languageSystemDefault": "システムの既定",
+  "permHeaderTitle": "アプリを快適にご利用いただくため\n以下の権限をご確認ください",
+  "permRequiredSectionLabel": "必須の権限",
+  "permNotificationTitle": "通知へのアクセス",
+  "permNotificationDesc": "メッセンジャーのメッセージを受信・表示するために必要な権限です",
+  "permBatteryTitle": "バッテリー最適化を無効にする",
+  "permBatteryDesc": "メッセージを確実に受信できるよう、バッテリー最適化の対象から除外してください",
+  "permRequiredNote": "※ 必須の権限をすべて許可するとアプリをご利用いただけます。",
+  "permStart": "はじめる",
+  "permGrantAllPrompt": "上記の権限をすべて許可してください",
+  "permGranted": "許可済み",
+  "permRequiredBadge": "必須"
 }

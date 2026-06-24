@@ -4,5 +4,16 @@
   "sectionGeneral": "General",
   "language": "Language",
   "languageSelectTitle": "Select language",
-  "languageSystemDefault": "System default"
+  "languageSystemDefault": "System default",
+  "permHeaderTitle": "Please grant the permissions below\nso the app can work properly",
+  "permRequiredSectionLabel": "Required permissions",
+  "permNotificationTitle": "Notification access",
+  "permNotificationDesc": "Required to receive and display your messenger messages",
+  "permBatteryTitle": "Disable battery optimization",
+  "permBatteryDesc": "Please exclude this app from battery optimization so it can receive messages reliably",
+  "permRequiredNote": "* You can use the app once all required permissions are granted.",
+  "permStart": "Get started",
+  "permGrantAllPrompt": "Please grant all permissions above",
+  "permGranted": "Granted",
+  "permRequiredBadge": "Required"
 }
