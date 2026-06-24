@@ -3168,7 +3168,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 ),
                 child: Text(
                   _searchResults.isEmpty
-                      ? '0개'
+                      ? AppLocalizations.of(context).chatDetail_zeroCount
                       : '${_currentSearchIndex + 1}/${_searchResults.length}',
                   style: TextStyle(
                     color: _searchResults.isEmpty
@@ -3293,7 +3293,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     ),
                     child: Text(
                       _searchResults.isEmpty
-                          ? '결과 없음'
+                          ? AppLocalizations.of(context).chatDetail_noResults
                           : '${_currentSearchIndex + 1} / ${_searchResults.length}',
                       style: TextStyle(
                         color: _searchResults.isEmpty
@@ -3375,9 +3375,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       initialDate: initialDate,
       firstDate: oldestDate,
       lastDate: newestDate,
-      helpText: '이동할 날짜 선택',
-      cancelText: '취소',
-      confirmText: '이동',
+      helpText: AppLocalizations.of(context).chatDetail_datePickerHelp,
+      cancelText: AppLocalizations.of(context).chatDetail_cancel,
+      confirmText: AppLocalizations.of(context).chatDetail_datePickerMove,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -3565,12 +3565,12 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.auto_awesome, size: 16, color: Colors.white),
-                      SizedBox(width: 4),
+                    children: [
+                      const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+                      const SizedBox(width: 4),
                       Text(
-                        '요약',
-                        style: TextStyle(
+                        AppLocalizations.of(context).chatDetail_summary,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -3645,7 +3645,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     maxLines: null,
                     textInputAction: TextInputAction.send,
                     decoration: InputDecoration(
-                      hintText: '메시지 입력',
+                      hintText: AppLocalizations.of(context).chatDetail_messageInputHint,
                       hintStyle: TextStyle(
                         color: Colors.grey[500],
                         fontSize: 15,
@@ -3998,7 +3998,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                           child: Text(
                             _searchResults.isEmpty
-                                ? '0개'
+                                ? AppLocalizations.of(context).chatDetail_zeroCount
                                 : '${_currentSearchIndex + 1}/${_searchResults.length}',
                             style: TextStyle(
                               color: _searchResults.isEmpty
@@ -4197,7 +4197,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
             color: Color(AppColors.summaryPrimary),
             size: 22,
           ),
-          tooltip: 'AI 요약',
+          tooltip: AppLocalizations.of(context).chatDetail_aiSummaryTooltip,
         ),
       );
 
@@ -4223,15 +4223,15 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                     color: const Color(0xFF4CAF50).withOpacity(0.3),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_outline,
+                    const Icon(Icons.lock_outline,
                         size: 11, color: Color(0xFF4CAF50)),
-                    SizedBox(width: 3),
+                    const SizedBox(width: 3),
                     Text(
-                      '자동요약 BASIC',
-                      style: TextStyle(
+                      AppLocalizations.of(context).chatDetail_autoSummaryBasic,
+                      style: const TextStyle(
                         fontSize: 10,
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.w600,
@@ -4280,8 +4280,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     if (selectedMessages.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('요약할 메시지를 선택해주세요.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_selectMessagesToSummarize),
             backgroundColor: Colors.red,
           ),
         );
@@ -4392,8 +4392,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('요약 생성에 실패했습니다. 다시 시도해주세요.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_summaryGenFailed),
             backgroundColor: Colors.red,
           ),
         );
@@ -4432,8 +4432,8 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('요청 시간이 초과되었습니다. 다시 시도해주세요.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).chatDetail_summaryTimeout),
             backgroundColor: Colors.orange,
           ),
         );
@@ -4447,7 +4447,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('요약 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'),
+            content: Text(AppLocalizations.of(context).chatDetail_summaryError),
             backgroundColor: Colors.red,
           ),
         );
@@ -4536,7 +4536,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '내일 자정에 초기화됩니다',
+                  AppLocalizations.of(context).chatDetail_resetMidnight,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -4564,7 +4564,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '광고를 시청하고 무료 요약 1회 획득',
+                                AppLocalizations.of(context).chatDetail_watchAdGetSummary,
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -4595,9 +4595,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         _watchRewardAdAndRetry();
                       },
                       icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                      label: const Text(
-                        '광고 보고 요약하기',
-                        style: TextStyle(
+                      label: Text(
+                        AppLocalizations.of(context).chatDetail_watchAdToSummarize,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -4626,9 +4626,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      '닫기',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context).chatDetail_close,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4727,9 +4727,9 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('⚠️ 광고가 닫혔지만 리워드를 받지 못함');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              '광고 시청이 완료되지 않아 무료 요약 횟수가 추가되지 않았습니다.',
+              AppLocalizations.of(context).chatDetail_adNotCompleted,
             ),
             backgroundColor: Colors.orange,
           ),
@@ -4842,7 +4842,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'AI 요약',
+                            AppLocalizations.of(context).chatDetail_aiSummaryTooltip,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -4853,7 +4853,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            summaryData['summarySubject'] ?? '대화 요약',
+                            summaryData['summarySubject'] ?? AppLocalizations.of(context).chatDetail_summaryFallbackTitle,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -4894,7 +4894,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         child: _buildInfoCard(
                           Icons.chat_bubble_rounded,
                           '${summaryData['messageCount'] ?? 0}개',
-                          '메시지',
+                          AppLocalizations.of(context).chatDetail_messages,
                           AppTokens.accent,
                         ),
                       ),
@@ -4903,7 +4903,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         child: _buildInfoCard(
                           Icons.people_rounded,
                           '${summaryData['participantCount'] ?? 0}명',
-                          '참여자',
+                          AppLocalizations.of(context).chatDetail_participants,
                           Colors.green,
                         ),
                       ),
@@ -4912,7 +4912,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                         child: _buildInfoCard(
                           Icons.schedule_rounded,
                           _formatDuration(summaryData['duration'] as Duration?),
-                          '시간',
+                          AppLocalizations.of(context).chatDetail_duration,
                           Colors.orange,
                         ),
                       ),
