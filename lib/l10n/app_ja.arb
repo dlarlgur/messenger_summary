@@ -461,5 +461,8 @@
   "chatDetail_msgSelectedSuffix": "件のメッセージを選択中",
   "chatDetail_selectedChars": "選択中: {count}文字",
   "chatDetail_totalChars": "全体: {count}文字",
-  "brand_appName": "AIトークアシスタント"
+  "brand_appName": "AIトークアシスタント",
+  "onboardMessenger_title": "どのメッセンジャーを見ますか？",
+  "onboardMessenger_subtitle": "選択したメッセンジャーの通知を保存し、要約・削除されたメッセージの表示を提供します。後で設定から変更できます。",
+  "onboardMessenger_start": "始める"
 }

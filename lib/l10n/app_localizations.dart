@@ -2871,6 +2871,24 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'AI 톡비서'**
   String get brand_appName;
+
+  /// No description provided for @onboardMessenger_title.
+  ///
+  /// In ko, this message translates to:
+  /// **'어떤 메신저를 볼까요?'**
+  String get onboardMessenger_title;
+
+  /// No description provided for @onboardMessenger_subtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택한 메신저의 알림을 저장해 요약·삭제된 메시지 보기를 제공해요. 나중에 설정에서 바꿀 수 있어요.'**
+  String get onboardMessenger_subtitle;
+
+  /// No description provided for @onboardMessenger_start.
+  ///
+  /// In ko, this message translates to:
+  /// **'시작하기'**
+  String get onboardMessenger_start;
 }
 
 class _AppLocalizationsDelegate

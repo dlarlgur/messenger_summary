@@ -33,6 +33,7 @@ import 'screens/permission_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/summary_history_screen.dart';
 import 'screens/app_guide_screen.dart';
+import 'screens/messenger_onboarding_screen.dart';
 import 'screens/subscription_screen.dart';
 import 'services/splash_ad_cache.dart';
 import 'services/house_ad_service.dart';
@@ -263,6 +264,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _consentResolved = false; // 회원가입 동의 게이트 완료 여부 (완료 전엔 권한/메인 진입 차단)
   bool _permissionChecked = false; // 권한 체크 1회 완료 여부 (_isPermissionGranted 초기값 true 라 신뢰 위해 별도)
   bool _showGuide = false; // 사용 가이드 표시 여부
+  bool _showMessengerOnboarding = false; // 메신저 선택(권한 직후 1회)
   UpdatePolicy? _updatePolicy; // 부트스트랩으로 받아온 업데이트 정책
   final GlobalKey<ChatRoomListScreenState> _chatRoomListKey = GlobalKey();
   final LocalDbService _localDb = LocalDbService();
@@ -405,11 +407,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 모든 필수 권한이 있으면 메인 화면 유지
         // 가이드 표시 여부 확인
         final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
+        final hasSeenMessenger = await MessengerOnboardingScreen.hasSeen();
 
         setState(() {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
           _showGuide = !hasSeenGuide;
+          _showMessengerOnboarding = !hasSeenMessenger;
           _permissionChecked = true;
         });
 
@@ -791,11 +795,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // 모든 필수 권한이 있으면 메인 화면 유지
         // 가이드 표시 여부 확인
         final hasSeenGuide = await AppGuideScreen.hasSeenGuide();
+        final hasSeenMessenger = await MessengerOnboardingScreen.hasSeen();
 
         setState(() {
           _isPermissionGranted = true;
           _isCheckingPermissions = false; // 권한 확인 완료
           _showGuide = !hasSeenGuide;
+          _showMessengerOnboarding = !hasSeenMessenger;
           _permissionChecked = true;
         });
 
@@ -1379,6 +1385,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           // 권한 확인 후 상태 업데이트 (빠른 체크만)
           _checkPermissionsOnly();
         },
+      );
+    }
+
+    // 메신저 선택 (권한 직후 최초 1회) — 가이드보다 먼저.
+    if (_showMessengerOnboarding) {
+      return MessengerOnboardingScreen(
+        onDone: () => setState(() => _showMessengerOnboarding = false),
       );
     }
 

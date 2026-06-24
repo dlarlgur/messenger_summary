@@ -1505,4 +1505,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get brand_appName => 'AI 톡비서';
+
+  @override
+  String get onboardMessenger_title => '어떤 메신저를 볼까요?';
+
+  @override
+  String get onboardMessenger_subtitle =>
+      '선택한 메신저의 알림을 저장해 요약·삭제된 메시지 보기를 제공해요. 나중에 설정에서 바꿀 수 있어요.';
+
+  @override
+  String get onboardMessenger_start => '시작하기';
 }

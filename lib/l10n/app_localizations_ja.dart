@@ -1505,4 +1505,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get brand_appName => 'AIトークアシスタント';
+
+  @override
+  String get onboardMessenger_title => 'どのメッセンジャーを見ますか？';
+
+  @override
+  String get onboardMessenger_subtitle =>
+      '選択したメッセンジャーの通知を保存し、要約・削除されたメッセージの表示を提供します。後で設定から変更できます。';
+
+  @override
+  String get onboardMessenger_start => '始める';
 }

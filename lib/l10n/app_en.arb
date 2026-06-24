@@ -461,5 +461,8 @@
   "chatDetail_msgSelectedSuffix": " messages selected",
   "chatDetail_selectedChars": "Selected: {count} chars",
   "chatDetail_totalChars": "Total: {count} chars",
-  "brand_appName": "AI Talk Assistant"
+  "brand_appName": "AI Talk Assistant",
+  "onboardMessenger_title": "Which messengers to monitor?",
+  "onboardMessenger_subtitle": "We save notifications from the messengers you pick to power summaries and deleted-message viewing. You can change this later in settings.",
+  "onboardMessenger_start": "Get started"
 }

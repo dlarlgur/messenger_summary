@@ -1562,4 +1562,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get brand_appName => 'AI Talk Assistant';
+
+  @override
+  String get onboardMessenger_title => 'Which messengers to monitor?';
+
+  @override
+  String get onboardMessenger_subtitle =>
+      'We save notifications from the messengers you pick to power summaries and deleted-message viewing. You can change this later in settings.';
+
+  @override
+  String get onboardMessenger_start => 'Get started';
 }

@@ -1394,6 +1394,25 @@ class NotificationListener : NotificationListenerService() {
         return ParsedNotification(title, title, text, true)
     }
 
+    // WhatsApp 등이 고빈도 대화/채널 알림을 펼치지 않고 "새 메시지 N개" 카운트로 접어 보낼 때의 본문 판별.
+    // 실제 메시지가 아니라 카운트 문자열이라, 저장하면 리스트·삭제보기에 무의미한 값이 박힌다.
+    // 한국어·영어·일본어 카운트 패턴 커버 (글로벌 배포 대응).
+    private val countOnlyMessagePatterns = listOf(
+        Regex("""^새\s*메시지\s*\d+\s*개$"""),                              // 새 메시지 44개
+        Regex("""^(안\s*읽은|읽지\s*않은)\s*메시지\s*\d+\s*개$"""),           // 안 읽은 메시지 44개
+        Regex("""^\d+\s*new\s*messages?$""", RegexOption.IGNORE_CASE),      // 44 new messages
+        Regex("""^\d+\s*messages?$""", RegexOption.IGNORE_CASE),            // 44 messages
+        Regex("""^\d+\s*messages?\s*from\s*\d+\s*chats?$""", RegexOption.IGNORE_CASE), // 44 messages from 3 chats
+        Regex("""^新着メッセージ\s*\d+\s*件$"""),                            // 新着メッセージ44件
+        Regex("""^\d+\s*件の?(新着)?メッセージ$"""),                         // 44件のメッセージ / 44件の新着メッセージ
+    )
+
+    private fun isCountOnlyMessage(message: String): Boolean {
+        val t = message.trim()
+        if (t.isEmpty()) return false
+        return countOnlyMessagePatterns.any { it.matches(t) }
+    }
+
     private fun parseKakaoTalk(title: String, text: String, subText: String): ParsedNotification {
         val roomName = if (subText.isEmpty()) title else subText
         return ParsedNotification(roomName, title, text, subText.isEmpty())
@@ -1752,6 +1771,13 @@ class NotificationListener : NotificationListenerService() {
                     var sender = parsed.sender
                     var message = parsed.message
                     val isPrivateChat = parsed.isPrivateChat
+
+                    // 고빈도/채널 방을 펼치지 않고 "새 메시지 N개" 카운트로 접어 보내는 알림 — 실제 본문이 아니라 저장 스킵.
+                    // (안 거르면 방의 마지막 진짜 메시지가 카운트 문자열로 덮여 리스트에 무의미하게 노출됨)
+                    if (isCountOnlyMessage(message)) {
+                        if (shouldLog) Log.d(TAG, ">>> [$messengerName] 카운트 알림 무시: $message")
+                        return
+                    }
 
                     // 메신저별 대화방 고유 식별자 추출 (LINE: shortcutId)
                     val chatId = noti.shortcutId?.takeIf { it.isNotEmpty() }
