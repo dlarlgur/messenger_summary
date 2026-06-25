@@ -464,5 +464,8 @@
   "brand_appName": "AIトークアシスタント",
   "onboardMessenger_title": "どのメッセンジャーを見ますか？",
   "onboardMessenger_subtitle": "選択したメッセンジャーの通知を保存し、要約・削除されたメッセージの表示を提供します。後で設定から変更できます。",
-  "onboardMessenger_start": "始める"
+  "onboardMessenger_start": "始める",
+  "languageKorean": "韓国語",
+  "languageEnglish": "英語",
+  "languageJapanese": "日本語"
 }

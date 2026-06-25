@@ -1515,4 +1515,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onboardMessenger_start => '始める';
+
+  @override
+  String get languageKorean => '韓国語';
+
+  @override
+  String get languageEnglish => '英語';
+
+  @override
+  String get languageJapanese => '日本語';
 }

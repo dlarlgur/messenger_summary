@@ -262,8 +262,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
           _buildStyledMenuItem(
             icon: Icons.language,
             title: AppLocalizations.of(context).language,
-            subtitle: LocaleController.displayName(
-                Localizations.localeOf(context).languageCode),
+            subtitle: _langName(Localizations.localeOf(context).languageCode),
             iconColor: _primaryBlue,
             isFirst: true,
             onTap: _showLanguagePicker,
@@ -589,6 +588,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
   }
 
   /// 스타일된 섹션 헤더
+  /// 언어 이름을 현재 앱 언어로 표시 (예: 영어 UI → Korean/English/Japanese).
+  String _langName(String? code) {
+    final l = AppLocalizations.of(context);
+    switch (code) {
+      case 'ko':
+        return l.languageKorean;
+      case 'en':
+        return l.languageEnglish;
+      case 'ja':
+        return l.languageJapanese;
+      default:
+        return l.languageSystemDefault;
+    }
+  }
+
   void _showLanguagePicker() {
     final current = LocaleController().locale?.languageCode;
     showModalBottomSheet(
@@ -617,9 +631,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> with WidgetsBindi
                 ),
               ),
               tile(AppLocalizations.of(context).languageSystemDefault, null),
-              tile('한국어', 'ko'),
-              tile('English', 'en'),
-              tile('日本語', 'ja'),
+              tile(_langName('ko'), 'ko'),
+              tile(_langName('en'), 'en'),
+              tile(_langName('ja'), 'ja'),
               const SizedBox(height: 8),
             ],
           ),

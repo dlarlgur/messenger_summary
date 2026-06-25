@@ -2889,6 +2889,24 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'시작하기'**
   String get onboardMessenger_start;
+
+  /// No description provided for @languageKorean.
+  ///
+  /// In ko, this message translates to:
+  /// **'한국어'**
+  String get languageKorean;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In ko, this message translates to:
+  /// **'영어'**
+  String get languageEnglish;
+
+  /// No description provided for @languageJapanese.
+  ///
+  /// In ko, this message translates to:
+  /// **'일본어'**
+  String get languageJapanese;
 }
 
 class _AppLocalizationsDelegate
