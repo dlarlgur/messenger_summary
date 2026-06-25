@@ -2568,6 +2568,25 @@ class NotificationListener : NotificationListenerService() {
     /**
      * 자동 요약 실행
      */
+    /**
+     * 자동 요약 출력 언어. Flutter 설정 언어(flutter.app_locale) 우선, 없으면 기기 언어.
+     * en/ja 만 반환하고 그 외는 'ko'(기본) → 서버가 한국어로 요약(기존 동작).
+     */
+    private fun getSummaryLang(): String {
+        return try {
+            val prefs = applicationContext.getSharedPreferences(FLUTTER_PREFS_NAME, Context.MODE_PRIVATE)
+            val saved = prefs.getString("flutter.app_locale", null)
+            val code = (saved ?: Locale.getDefault().language).lowercase()
+            when {
+                code.startsWith("en") -> "en"
+                code.startsWith("ja") -> "ja"
+                else -> "ko"
+            }
+        } catch (e: Exception) {
+            "ko"
+        }
+    }
+
     private suspend fun executeAutoSummary(roomId: Long, roomName: String, messages: List<Map<String, Any>>) {
         try {
             Log.i(TAG, "🤖 자동 요약 시작: roomName='$roomName', messageCount=${messages.size}")
@@ -2602,6 +2621,7 @@ class NotificationListener : NotificationListenerService() {
                 put("roomName", roomName)
                 put("messages", messagesJson)
                 put("messageCount", messages.size)
+                put("lang", getSummaryLang())
             }
             
             // API 호출

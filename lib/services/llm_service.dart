@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../config/constants.dart';
 import '../interceptors/auth_interceptor.dart';
 import '../services/privacy_masking_service.dart';
+import '../services/locale_controller.dart';
 
 /// LLM 요약 서비스 (JWT 기반 인증)
 class LlmService {
@@ -125,6 +126,8 @@ class LlmService {
         'roomName': roomName,
         'messages': maskedMessages,
         'messageCount': maskedMessages.length,
+        // 요약 출력 언어 — 앱 언어(시스템/설정) 따라. 서버는 ko/미지정이면 한국어 기본.
+        'lang': LocaleController().effectiveLanguageCode,
       };
 
       final response = await _dio.post(
