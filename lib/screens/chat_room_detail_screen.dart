@@ -1917,7 +1917,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
 
   bool _isNavigatingBack = false;
 
-  /// 채팅방에서 뒤로 나갈 때: 읽음 처리 → 광고 표시(4번에 1번) → pop
+  /// 채팅방에서 뒤로 나갈 때: 읽음 처리 → 광고 표시(2번째부터 4회마다) → pop
   Future<void> _navigateBack() async {
     // 중복 호출 방지
     if (_isNavigatingBack) return;
@@ -1931,7 +1931,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       debugPrint('❌ 화면 나갈 때 읽음 처리 실패: $e');
     });
 
-    // 광고 표시 시도 (4번에 1번, 4분 쿨다운, 유료 플랜은 건너뜀)
+    // 광고 표시 시도 (2번째부터 4회마다, 유료 플랜은 건너뜀; 시간 빈도는 AdMob에서 조절)
     bool popped = false;
     void doPop() {
       if (popped) return;

@@ -101,12 +101,7 @@ class AdService {
   static const String _keyChatDetailLastAdTime = 'ad_chat_detail_last_time';
   // 원격설정 키 없을 때 fallback. console 의 app_remote_config 에서
   // chat_detail_ad.cooldown_minutes / show_every_n 으로 조정 가능.
-  static const int _chatDetailAdCooldownMinutesFallback = 4;
   static const int _chatDetailAdShowEveryNFallback = 4;
-  static int get _chatDetailAdCooldownMinutes =>
-      DkswCore.config<num>('chat_detail_ad.cooldown_minutes',
-              fallback: _chatDetailAdCooldownMinutesFallback)!
-          .toInt();
   static int get _chatDetailAdShowEveryN =>
       DkswCore.config<num>('chat_detail_ad.show_every_n',
               fallback: _chatDetailAdShowEveryNFallback)!
@@ -614,9 +609,6 @@ class AdService {
     );
   }
 
-  /// 앱 세션 안에서 채팅방 광고가 한 번이라도 노출됐는지. 첫 진입은 무조건 노출
-  /// (count % N 우회) — 앱 강제 종료 후 재시작 시 false 로 초기화됨.
-  static bool _chatDetailAdShownThisSession = false;
 
   /// 채팅방 나갈 때 전면 광고 표시.
   /// - 앱 켜고 첫 채팅방 진입 → count 조건 우회 + 쿨다운만 체크
@@ -634,32 +626,19 @@ class AdService {
     final count = (prefs.getInt(_keyChatDetailExitCount) ?? 0) + 1;
     await prefs.setInt(_keyChatDetailExitCount, count);
 
-    // 첫 세션 진입이면 count 조건 우회 → 무조건 노출 후보
-    final isFirstThisSession = !_chatDetailAdShownThisSession;
-    final everyN = _chatDetailAdShowEveryN;
-    if (!isFirstThisSession && everyN > 0 && count % everyN != 0) {
-      debugPrint('📊 채팅방 나가기 $count회 - 광고 건너뜀 (다음 광고: ${everyN - (count % everyN)}회 후, every $everyN)');
-      return false;
-    }
-    if (isFirstThisSession) {
-      debugPrint('🎯 첫 세션 진입 — count 조건 우회 (count=$count)');
-    }
-
-    // 마지막 광고 표시 후 쿨다운 체크 (4분)
-    final lastAdTime = prefs.getInt(_keyChatDetailLastAdTime) ?? 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final elapsedMinutes = (now - lastAdTime) / 60000;
-    if (lastAdTime > 0 && elapsedMinutes < _chatDetailAdCooldownMinutes) {
-      debugPrint('⏱️ 채팅방 광고 쿨다운 중 (${elapsedMinutes.toStringAsFixed(1)}분 / ${_chatDetailAdCooldownMinutes}분)');
+    // 노출 주기: 1번째 X, 2번째 O, 이후 everyN(기본 4)회마다 → 2, 6, 10, 14 ...
+    // 시간당 빈도(쿨다운)는 앱에서 안 막고 AdMob 프리퀀시 캡으로 운영자가 조절.
+    final everyN = _chatDetailAdShowEveryN > 0 ? _chatDetailAdShowEveryN : 4;
+    if (count < 2 || (count - 2) % everyN != 0) {
+      debugPrint('📊 채팅방 나가기 $count회 - 광고 건너뜀 (노출: 2번째부터 $everyN회마다)');
       return false;
     }
 
     // AdMob 광고가 준비되어 있으면 AdMob 표시
     if (_isChatDetailAdLoaded && _chatDetailInterstitialAd != null && !_useAdFitForChatDetail) {
-      // 실제 표시 확정 시점에만 쿨다운/세션 플래그 기록 (노출 없이 쿨다운 소모 방지)
+      // 마지막 노출 시점 기록
       await prefs.setInt(
           _keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
-      _chatDetailAdShownThisSession = true;
       _chatDetailInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           debugPrint('채팅방 전면 광고 닫힘');
@@ -691,7 +670,6 @@ class AdService {
     if (_useAdFitForChatDetail) {
       await prefs.setInt(
           _keyChatDetailLastAdTime, DateTime.now().millisecondsSinceEpoch);
-      _chatDetailAdShownThisSession = true;
       debugPrint('🔄 애드핏 채팅방 나갈 때 광고 사용 (AdMob 대신)');
       return true; // UI에서 애드핏 광고 표시하도록 true 반환
     }
