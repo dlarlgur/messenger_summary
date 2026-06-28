@@ -1009,6 +1009,18 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
         scheme = 'fb-messenger://'; // Messenger 딥링크 스킴
         httpsUrl = 'https://www.messenger.com';
         break;
+      case 'com.whatsapp':
+        scheme = 'whatsapp://'; // WhatsApp 앱 열기
+        httpsUrl = 'https://wa.me';
+        break;
+      case 'com.nhn.android.band':
+        scheme = null; // 공개 스킴 없음 → 패키지 실행 Intent 로 열기 (queries 선언 필요)
+        httpsUrl = 'https://band.us';
+        break;
+      case 'sms':
+        scheme = null; // 네이티브가 기기 기본 문자앱으로 매핑해 실행
+        httpsUrl = null;
+        break;
       default:
         scheme = null;
         httpsUrl = null;

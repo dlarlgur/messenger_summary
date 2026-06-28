@@ -111,6 +111,7 @@
         <package android:name="com.microsoft.teams"/>
         <package android:name="com.facebook.orca"/>
         <package android:name="com.whatsapp"/>
+        <package android:name="com.nhn.android.band"/>
         <!-- 딥링크 스킴 선언 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -139,6 +140,15 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="fb-messenger" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="whatsapp" />
+        </intent>
+        <!-- 기본 문자(SMS) 앱 가시성 -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
         </intent>
     </queries>
 </manifest>
