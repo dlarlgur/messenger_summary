@@ -2907,6 +2907,78 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'일본어'**
   String get languageJapanese;
+
+  /// No description provided for @paywall_limitWithAd.
+  ///
+  /// In ko, this message translates to:
+  /// **'기본 무료 횟수를 모두 사용했어요.\n광고를 보시면 오늘 {count}회 더 이용할 수 있어요.'**
+  String paywall_limitWithAd(int count);
+
+  /// No description provided for @paywall_watchAdButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고 보고 무료 요약 (오늘 {count}회 남음)'**
+  String paywall_watchAdButton(int count);
+
+  /// No description provided for @paywall_featureUnlock.
+  ///
+  /// In ko, this message translates to:
+  /// **'🔒  {feature} 기능 잠금 해제'**
+  String paywall_featureUnlock(String feature);
+
+  /// No description provided for @paywall_benefit1Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'월 150회 대화 요약'**
+  String get paywall_benefit1Title;
+
+  /// No description provided for @paywall_benefit1Sub.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동+수동 통합 월 150회 한도'**
+  String get paywall_benefit1Sub;
+
+  /// No description provided for @paywall_benefit2Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 최대 200개까지 요약'**
+  String get paywall_benefit2Title;
+
+  /// No description provided for @paywall_benefit2Sub.
+  ///
+  /// In ko, this message translates to:
+  /// **'FREE 50개, BASIC 200개'**
+  String get paywall_benefit2Sub;
+
+  /// No description provided for @paywall_benefit3Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'자동요약 및 자동요약 푸시알림'**
+  String get paywall_benefit3Title;
+
+  /// No description provided for @paywall_benefit3Sub.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 N개 도달 시 자동 분석 및 푸시알림'**
+  String get paywall_benefit3Sub;
+
+  /// No description provided for @paywall_benefit4Title.
+  ///
+  /// In ko, this message translates to:
+  /// **'광고 완전 제거'**
+  String get paywall_benefit4Title;
+
+  /// No description provided for @paywall_benefit4Sub.
+  ///
+  /// In ko, this message translates to:
+  /// **'배너, 전면 광고 없음'**
+  String get paywall_benefit4Sub;
+
+  /// No description provided for @paywall_subscribeCta.
+  ///
+  /// In ko, this message translates to:
+  /// **'BASIC 구독하기 · 월 {price}원'**
+  String paywall_subscribeCta(String price);
 }
 
 class _AppLocalizationsDelegate

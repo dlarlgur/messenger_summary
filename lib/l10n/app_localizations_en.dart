@@ -1581,4 +1581,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageJapanese => 'Japanese';
+
+  @override
+  String paywall_limitWithAd(int count) {
+    return 'You\'ve used all your free summaries.\nWatch an ad to use it $count more times today.';
+  }
+
+  @override
+  String paywall_watchAdButton(int count) {
+    return 'Watch ad for a free summary ($count left today)';
+  }
+
+  @override
+  String paywall_featureUnlock(String feature) {
+    return '🔒  Unlock $feature';
+  }
+
+  @override
+  String get paywall_benefit1Title => '150 summaries per month';
+
+  @override
+  String get paywall_benefit1Sub => 'Auto + manual, 150/month total';
+
+  @override
+  String get paywall_benefit2Title => 'Summarize up to 200 messages';
+
+  @override
+  String get paywall_benefit2Sub => 'FREE 50, BASIC 200';
+
+  @override
+  String get paywall_benefit3Title => 'Auto-summary & push alerts';
+
+  @override
+  String get paywall_benefit3Sub =>
+      'Auto-analyze & notify when N messages arrive';
+
+  @override
+  String get paywall_benefit4Title => 'Remove all ads';
+
+  @override
+  String get paywall_benefit4Sub => 'No banner or interstitial ads';
+
+  @override
+  String paywall_subscribeCta(String price) {
+    return 'Get BASIC · ₩$price/mo';
+  }
 }

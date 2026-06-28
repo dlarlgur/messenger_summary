@@ -467,5 +467,21 @@
   "onboardMessenger_start": "始める",
   "languageKorean": "韓国語",
   "languageEnglish": "英語",
-  "languageJapanese": "日本語"
+  "languageJapanese": "日本語",
+  "paywall_limitWithAd": "本日の無料回数をすべて使いました。\n広告を見ると本日あと{count}回利用できます。",
+  "@paywall_limitWithAd": { "placeholders": { "count": { "type": "int" } } },
+  "paywall_watchAdButton": "広告を見て無料要約（本日あと{count}回）",
+  "@paywall_watchAdButton": { "placeholders": { "count": { "type": "int" } } },
+  "paywall_featureUnlock": "🔒  {feature} 機能のロック解除",
+  "@paywall_featureUnlock": { "placeholders": { "feature": { "type": "String" } } },
+  "paywall_benefit1Title": "月150回の会話要約",
+  "paywall_benefit1Sub": "自動+手動 合計 月150回まで",
+  "paywall_benefit2Title": "最大200件のメッセージを要約",
+  "paywall_benefit2Sub": "FREE 50件、BASIC 200件",
+  "paywall_benefit3Title": "自動要約と自動要約プッシュ通知",
+  "paywall_benefit3Sub": "メッセージがN件たまると自動分析・プッシュ通知",
+  "paywall_benefit4Title": "広告を完全に削除",
+  "paywall_benefit4Sub": "バナー・全面広告なし",
+  "paywall_subscribeCta": "BASICに登録 · 月額₩{price}",
+  "@paywall_subscribeCta": { "placeholders": { "price": { "type": "String" } } }
 }

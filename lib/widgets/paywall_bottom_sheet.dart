@@ -48,6 +48,7 @@ class PaywallBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     // 횟수가 남아있으면 버튼 표시 (광고 로딩 중이어도 표시, 로딩 중엔 비활성화)
     final showAdOption = isLimitReached && adRemainingCount > 0;
+    final l = AppLocalizations.of(context);
 
     return Container(
       decoration: const BoxDecoration(
@@ -132,8 +133,8 @@ class PaywallBottomSheet extends StatelessWidget {
                   Expanded(
                     child: Text(
                       adRemainingCount > 0
-                          ? '기본 무료 횟수를 모두 사용했어요.\n광고를 보시면 오늘 $adRemainingCount회 더 이용할 수 있어요.'
-                          : AppLocalizations.of(context).paywall_dailyLimitReached,
+                          ? l.paywall_limitWithAd(adRemainingCount)
+                          : l.paywall_dailyLimitReached,
                       style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFFE65100),
@@ -170,7 +171,7 @@ class PaywallBottomSheet extends StatelessWidget {
                       const Icon(Icons.play_circle_outline, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '광고 보고 무료 요약 (오늘 $adRemainingCount회 남음)',
+                        l.paywall_watchAdButton(adRemainingCount),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -200,7 +201,7 @@ class PaywallBottomSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '🔒  $triggerFeature 기능 잠금 해제',
+                l.paywall_featureUnlock(triggerFeature!),
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF4CAF50),
@@ -232,29 +233,29 @@ class PaywallBottomSheet extends StatelessWidget {
               children: [
                 _buildBenefit(
                   Icons.summarize_rounded,
-                  '월 150회 대화 요약',
-                  '자동+수동 통합 월 150회 한도',
+                  l.paywall_benefit1Title,
+                  l.paywall_benefit1Sub,
                   highlight: triggerFeature?.contains('요약') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),
                 _buildBenefit(
                   Icons.message_rounded,
-                  '메시지 최대 200개까지 요약',
-                  'FREE 50개, BASIC 200개',
+                  l.paywall_benefit2Title,
+                  l.paywall_benefit2Sub,
                   highlight: triggerFeature?.contains('개') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),
                 _buildBenefit(
                   Icons.auto_awesome_rounded,
-                  '자동요약 및 자동요약 푸시알림',
-                  '메시지 N개 도달 시 자동 분석 및 푸시알림',
+                  l.paywall_benefit3Title,
+                  l.paywall_benefit3Sub,
                   highlight: triggerFeature?.contains('자동') == true,
                 ),
                 const Divider(height: 16, color: Color(0xFFEEEEEE)),
                 _buildBenefit(
                   Icons.block_rounded,
-                  '광고 완전 제거',
-                  '배너, 전면 광고 없음',
+                  l.paywall_benefit4Title,
+                  l.paywall_benefit4Sub,
                 ),
               ],
             ),
@@ -290,7 +291,7 @@ class PaywallBottomSheet extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     // 안내 가격은 원격설정(plan.basic.price_label) 동적, 캐시 없으면 fallback "2,900"
-                    'BASIC 구독하기 · 월 ${PlanService().getBasicPriceLabelSync()}원',
+                    l.paywall_subscribeCta(PlanService().getBasicPriceLabelSync()),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

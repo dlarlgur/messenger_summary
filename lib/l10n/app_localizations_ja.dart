@@ -1524,4 +1524,48 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get languageJapanese => '日本語';
+
+  @override
+  String paywall_limitWithAd(int count) {
+    return '本日の無料回数をすべて使いました。\n広告を見ると本日あと$count回利用できます。';
+  }
+
+  @override
+  String paywall_watchAdButton(int count) {
+    return '広告を見て無料要約（本日あと$count回）';
+  }
+
+  @override
+  String paywall_featureUnlock(String feature) {
+    return '🔒  $feature 機能のロック解除';
+  }
+
+  @override
+  String get paywall_benefit1Title => '月150回の会話要約';
+
+  @override
+  String get paywall_benefit1Sub => '自動+手動 合計 月150回まで';
+
+  @override
+  String get paywall_benefit2Title => '最大200件のメッセージを要約';
+
+  @override
+  String get paywall_benefit2Sub => 'FREE 50件、BASIC 200件';
+
+  @override
+  String get paywall_benefit3Title => '自動要約と自動要約プッシュ通知';
+
+  @override
+  String get paywall_benefit3Sub => 'メッセージがN件たまると自動分析・プッシュ通知';
+
+  @override
+  String get paywall_benefit4Title => '広告を完全に削除';
+
+  @override
+  String get paywall_benefit4Sub => 'バナー・全面広告なし';
+
+  @override
+  String paywall_subscribeCta(String price) {
+    return 'BASICに登録 · 月額₩$price';
+  }
 }

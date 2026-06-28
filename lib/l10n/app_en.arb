@@ -467,5 +467,21 @@
   "onboardMessenger_start": "Get started",
   "languageKorean": "Korean",
   "languageEnglish": "English",
-  "languageJapanese": "Japanese"
+  "languageJapanese": "Japanese",
+  "paywall_limitWithAd": "You've used all your free summaries.\nWatch an ad to use it {count} more times today.",
+  "@paywall_limitWithAd": { "placeholders": { "count": { "type": "int" } } },
+  "paywall_watchAdButton": "Watch ad for a free summary ({count} left today)",
+  "@paywall_watchAdButton": { "placeholders": { "count": { "type": "int" } } },
+  "paywall_featureUnlock": "🔒  Unlock {feature}",
+  "@paywall_featureUnlock": { "placeholders": { "feature": { "type": "String" } } },
+  "paywall_benefit1Title": "150 summaries per month",
+  "paywall_benefit1Sub": "Auto + manual, 150/month total",
+  "paywall_benefit2Title": "Summarize up to 200 messages",
+  "paywall_benefit2Sub": "FREE 50, BASIC 200",
+  "paywall_benefit3Title": "Auto-summary & push alerts",
+  "paywall_benefit3Sub": "Auto-analyze & notify when N messages arrive",
+  "paywall_benefit4Title": "Remove all ads",
+  "paywall_benefit4Sub": "No banner or interstitial ads",
+  "paywall_subscribeCta": "Get BASIC · ₩{price}/mo",
+  "@paywall_subscribeCta": { "placeholders": { "price": { "type": "String" } } }
 }
