@@ -482,6 +482,5 @@
   "paywall_benefit3Sub": "Auto-analyze & notify when N messages arrive",
   "paywall_benefit4Title": "Remove all ads",
   "paywall_benefit4Sub": "No banner or interstitial ads",
-  "paywall_subscribeCta": "Get BASIC · ₩{price}/mo",
-  "@paywall_subscribeCta": { "placeholders": { "price": { "type": "String" } } }
+  "paywall_subscribeCta": "Subscribe to BASIC"
 }

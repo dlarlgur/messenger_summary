@@ -1624,6 +1624,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String paywall_subscribeCta(String price) {
-    return 'Get BASIC · ₩$price/mo';
+    return 'Subscribe to BASIC';
   }
 }

@@ -1566,6 +1566,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String paywall_subscribeCta(String price) {
-    return 'BASICに登録 · 月額₩$price';
+    return 'BASICに登録';
   }
 }

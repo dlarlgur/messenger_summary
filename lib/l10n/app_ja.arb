@@ -482,6 +482,5 @@
   "paywall_benefit3Sub": "メッセージがN件たまると自動分析・プッシュ通知",
   "paywall_benefit4Title": "広告を完全に削除",
   "paywall_benefit4Sub": "バナー・全面広告なし",
-  "paywall_subscribeCta": "BASICに登録 · 月額₩{price}",
-  "@paywall_subscribeCta": { "placeholders": { "price": { "type": "String" } } }
+  "paywall_subscribeCta": "BASICに登録"
 }
