@@ -2979,6 +2979,30 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'BASIC 구독하기 · 월 {price}원'**
   String paywall_subscribeCta(String price);
+
+  /// No description provided for @subscriptionCurrentPlan.
+  ///
+  /// In ko, this message translates to:
+  /// **'현재 플랜: {plan}'**
+  String subscriptionCurrentPlan(String plan);
+
+  /// No description provided for @subscriptionBenefitMsgCap.
+  ///
+  /// In ko, this message translates to:
+  /// **'메시지 최대 {count}개까지 요약'**
+  String subscriptionBenefitMsgCap(int count);
+
+  /// No description provided for @subscriptionLoadError.
+  ///
+  /// In ko, this message translates to:
+  /// **'상품 정보를 불러오는 중 오류가 발생했습니다'**
+  String get subscriptionLoadError;
+
+  /// No description provided for @subscriptionRestoreFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 복원 실패'**
+  String get subscriptionRestoreFailed;
 }
 
 class _AppLocalizationsDelegate

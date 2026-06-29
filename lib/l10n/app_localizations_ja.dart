@@ -1568,4 +1568,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String paywall_subscribeCta(String price) {
     return 'BASICに登録';
   }
+
+  @override
+  String subscriptionCurrentPlan(String plan) {
+    return '現在のプラン: $plan';
+  }
+
+  @override
+  String subscriptionBenefitMsgCap(int count) {
+    return '最大$count件のメッセージを要約';
+  }
+
+  @override
+  String get subscriptionLoadError => '商品情報の読み込み中にエラーが発生しました';
+
+  @override
+  String get subscriptionRestoreFailed => '購入の復元に失敗しました';
 }

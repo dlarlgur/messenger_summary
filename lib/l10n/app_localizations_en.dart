@@ -1626,4 +1626,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String paywall_subscribeCta(String price) {
     return 'Subscribe to BASIC';
   }
+
+  @override
+  String subscriptionCurrentPlan(String plan) {
+    return 'Current plan: $plan';
+  }
+
+  @override
+  String subscriptionBenefitMsgCap(int count) {
+    return 'Summarize up to $count messages';
+  }
+
+  @override
+  String get subscriptionLoadError => 'Failed to load product info';
+
+  @override
+  String get subscriptionRestoreFailed => 'Restore failed';
 }

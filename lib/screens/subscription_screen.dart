@@ -134,7 +134,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       setState(() {
         debugPrint("❌ getProducts 에러: $e");
         debugPrint("❌ stack: ${e.toString()}");
-        _error = '상품 정보를 불러오는 중 오류가 발생했습니다: $e';
+        _error = '${AppLocalizations.of(context).subscriptionLoadError}: $e';
         _isLoading = false;
       });
     }
@@ -226,7 +226,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           SnackBar(
             content: Text(result.success
                 ? AppLocalizations.of(context).subscriptionRestoreSuccess
-                : '구매 복원 실패: ${result.message}'),
+                : '${AppLocalizations.of(context).subscriptionRestoreFailed}: ${result.message}'),
             backgroundColor: result.success ? Colors.green : Colors.red,
             duration: const Duration(seconds: 1),
           ),
@@ -348,7 +348,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '현재 플랜: ${_currentPlanType!.toUpperCase()}',
+                      AppLocalizations.of(context).subscriptionCurrentPlan(_currentPlanType!.toUpperCase()),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -475,7 +475,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 const SizedBox(height: 4),
                 _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitMonthlySummaries),
                 const SizedBox(height: 4),
-                _buildBenefitItem('메시지 최대 ${_basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback}개까지 요약'),
+                _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitMsgCap(_basicMsgCap ?? UsageConstants.basicSummaryMessagesPerRequestFallback)),
                 const SizedBox(height: 4),
                 _buildBenefitItem(AppLocalizations.of(context).subscriptionBenefitAutoSummary),
               ],

@@ -482,5 +482,11 @@
   "paywall_benefit3Sub": "Auto-analyze & notify when N messages arrive",
   "paywall_benefit4Title": "Remove all ads",
   "paywall_benefit4Sub": "No banner or interstitial ads",
-  "paywall_subscribeCta": "Subscribe to BASIC"
+  "paywall_subscribeCta": "Subscribe to BASIC",
+  "subscriptionCurrentPlan": "Current plan: {plan}",
+  "@subscriptionCurrentPlan": { "placeholders": { "plan": { "type": "String" } } },
+  "subscriptionBenefitMsgCap": "Summarize up to {count} messages",
+  "@subscriptionBenefitMsgCap": { "placeholders": { "count": { "type": "int" } } },
+  "subscriptionLoadError": "Failed to load product info",
+  "subscriptionRestoreFailed": "Restore failed"
 }

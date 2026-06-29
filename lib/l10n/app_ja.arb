@@ -482,5 +482,11 @@
   "paywall_benefit3Sub": "メッセージがN件たまると自動分析・プッシュ通知",
   "paywall_benefit4Title": "広告を完全に削除",
   "paywall_benefit4Sub": "バナー・全面広告なし",
-  "paywall_subscribeCta": "BASICに登録"
+  "paywall_subscribeCta": "BASICに登録",
+  "subscriptionCurrentPlan": "現在のプラン: {plan}",
+  "@subscriptionCurrentPlan": { "placeholders": { "plan": { "type": "String" } } },
+  "subscriptionBenefitMsgCap": "最大{count}件のメッセージを要約",
+  "@subscriptionBenefitMsgCap": { "placeholders": { "count": { "type": "int" } } },
+  "subscriptionLoadError": "商品情報の読み込み中にエラーが発生しました",
+  "subscriptionRestoreFailed": "購入の復元に失敗しました"
 }

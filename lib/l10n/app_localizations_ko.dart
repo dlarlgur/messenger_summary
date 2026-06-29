@@ -1568,4 +1568,20 @@ class AppLocalizationsKo extends AppLocalizations {
   String paywall_subscribeCta(String price) {
     return 'BASIC 구독하기 · 월 $price원';
   }
+
+  @override
+  String subscriptionCurrentPlan(String plan) {
+    return '현재 플랜: $plan';
+  }
+
+  @override
+  String subscriptionBenefitMsgCap(int count) {
+    return '메시지 최대 $count개까지 요약';
+  }
+
+  @override
+  String get subscriptionLoadError => '상품 정보를 불러오는 중 오류가 발생했습니다';
+
+  @override
+  String get subscriptionRestoreFailed => '구매 복원 실패';
 }
