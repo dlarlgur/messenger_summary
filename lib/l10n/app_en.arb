@@ -488,5 +488,6 @@
   "subscriptionBenefitMsgCap": "Summarize up to {count} messages",
   "@subscriptionBenefitMsgCap": { "placeholders": { "count": { "type": "int" } } },
   "subscriptionLoadError": "Failed to load product info",
-  "subscriptionRestoreFailed": "Restore failed"
+  "subscriptionRestoreFailed": "Restore failed",
+  "chatDetail_summaryLangTitle": "Summary language"
 }

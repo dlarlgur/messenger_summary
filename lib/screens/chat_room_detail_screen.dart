@@ -12,6 +12,8 @@ import 'package:gal/gal.dart';
 import '../models/chat_room.dart';
 import '../models/chat_message.dart';
 import '../l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/locale_controller.dart';
 import '../services/local_db_service.dart';
 import '../services/llm_service.dart';
 import '../services/notification_settings_service.dart';
@@ -280,6 +282,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   bool _isSummaryMode = false; // 요약 모드 활성화 여부
   int _selectedMessageCount = 0; // 선택된 메시지 개수 (최신 메시지부터 위로 N개)
   int _defaultSummaryCount = 5; // 기본 요약 개수
+  String? _summaryLang; // 요약 출력 언어 (방별 기억, null = 앱 언어)
 
   // 카톡 스타일 메시지 선택 상태
   int? _selectionStartIndex; // 선택 시작 메시지 인덱스
@@ -334,6 +337,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initProfileService();
+    _loadSummaryLang();
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_checkScrollPosition);
     
@@ -3463,6 +3467,76 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
   }
 
   /// 요약 모드 하단 네비게이션 바
+  // 현재 요약 출력 언어 (방별 지정 우선, 없으면 앱 언어).
+  String get _effectiveSummaryLang =>
+      _summaryLang ?? LocaleController().effectiveLanguageCode;
+
+  // 툴바 언어칩 짧은 라벨.
+  String _summaryLangShortLabel() {
+    switch (_effectiveSummaryLang) {
+      case 'en':
+        return 'EN';
+      case 'ja':
+        return '日';
+      default:
+        return '한';
+    }
+  }
+
+  Future<void> _loadSummaryLang() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final code = prefs.getString('summary_lang_${widget.room.id}');
+      if (code != null && mounted) setState(() => _summaryLang = code);
+    } catch (_) {}
+  }
+
+  Future<void> _saveSummaryLang(String code) async {
+    setState(() => _summaryLang = code);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('summary_lang_${widget.room.id}', code);
+    } catch (_) {}
+  }
+
+  /// 요약 출력 언어 선택 시트 (방별 기억). 디폴트는 앱 언어.
+  void _showSummaryLangPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        final l = AppLocalizations.of(context);
+        final current = _effectiveSummaryLang;
+        Widget tile(String label, String code) => ListTile(
+              title: Text(label),
+              trailing: current == code
+                  ? Icon(Icons.check, color: Color(AppColors.summaryPrimary))
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                _saveSummaryLang(code);
+                HapticFeedback.selectionClick();
+              },
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l.chatDetail_summaryLangTitle,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              tile(l.languageKorean, 'ko'),
+              tile(l.languageEnglish, 'en'),
+              tile(l.languageJapanese, 'ja'),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSummaryBottomBar() {
     return Container(
       decoration: BoxDecoration(
@@ -3562,7 +3636,34 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       }
                     : null,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              // 요약 출력 언어 선택 칩 (방별 기억, 디폴트=앱 언어)
+              GestureDetector(
+                onTap: _showSummaryLangPicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.translate, size: 15, color: Colors.grey[600]),
+                      const SizedBox(width: 3),
+                      Text(
+                        _summaryLangShortLabel(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               // 요약 실행 버튼
               GestureDetector(
                 onTap: () {
@@ -4345,6 +4446,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
       final result = await llmService.summarizeMessages(
         messages: maskedMessages,
         roomName: widget.room.roomName,
+        lang: _summaryLang, // 방별 선택 언어 (null 이면 서비스가 앱 언어 사용)
       );
 
       // 로딩 다이얼로그 안전하게 닫기

@@ -1642,4 +1642,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionRestoreFailed => 'Restore failed';
+
+  @override
+  String get chatDetail_summaryLangTitle => 'Summary language';
 }

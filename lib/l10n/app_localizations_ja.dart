@@ -1584,4 +1584,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get subscriptionRestoreFailed => '購入の復元に失敗しました';
+
+  @override
+  String get chatDetail_summaryLangTitle => '要約の言語';
 }

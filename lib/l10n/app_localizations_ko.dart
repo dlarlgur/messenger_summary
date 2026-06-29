@@ -1584,4 +1584,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subscriptionRestoreFailed => '구매 복원 실패';
+
+  @override
+  String get chatDetail_summaryLangTitle => '요약 언어';
 }

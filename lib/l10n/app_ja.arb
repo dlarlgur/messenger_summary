@@ -488,5 +488,6 @@
   "subscriptionBenefitMsgCap": "最大{count}件のメッセージを要約",
   "@subscriptionBenefitMsgCap": { "placeholders": { "count": { "type": "int" } } },
   "subscriptionLoadError": "商品情報の読み込み中にエラーが発生しました",
-  "subscriptionRestoreFailed": "購入の復元に失敗しました"
+  "subscriptionRestoreFailed": "購入の復元に失敗しました",
+  "chatDetail_summaryLangTitle": "要約の言語"
 }

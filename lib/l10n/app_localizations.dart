@@ -3003,6 +3003,12 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'구매 복원 실패'**
   String get subscriptionRestoreFailed;
+
+  /// No description provided for @chatDetail_summaryLangTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'요약 언어'**
+  String get chatDetail_summaryLangTitle;
 }
 
 class _AppLocalizationsDelegate

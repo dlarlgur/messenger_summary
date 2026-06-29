@@ -103,6 +103,7 @@ class LlmService {
   Future<Map<String, dynamic>?> summarizeMessages({
     required List<Map<String, dynamic>> messages,
     required String roomName,
+    String? lang, // 요약 출력 언어 override (null 이면 앱 언어)
   }) async {
     try {
       // 민감 정보 마스킹 처리
@@ -126,8 +127,8 @@ class LlmService {
         'roomName': roomName,
         'messages': maskedMessages,
         'messageCount': maskedMessages.length,
-        // 요약 출력 언어 — 앱 언어(시스템/설정) 따라. 서버는 ko/미지정이면 한국어 기본.
-        'lang': LocaleController().effectiveLanguageCode,
+        // 요약 출력 언어 — 호출자 지정(방별) 우선, 없으면 앱 언어. 서버는 ko/미지정이면 한국어.
+        'lang': lang ?? LocaleController().effectiveLanguageCode,
       };
 
       final response = await _dio.post(
