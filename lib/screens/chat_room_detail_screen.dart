@@ -2073,6 +2073,38 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       ],
                     ),
           actions: [
+            // 요약 모드: 출력 언어 선택 칩 (상단 우측). 방별 기억, 디폴트=앱 언어.
+            if (_isSummaryMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _showSummaryLangPicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.translate, size: 15, color: Colors.grey[600]),
+                          const SizedBox(width: 3),
+                          Text(
+                            _summaryLangShortLabel(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // 검색 모드나 요약 모드, 삭제 모드가 아닐 때만 검색/요약 버튼 표시
             if (!_isSearchMode && !_isSummaryMode && !_isDeleteMode) ...[
               // 검색 버튼 (돋보기)
@@ -3636,34 +3668,7 @@ class _ChatRoomDetailScreenState extends State<ChatRoomDetailScreen>
                       }
                     : null,
               ),
-              const SizedBox(width: 8),
-              // 요약 출력 언어 선택 칩 (방별 기억, 디폴트=앱 언어)
-              GestureDetector(
-                onTap: _showSummaryLangPicker,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.translate, size: 15, color: Colors.grey[600]),
-                      const SizedBox(width: 3),
-                      Text(
-                        _summaryLangShortLabel(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               // 요약 실행 버튼
               GestureDetector(
                 onTap: () {
