@@ -700,7 +700,7 @@ deploy_hjmng() {
             --network docker_aiapp_network \
             --env-file ~/aiapp/config/env/hjmng.env \
             -e HOSTNAME=0.0.0.0 \
-            -v ~/aiapp/data/hjmng/uploads:/app/data/uploads \
+            -v ~/aiapp/data/hjmng:/app/data \
             aiapp_hjmng:latest
 
         # nginx 는 별도 서버블록(hjmng.dksw4.com)이 이미 설정돼 있다는 전제.
