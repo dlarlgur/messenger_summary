@@ -662,10 +662,73 @@ show_usage() {
     echo "  $0 all"
 }
 
+deploy_hjmng() {
+    log_info "========== HJMNG (한진철관 안전 플랫폼) 배포 시작 =========="
+
+    # 1. 업로드 (node_modules / .next / .env / data / .git 제외)
+    log_info "서버에 소스 업로드 중..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "mkdir -p ~/aiapp/apps/hjmng ~/aiapp/data/hjmng/uploads ~/aiapp/config/env"
+    rsync -avz --delete \
+        -e "ssh -i $SSH_KEY" \
+        --exclude='node_modules' \
+        --exclude='.next' \
+        --exclude='.env*' \
+        --exclude='.git' \
+        --exclude='data' \
+        --exclude='docs' \
+        /Users/ghim/my_business/hj_mng/ \
+        $REMOTE_USER@$REMOTE_HOST:~/aiapp/apps/hjmng/
+
+    # 2. Docker 빌드 + raw docker run (depends_on 동반중단 사고 방지 — compose 미사용)
+    log_info "Docker 이미지 빌드 + 컨테이너 재기동..."
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST << 'ENDSSH'
+        set -e
+        cd ~/aiapp/apps/hjmng
+
+        if [ ! -f ~/aiapp/config/env/hjmng.env ]; then
+            echo "[HJMNG] ERROR: ~/aiapp/config/env/hjmng.env 없음. 최초 배포 전 .env 수동 생성 필요."
+            exit 1
+        fi
+
+        docker build -t aiapp_hjmng:latest .
+        docker stop aiapp_hjmng 2>/dev/null || true
+        docker rm -f aiapp_hjmng 2>/dev/null || true
+        docker run -d \
+            --name aiapp_hjmng \
+            --restart unless-stopped \
+            --network docker_aiapp_network \
+            --env-file ~/aiapp/config/env/hjmng.env \
+            -e HOSTNAME=0.0.0.0 \
+            -v ~/aiapp/data/hjmng/uploads:/app/data/uploads \
+            aiapp_hjmng:latest
+
+        # nginx 는 별도 서버블록(hjmng.dksw4.com)이 이미 설정돼 있다는 전제.
+        # 설정 문법 검증 후에만 reload (charge 등 타 서비스 영향 방지)
+        if docker exec aiapp_nginx nginx -t 2>/dev/null; then
+            docker exec aiapp_nginx nginx -s reload
+            echo "[HJMNG] nginx reloaded"
+        else
+            echo "[HJMNG] WARN: nginx -t 실패 — reload 생략. 설정 확인 필요."
+        fi
+ENDSSH
+
+    # 3. 로그 확인
+    sleep 3
+    log_info "컨테이너 로그:"
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST \
+        "docker logs aiapp_hjmng 2>&1 | tail -12"
+
+    log_info "========== HJMNG 배포 완료 =========="
+}
+
 # 메인
 case "$1" in
     aiif)
         deploy_aiif
+        ;;
+    hjmng)
+        deploy_hjmng
         ;;
     aipf)
         deploy_aipf
