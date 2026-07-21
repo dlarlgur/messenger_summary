@@ -25,6 +25,7 @@ import 'services/plan_service.dart';
 import 'services/in_app_purchase_service.dart';
 import 'services/messenger_settings_service.dart';
 import 'services/ad_service.dart';
+import 'services/exit_native_ad_service.dart';
 import 'services/admob_warmup.dart';
 import 'screens/chat_room_list_screen.dart';
 import 'theme/app_tokens.dart';
@@ -113,8 +114,14 @@ void main() async {
   unawaited(MessengerSettingsService().initialize());
   unawaited(ProfileImageService().initialize());
   // AdMob SDK 초기화 완료 후 목록 광고 워밍업 — 리스트 진입 시 첫 광고가 빨리 뜨도록
-  // SDK 응답 캐시를 미리 데운다.
-  unawaited(AdService().initialize().then((_) => AdMobWarmup.run()));
+  // SDK 응답 캐시를 미리 데운다. 종료 다이얼로그 네이티브도 같이 프리로드
+  // (무료 사용자만 — 유료는 종료 광고 자체가 없음).
+  unawaited(AdService().initialize().then((_) async {
+    AdMobWarmup.run();
+    if (await AdService().isFreeTierForExitAd()) {
+      ExitNativeAdService.instance.preload();
+    }
+  }));
 
   // DKSW 통합 어드민 초기화 + 부트스트랩 + 광고 캐시
   // 결과는 _MainScreenState._initBootstrap()이 DkswCore.lastBootstrap으로 읽어 처리.
@@ -1413,14 +1420,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // 1) AdMob 종료 전면 먼저 시도 (준비돼 있을 때만 true 반환)
-        if (!AdService.skipAdMobExitInterstitial) {
-          final adShown = await adService.showExitAd(
-            onAdDismissed: () {
-              SystemNavigator.pop();
-            },
-          );
-          if (adShown) return;
+        // 1) AdMob 네이티브 종료 다이얼로그 (취소/종료 + 광고 — 허용 배치)
+        //    ※ 이전의 종료 전면(Interstitial)은 AdMob 비허용 배치라 단위 삭제됨.
+        //    광고 미로드 시 false → 아래 AdFit 종료 팝업으로 폴백.
+        if (context.mounted) {
+          final handled =
+              await ExitNativeAdService.instance.tryShowExitDialog(context);
+          if (handled) return;
         }
 
         // 2) Android: AdFit 앱 종료 팝업 폴백
