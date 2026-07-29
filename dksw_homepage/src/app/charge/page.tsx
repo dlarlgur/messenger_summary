@@ -52,8 +52,9 @@ export default function ChargePage() {
       <TopBar />
       <Hero />
       <Stats />
+      <PainPoints />
+      <Showcase />
       <Features />
-      <Screens />
       <HowItWorks />
       <Faq />
       <FinalCta />
@@ -217,7 +218,7 @@ function Hero() {
 const STATS = [
   { value: '1.1만 곳', label: '전국 주유소 가격 비교' },
   { value: '40만 기', label: '전국 충전기 실시간 현황' },
-  { value: '실시간', label: '가격 · 빈자리 갱신' },
+  { value: '공식 데이터', label: '오피넷 · 환경부 연동' },
   { value: 'AI', label: '경로 · 경유지 맞춤 추천' },
 ];
 
@@ -225,13 +226,70 @@ function Stats() {
   return (
     <section className="relative border-y border-emerald-900/5 bg-white/60 py-10 backdrop-blur-sm">
       <Container>
+        <div className="mb-7 flex items-center justify-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-[13.5px] font-semibold text-slate-700">
+            지금 이 순간에도 전국의 가격과 빈자리를 갱신하고 있어요
+          </span>
+        </div>
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {STATS.map((s) => (
             <div key={s.label} className="flex flex-col items-center text-center">
-              <span className="font-mono text-[26px] font-bold tracking-tight text-emerald-700 md:text-[30px]">
+              <span className="font-mono text-[24px] font-bold tracking-tight text-emerald-700 md:text-[28px]">
                 {s.value}
               </span>
               <span className="mt-1.5 text-[12.5px] text-slate-500">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </Container>
+    </section>
+  );
+}
+
+/* ── 문제 공감 — "이런 적 있으시죠" ── */
+const PAINS = [
+  {
+    emoji: '⛽',
+    title: '넣고 나서 후회한 날',
+    desc: '주유하고 500m 지나니 리터당 60원 싼 주유소가 나오던 그 기분. 넣기 전에 주변 가격부터 비교하세요.',
+  },
+  {
+    emoji: '🔌',
+    title: '도착했더니 만석',
+    desc: '충전소 앞에서 기다릴지 옮길지 고민하던 시간. 출발 전에 빈자리를 확인하고, 만석이면 자리 나는 순간 알림을 받으세요.',
+  },
+  {
+    emoji: '🛣️',
+    title: '장거리, 어디서 넣지?',
+    desc: '고속도로 타기 전에 넣을지, 휴게소에서 넣을지. AI가 경로 위 가격을 전부 비교해 "여기"라고 답을 줍니다.',
+  },
+];
+
+function PainPoints() {
+  return (
+    <section className="relative py-24 md:py-28">
+      <Container>
+        <div className="flex flex-col items-center text-center">
+          <h2 className="text-[28px] font-semibold leading-[1.15] tracking-tightest text-slate-900 md:text-[38px]">
+            이런 적, 있으시죠?
+          </h2>
+          <p className="mt-4 max-w-[520px] text-[14.5px] leading-relaxed text-slate-600">
+            기름값과 충전비는 아는 만큼 아낍니다. 몰라서 손해 보던 순간들을 없애려고 만들었어요.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {PAINS.map((pn) => (
+            <div
+              key={pn.title}
+              className="rounded-2xl border border-black/5 bg-white p-7 shadow-[0_2px_14px_-6px_rgba(6,78,59,0.08)]"
+            >
+              <span className="text-[28px]">{pn.emoji}</span>
+              <h3 className="mt-4 text-[17px] font-semibold text-slate-900">{pn.title}</h3>
+              <p className="mt-2.5 text-[13.5px] leading-relaxed text-slate-600">{pn.desc}</p>
             </div>
           ))}
         </div>
@@ -382,29 +440,44 @@ function Features() {
   );
 }
 
-const SCREENS = [
-  {
-    src: '/charge/screens/ai-route.jpg',
-    alt: 'AI 탭 — 목적지 경로 미리보기와 추천경로·고속도로우선 비교',
-    label: 'AI 경로 비교',
-    desc: '추천경로 vs 고속도로우선, 시간·거리 한눈에',
-  },
+const SHOWCASE = [
   {
     src: '/charge/screens/ai-result.jpg',
     alt: 'AI 주유소 추천 결과 — 경로상 최저가와 절약 리포트',
-    label: 'AI 추천 결과',
-    desc: '경로상 최저가 · 우회 시간까지 계산',
+    tag: 'AI 추천',
+    title: '"여기서 넣으세요"까지\n답을 줍니다',
+    points: [
+      '경로 위 주유소·충전소를 전부 비교해 최적 1곳 추천',
+      '우회 시간 대비 절약 금액까지 계산한 절약 리포트',
+      '잔량 기반 — 지금 연료로 갈 수 있는 범위 안에서만',
+    ],
+  },
+  {
+    src: '/charge/screens/ai-route.jpg',
+    alt: 'AI 탭 — 경로 미리보기와 추천경로·고속도로우선 비교',
+    tag: '경로 · 경유지',
+    title: '내 경로 그대로,\n경유지까지 3곳',
+    points: [
+      '추천경로 vs 고속도로우선 — 시간·거리 비교 후 선택',
+      '경유지를 추가하면 그 길 위에서 다시 추천',
+      '티맵 · 네이버 · 카카오, 내가 쓰는 내비 기준으로',
+    ],
   },
   {
     src: '/charge/screens/map.jpg',
     alt: '지도 탭 — 주유소 가격과 충전소 빈자리 마커',
-    label: '한눈에 지도',
-    desc: '가격 · 빈자리를 마커로, 지역 추천 1·2·3위',
+    tag: '지도',
+    title: '가격도 빈자리도\n지도에서 한눈에',
+    points: [
+      '주유소는 가격, 충전소는 빈자리(2/4)로 마커 표시',
+      '이 지역 추천 1 · 2 · 3위 자동 정렬',
+      '유종 전환, 필터, 반경 최대 30km',
+    ],
   },
 ];
 
-/** 실제 앱 화면 갤러리 — 실기기 캡처 */
-function Screens() {
+/** 실제 화면 + 설명 지그재그 쇼케이스 */
+function Showcase() {
   return (
     <section className="relative border-t border-emerald-900/5 py-24 md:py-32">
       <Container>
@@ -413,19 +486,51 @@ function Screens() {
             SCREENS
           </span>
           <h2 className="mt-6 text-[32px] font-semibold tracking-tightest text-slate-900 md:text-[40px]">
-            실제 화면 그대로
+            실제 화면으로 보는 사용법
           </h2>
           <p className="mt-4 max-w-[520px] text-[14.5px] leading-relaxed text-slate-600">
-            보정 없는 실사용 화면입니다. 목적지를 입력하면 이 흐름 그대로 추천을 받아요.
+            보정 없는 실사용 화면입니다. 설치하면 이 흐름 그대로예요.
           </p>
         </div>
 
-        <div className="mt-14 flex snap-x snap-mandatory gap-8 overflow-x-auto px-2 pb-4 md:justify-center md:overflow-visible">
-          {SCREENS.map((sc) => (
-            <div key={sc.src} className="flex shrink-0 snap-center flex-col items-center">
-              <DeviceShot src={sc.src} alt={sc.alt} width={236} ratio={1080 / 2316} />
-              <div className="mt-5 text-[14.5px] font-semibold text-slate-900">{sc.label}</div>
-              <div className="mt-1 max-w-[236px] text-center text-[12.5px] text-slate-500">{sc.desc}</div>
+        <div className="mt-16 space-y-20 md:space-y-24">
+          {SHOWCASE.map((sc, i) => (
+            <div
+              key={sc.src}
+              className={`flex flex-col items-center gap-10 md:gap-16 ${
+                i % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'
+              } md:justify-center`}
+            >
+              <DeviceShot src={sc.src} alt={sc.alt} width={244} ratio={1080 / 2316} />
+              <div className="max-w-[380px] text-center md:text-left">
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11.5px] font-bold tracking-wide text-emerald-700">
+                  {sc.tag}
+                </span>
+                <h3 className="mt-4 whitespace-pre-line text-[24px] font-semibold leading-[1.25] tracking-tightest text-slate-900 md:text-[28px]">
+                  {sc.title}
+                </h3>
+                <ul className="mt-6 space-y-3">
+                  {sc.points.map((pt) => (
+                    <li key={pt} className="flex items-start gap-2.5 text-left">
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#059669"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mt-0.5 shrink-0"
+                        aria-hidden
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      <span className="text-[14px] leading-relaxed text-slate-600">{pt}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           ))}
         </div>
@@ -494,6 +599,14 @@ const FAQS = [
   {
     q: '경유지도 지원하나요?',
     a: '네. 목적지까지 가는 길에 경유지를 최대 3곳까지 추가할 수 있고, AI 추천도 그 경로를 그대로 따라갑니다. 경로 계산 기준(티맵 · 네이버 · 카카오)도 직접 고를 수 있어요.',
+  },
+  {
+    q: '차량 등록이 꼭 필요한가요?',
+    a: '가격 비교와 지도는 등록 없이 바로 쓸 수 있어요. AI 추천을 쓰려면 차량을 등록하는 게 좋은데, 차종 검색 한 번이면 유종·연비·탱크 용량이 자동으로 채워져서 10초면 끝납니다.',
+  },
+  {
+    q: '충전소 자리 알림은 어떻게 받나요?',
+    a: '만석인 충전소 상세에서 알림을 켜두면, 자리가 나는 순간 푸시로 알려드려요. 자주 가는 곳은 즐겨찾기에 넣어두면 더 편합니다.',
   },
   {
     q: '아이폰도 되나요?',

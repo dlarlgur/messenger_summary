@@ -36,7 +36,7 @@ const PRODUCTS: Product[] = [
     },
   },
   {
-    name: '모두의 주유충전',
+    name: '전기차 기름차',
     badge: 'B2C · Mobility',
     tagline: '전국 주유소 · 충전소,\n한 화면에 한눈에.',
     description:
@@ -377,7 +377,7 @@ function ChargeMockup() {
         </div>
         {/* Header */}
         <div className="px-4 py-2 flex items-center justify-between bg-[#F3F4F6]">
-          <div className="text-[15px] font-bold">모두의 주유충전</div>
+          <div className="text-[15px] font-bold">전기차 기름차</div>
           <div className="relative">
             <BellIcon />
             <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
