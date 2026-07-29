@@ -123,8 +123,11 @@ function TopBar() {
               aria-label="Google Play에서 설치"
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-2 shadow-sm"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" aria-hidden>
-                <path d="M3.6 2.4 13.6 12 3.6 21.6C3.2 21.3 3 20.9 3 20.4V3.6c0-.5.2-.9.6-1.2zm13.6 13.2L13.6 12l3.6-3.6 3.9 2.2c.7.4.7 1.4 0 1.8l-3.9 2.2zM13.6 12 3.6 2.4c.4-.3 1-.3 1.5 0l12.1 6.8L13.6 12zm-8.5 9.6 8.5-9.6 3.6 3.6-12.1 6.8c-.5.3-1.1.3-1.5 0z" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M3.6 2.4 13.6 12 3.6 21.6C3.2 21.3 3 20.9 3 20.4V3.6c0-.5.2-.9.6-1.2z" fill="#00A9FF" />
+                <path d="M17.2 15.6 13.6 12l3.6-3.6 3.9 2.2c.7.4.7 1.4 0 1.8l-3.9 2.2z" fill="#FFB900" />
+                <path d="M13.6 12 3.6 2.4c.4-.3 1-.3 1.5 0l12.1 6.8L13.6 12z" fill="#00D96C" />
+                <path d="m5.1 21.6 8.5-9.6 3.6 3.6-12.1 6.8c-.5.3-1.1.3-1.5 0z" fill="#FF3A44" />
               </svg>
               <span className="text-[12px] font-semibold text-slate-800">Google Play</span>
             </a>

@@ -46,9 +46,6 @@ export default function SmartInstall({ className }: { className?: string }) {
     >
       <DownloadIcon />
       무료로 설치하기
-      <span className="text-[12px] font-medium text-white/75">
-        {platform === 'ios' ? 'App Store' : platform === 'android' ? 'Google Play' : 'iOS · Android'}
-      </span>
     </a>
   );
 }

@@ -48,30 +48,14 @@ function AppleIcon() {
 }
 
 function PlayIcon() {
+  // 그라데이션 defs + url(#id) 참조는 모바일에서 display:none 사본의 defs 를 참조해
+  // 검정으로 그려지는 버그가 있어 플랫 4색으로 렌더.
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="playG1" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00D7FE" />
-          <stop offset="100%" stopColor="#0087FF" />
-        </linearGradient>
-        <linearGradient id="playG2" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FFBA00" />
-          <stop offset="100%" stopColor="#FF6B00" />
-        </linearGradient>
-        <linearGradient id="playG3" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FF3D44" />
-          <stop offset="100%" stopColor="#FF1744" />
-        </linearGradient>
-        <linearGradient id="playG4" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00F076" />
-          <stop offset="100%" stopColor="#00C853" />
-        </linearGradient>
-      </defs>
-      <path d="M3.6 2.4 13.6 12 3.6 21.6C3.2 21.3 3 20.9 3 20.4V3.6c0-.5.2-.9.6-1.2z" fill="url(#playG1)" />
-      <path d="M17.2 15.6 13.6 12l3.6-3.6 3.9 2.2c.7.4.7 1.4 0 1.8l-3.9 2.2z" fill="url(#playG2)" />
-      <path d="M13.6 12 3.6 2.4c.4-.3 1-.3 1.5 0l12.1 6.8L13.6 12z" fill="url(#playG4)" />
-      <path d="m5.1 21.6 8.5-9.6 3.6 3.6-12.1 6.8c-.5.3-1.1.3-1.5 0z" fill="url(#playG3)" />
+      <path d="M3.6 2.4 13.6 12 3.6 21.6C3.2 21.3 3 20.9 3 20.4V3.6c0-.5.2-.9.6-1.2z" fill="#00A9FF" />
+      <path d="M17.2 15.6 13.6 12l3.6-3.6 3.9 2.2c.7.4.7 1.4 0 1.8l-3.9 2.2z" fill="#FFB900" />
+      <path d="M13.6 12 3.6 2.4c.4-.3 1-.3 1.5 0l12.1 6.8L13.6 12z" fill="#00D96C" />
+      <path d="m5.1 21.6 8.5-9.6 3.6 3.6-12.1 6.8c-.5.3-1.1.3-1.5 0z" fill="#FF3A44" />
     </svg>
   );
 }
