@@ -93,7 +93,7 @@ function TopBar() {
               className="shrink-0 rounded-[8px]"
               priority
             />
-            <span className="truncate text-[15px] font-bold tracking-tight text-slate-900">
+            <span className="hidden truncate text-[15px] font-bold tracking-tight text-slate-900 min-[400px]:inline">
               전기차 기름차
             </span>
           </div>
@@ -114,29 +114,31 @@ function TopBar() {
             </div>
           </nav>
 
-          {/* 모바일: 아이콘 원형 버튼 (잘림 방지 — shrink-0 고정폭) */}
+          {/* 모바일: 아이콘+스토어명 미니 배지 — 웹과 동일 정보, 잘림 없음 */}
           <div className="flex shrink-0 items-center gap-1.5 md:hidden">
             <a
               href={PLAY_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Google Play에서 설치"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-2 shadow-sm"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" aria-hidden>
                 <path d="M3.6 2.4 13.6 12 3.6 21.6C3.2 21.3 3 20.9 3 20.4V3.6c0-.5.2-.9.6-1.2zm13.6 13.2L13.6 12l3.6-3.6 3.9 2.2c.7.4.7 1.4 0 1.8l-3.9 2.2zM13.6 12 3.6 2.4c.4-.3 1-.3 1.5 0l12.1 6.8L13.6 12zm-8.5 9.6 8.5-9.6 3.6 3.6-12.1 6.8c-.5.3-1.1.3-1.5 0z" />
               </svg>
+              <span className="text-[12px] font-semibold text-slate-800">Google Play</span>
             </a>
             <a
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="App Store에서 설치"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-black/10 bg-white px-3 py-2 shadow-sm"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" aria-hidden>
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
               </svg>
+              <span className="text-[12px] font-semibold text-slate-800">App Store</span>
             </a>
           </div>
         </div>
