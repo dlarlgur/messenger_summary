@@ -182,10 +182,10 @@ function Hero() {
               AI가 내 경로 그대로 <strong className="font-semibold text-slate-900">가장 이득인 곳</strong>을 찾아드립니다.
             </p>
 
-            <div className="mt-9 flex flex-col items-center gap-4 sm:flex-row lg:items-start">
+            <div className="mt-9 flex flex-col items-center gap-4 lg:items-start">
               <SmartInstall />
-              {/* 배지는 PC에서만 — 모바일은 스마트 버튼이 이미 해당 스토어로 감 (CTA 중복 방지) */}
-              <div className="hidden flex-wrap justify-center gap-2.5 sm:flex">
+              {/* 폰 사용자가 대부분 — 모바일에서도 양쪽 스토어 배지 항상 노출 */}
+              <div className="flex flex-wrap justify-center gap-2.5">
                 <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
                 <StoreBadge store="google" href={PLAY_STORE_URL} variant="light" />
               </div>
@@ -212,8 +212,8 @@ function Hero() {
 }
 
 const STATS = [
-  { value: '11,000+', label: '전국 주유소 실시간 유가' },
-  { value: '400,000+', label: '전국 충전기 현황' },
+  { value: '1.1만 곳', label: '전국 주유소 가격 비교' },
+  { value: '40만 기', label: '전국 충전기 실시간 현황' },
   { value: '실시간', label: '가격 · 빈자리 갱신' },
   { value: 'AI', label: '경로 · 경유지 맞춤 추천' },
 ];
@@ -549,8 +549,8 @@ function FinalCta() {
           <div className="mt-9">
             <SmartInstall />
           </div>
-          {/* 데스크톱: 양쪽 배지 / 모바일: 스마트 버튼이 이미 해당 스토어로 감 */}
-          <div className="mt-5 hidden flex-wrap justify-center gap-2.5 sm:flex">
+          {/* 모바일 포함 양쪽 스토어 배지 항상 노출 */}
+          <div className="mt-5 flex flex-wrap justify-center gap-2.5">
             <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
             <StoreBadge store="google" href={PLAY_STORE_URL} variant="light" />
           </div>
