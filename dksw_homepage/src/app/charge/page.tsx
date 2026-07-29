@@ -28,9 +28,9 @@ export const metadata: Metadata = {
 
 export default function ChargePage() {
   return (
-    <main className="relative min-h-screen overflow-hidden text-slate-900">
-      {/* 라이트 배경 — 화이트 → 연민트, 은은한 그린 글로우 */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-20 bg-[#F7FBF8]" />
+    // isolate: 새 스태킹 컨텍스트 — 데코(-z-10)가 main 배경 위·콘텐츠 아래에 깔리고,
+    // 다크 전역 body 배경을 main 자체 배경(bg)이 확실히 덮는다.
+    <main className="relative isolate min-h-screen overflow-hidden bg-[#F7FBF8] text-slate-900">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-0 h-[560px] bg-gradient-to-b from-emerald-100/70 via-teal-50/40 to-transparent" />
         <div className="absolute left-1/2 top-[-220px] h-[560px] w-[860px] -translate-x-1/2 rounded-full bg-emerald-300/25 blur-[140px]" />
