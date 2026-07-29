@@ -2,31 +2,36 @@ type Props = {
   store: 'apple' | 'google';
   href: string;
   className?: string;
+  /** light = 밝은 배경(charge 랜딩)용. 기본 dark 는 기존 홈 그대로. */
+  variant?: 'dark' | 'light';
 };
 
 /**
  * App Store / Google Play download badge.
- * Dark-mode optimized. Clean, minimal style (not the chunky official badge).
+ * Clean, minimal style (not the chunky official badge). dark/light variants.
  */
-export default function StoreBadge({ store, href, className }: Props) {
+export default function StoreBadge({ store, href, className, variant = 'dark' }: Props) {
   const isApple = store === 'apple';
+  const light = variant === 'light';
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group inline-flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/25 px-4 py-2.5 transition-colors ${
-        className ?? ''
-      }`}
+      className={`group inline-flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl border px-4 py-2.5 transition-colors ${
+        light
+          ? 'border-black/10 bg-white shadow-sm hover:border-emerald-500/40 hover:shadow'
+          : 'border-white/15 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/25'
+      } ${className ?? ''}`}
     >
-      <span className="text-fog-100 transition-transform duration-300 group-hover:scale-110">
+      <span className={`${light ? 'text-slate-900' : 'text-fog-100'} transition-transform duration-300 group-hover:scale-110`}>
         {isApple ? <AppleIcon /> : <PlayIcon />}
       </span>
       <span className="flex flex-col leading-none">
-        <span className="text-[9.5px] font-medium text-fog-400 tracking-wide">
+        <span className={`text-[9.5px] font-medium tracking-wide ${light ? 'text-slate-500' : 'text-fog-400'}`}>
           {isApple ? 'Download on the' : 'GET IT ON'}
         </span>
-        <span className="mt-1 text-[14px] font-semibold text-fog-100 tracking-tight">
+        <span className={`mt-1 text-[14px] font-semibold tracking-tight ${light ? 'text-slate-900' : 'text-fog-100'}`}>
           {isApple ? 'App Store' : 'Google Play'}
         </span>
       </span>
