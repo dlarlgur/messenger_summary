@@ -415,6 +415,98 @@ ENDSSH
     log_info "========== MUNGBAP 배포 완료 =========="
 }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OSRM — 우회시간 측정 전용 라우팅 엔진 (자체 호스팅, OpenStreetMap)
+#
+# 왜 필요한가: 카카오/네이버/티맵 REST 는 주유소 좌표를 본선 도로에 스냅해
+#   "안 들러도 지나간다"(0분/+0.0km)로 계산하는 케이스가 있다(실측: 버드에너지 광주제일 —
+#   카카오 0.0분 / 티맵 13.7분 / 네이버 23.7분 / OSRM 8.5분). 우회시간은 델타라서
+#   via·direct 를 같은 엔진으로만 재면 되므로, 스냅 제어가 가능하고 호출 한도가 없는
+#   OSRM 으로 통일한다. 화면의 총 소요시간·폴리라인은 사용자가 고른 3사 값을 그대로 쓴다.
+#
+# 무중단 방식: blue/green 컨테이너가 각자 자기 데이터 디렉토리(osrm_a/osrm_b)를 물고,
+#   네트워크 별칭 aiapp_osrm 을 새 컨테이너에 먼저 붙인 뒤(둘 다 응답 가능한 구간) 옛 것을 내린다.
+#
+# 사용법:
+#   server_deploy.sh osrm          → 컨테이너만 재배포 (기존 데이터 재사용)
+#   server_deploy.sh osrm --data   → OSM 데이터 재다운로드 + 전처리까지 (월 1회 권장)
+deploy_osrm() {
+    local REFRESH_DATA="${2:-}"
+    log_info "========== OSRM 배포 시작 =========="
+
+    ssh -i $SSH_KEY $REMOTE_USER@$REMOTE_HOST REFRESH="$REFRESH_DATA" 'bash -s' << 'ENDSSH'
+        set -e
+        ALIAS="aiapp_osrm"
+        NET="docker_aiapp_network"
+        IMG="ghcr.io/project-osrm/osrm-backend"
+        PBF_URL="https://download.geofabrik.de/asia/south-korea-latest.osm.pbf"
+
+        # 현재 활성 색 판별 → 반대 색으로 배포
+        if [ "$(docker inspect -f '{{.State.Running}}' aiapp_osrm_blue 2>/dev/null || echo false)" = "true" ]; then
+            NEW="green"; OLD="blue"
+        else
+            NEW="blue";  OLD="green"
+        fi
+        NEW_DIR="$HOME/aiapp/data/osrm_${NEW}"
+        OLD_DIR="$HOME/aiapp/data/osrm_${OLD}"
+        echo "[OSRM] deploying → aiapp_osrm_${NEW} (data: $NEW_DIR)"
+        mkdir -p "$NEW_DIR"
+
+        if [ "$REFRESH" = "--data" ] || [ ! -f "$NEW_DIR/south-korea.osrm.mldgr" ]; then
+            if [ "$REFRESH" = "--data" ]; then
+                echo "[OSRM] OSM 데이터 다운로드 (약 280MB)..."
+                curl -sSL -o "$NEW_DIR/south-korea.osm.pbf" "$PBF_URL"
+            elif [ ! -f "$NEW_DIR/south-korea.osm.pbf" ] && [ -f "$OLD_DIR/south-korea.osm.pbf" ]; then
+                echo "[OSRM] 기존 pbf 재사용"
+                cp "$OLD_DIR/south-korea.osm.pbf" "$NEW_DIR/south-korea.osm.pbf"
+            fi
+            [ -f "$NEW_DIR/south-korea.osm.pbf" ] || { echo "[OSRM] ERROR: pbf 없음 — --data 로 실행하세요"; exit 1; }
+
+            # 전처리 3단계 — MLD. 메모리 상한을 두어 다른 컨테이너 OOM 방지(피크 ~5GB).
+            echo "[OSRM] 전처리 1/3 extract (10분 내외)..."
+            docker run --rm -m 5g -v "$NEW_DIR:/data" $IMG osrm-extract -p /opt/car.lua /data/south-korea.osm.pbf > "$NEW_DIR/prep.log" 2>&1
+            echo "[OSRM] 전처리 2/3 partition..."
+            docker run --rm -m 5g -v "$NEW_DIR:/data" $IMG osrm-partition /data/south-korea >> "$NEW_DIR/prep.log" 2>&1
+            echo "[OSRM] 전처리 3/3 customize..."
+            docker run --rm -m 5g -v "$NEW_DIR:/data" $IMG osrm-customize /data/south-korea >> "$NEW_DIR/prep.log" 2>&1
+            echo "[OSRM] 전처리 완료 ($(du -sh "$NEW_DIR" | cut -f1))"
+        else
+            echo "[OSRM] 기존 전처리 데이터 재사용"
+        fi
+
+        # 새 색 기동 (별칭 없이 — 검증 통과 후 붙인다)
+        docker rm -f "aiapp_osrm_${NEW}" 2>/dev/null || true
+        docker run -d --name "aiapp_osrm_${NEW}" --restart unless-stopped             --network "$NET" -m 2g             -v "$NEW_DIR:/data:ro"             $IMG osrm-routed --algorithm mld --max-table-size 1000 /data/south-korea.osrm
+
+        # 헬스 체크 — 실제 경로를 뽑아본다(컨테이너 Up 만으로는 데이터 로드 실패를 못 잡음)
+        echo "[OSRM] health check..."
+        OK=0
+        for i in $(seq 1 30); do
+            R=$(docker run --rm --network "$NET" curlimages/curl:latest -s -m 5                 "http://aiapp_osrm_${NEW}:5000/route/v1/driving/127.1149,37.3800;129.3179,37.2885?overview=false" 2>/dev/null || true)
+            case "$R" in *'"code":"Ok"'*) OK=1; break;; esac
+            sleep 3
+        done
+        if [ "$OK" != "1" ]; then
+            echo "[OSRM] ERROR: health check 실패 — 롤백(새 컨테이너 제거, 기존 유지)"
+            docker rm -f "aiapp_osrm_${NEW}" 2>/dev/null || true
+            exit 1
+        fi
+        echo "[OSRM] healthy!"
+
+        # 별칭 전환: 새 것에 먼저 붙이고(겹치는 순간에도 양쪽 다 정상 응답) 옛 것을 내린다
+        docker network disconnect "$NET" "aiapp_osrm_${NEW}" 2>/dev/null || true
+        docker network connect --alias "$ALIAS" "$NET" "aiapp_osrm_${NEW}"
+        echo "[OSRM] alias ${ALIAS} → aiapp_osrm_${NEW}"
+        docker rm -f "aiapp_osrm_${OLD}" 2>/dev/null || true
+        echo "[OSRM] stopped aiapp_osrm_${OLD}"
+
+        docker ps --filter "name=aiapp_osrm" --format 'table {{.Names}}\t{{.Status}}'
+ENDSSH
+
+    log_info "========== OSRM 배포 완료 (무중단) =========="
+}
+
 deploy_charge() {
     log_info "========== CHARGE 배포 시작 =========="
 
@@ -641,13 +733,14 @@ cleanup_images() {
 }
 
 show_usage() {
-    echo "사용법: $0 [aiif|aipf|kapt|charge|console|homepage|cats|all|cleanup]"
+    echo "사용법: $0 [aiif|aipf|kapt|charge|osrm|console|homepage|cats|all|cleanup]"
     echo ""
     echo "옵션:"
     echo "  aiif     - AIIF 서버만 배포"
     echo "  aipf     - AIPF 서버만 배포"
     echo "  kapt     - KAPT 서버만 배포"
     echo "  charge   - CHARGE 서버만 배포"
+    echo "  osrm     - OSRM 우회측정 엔진 배포 (--data 붙이면 OSM 재다운로드+전처리, 월1회)"
     echo "  console  - DKSW Console 배포"
     echo "  homepage - DKSW Homepage (dksw4.com) 배포"
     echo "  maccha   - 막차알리미 백엔드 배포"
@@ -738,6 +831,9 @@ case "$1" in
         ;;
     charge)
         deploy_charge
+        ;;
+    osrm)
+        deploy_osrm "$@"
         ;;
     console)
         deploy_console
