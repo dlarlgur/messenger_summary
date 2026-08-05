@@ -32,11 +32,15 @@ export const metadata: Metadata = {
     title: 'DK Software — 홈페이지 리뉴얼 · 앱 개발',
     description:
       '회사 홈페이지 제작 · 리뉴얼 · 모바일 앱 개발. 기획 · 디자인 · 개발 · 운영을 한 팀에서.',
+    // 대표 이미지 미지정이면 카카오·슬랙이 페이지에서 아무 이미지나 집어간다
+    // (형 제보: 톡 공유 시 앱 스크린샷이 썸네일로 잡힘) → 전용 카드 고정.
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'DK Software' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'DK Software',
     description: '홈페이지 만들고, 앱 개발해 드립니다.',
+    images: ['/og.png'],
   },
   robots: { index: true, follow: true },
 };
