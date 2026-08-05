@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Container from './Container';
 import SectionTag from './SectionTag';
 import StoreBadge from './StoreBadge';
+import { DeviceShot } from '../charge/Mockups';
 
 type Product = {
   name: string;
@@ -50,6 +51,7 @@ const PRODUCTS: Product[] = [
     gradient: 'from-[#22C55E] via-[#15803D] to-[#052E1C]',
     mockup: <ChargeMockup />,
     links: {
+      appStore: 'https://apps.apple.com/kr/app/id6792645861',
       playStore: 'https://play.google.com/store/apps/details?id=com.dksw.charge',
     },
   },
@@ -164,173 +166,163 @@ function DotLive() {
 }
 
 /* =========================================================
-   AI 톡비서 — Multi-messenger aggregated feed
-   Matches actual app: blue header, 4 messenger tabs,
-   chat room rows with AI 3-line summaries
+   AI 톡비서 — 실제 앱 화면 재현 (형 스크린샷 기준).
+   밝은 배경 + 필 탭(KakaoTalk 99+) + 광고 카드 + 채팅 목록.
+   방 제목·메시지는 전부 임시 텍스트 (실제 대화 노출 금지).
    ========================================================= */
 function TokBiseoMockup() {
   return (
     <PhoneFrame>
-      <div className="relative h-full w-full bg-[#F5F6F8] flex flex-col text-[#111827]">
+      <div className="relative h-full w-full bg-[#EEF2F8] flex flex-col text-[#111827]">
         {/* Status bar */}
-        <div className="h-7 flex items-center justify-between px-5 pt-1.5 text-[10px] font-semibold text-white bg-[#3B82F6]">
-          <span>오후 2:04</span>
-          <span>●●● 5G 96</span>
-        </div>
-        {/* Header */}
-        <div className="bg-[#3B82F6] px-4 pt-2 pb-3 text-white">
-          <div className="flex items-center justify-between">
-            <div className="text-[15px] font-bold tracking-tight">AI 톡비서</div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <BellIcon />
-                <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-[#3B82F6]" />
-              </div>
-              <CogIcon />
-            </div>
-          </div>
-        </div>
-        {/* Messenger tabs */}
-        <div className="bg-white border-b border-black/5 px-3">
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-            <MessengerTab label="카카오톡" badge="N" active />
-            <MessengerTab label="LINE" />
-            <MessengerTab label="Telegram" />
-            <MessengerTab label="Instagram" />
-          </div>
-        </div>
-        {/* Rooms list — AI summary previews */}
-        <div className="flex-1 overflow-hidden bg-white">
-          <RoomRow
-            color="#3B82F6"
-            emoji="🏢"
-            name="회사 공지방"
-            summary="AI 요약 · 금요일 전사 미팅 오후 3시 · 신규 복지 공지 · 워크샵 장소 변경"
-            time="오후 2:01"
-            unread={42}
-          />
-          <RoomRow
-            color="#10B981"
-            emoji="💼"
-            name="프로젝트 A 단톡"
-            summary="AI 요약 · 디자인 v2 완료, 내일 리뷰 · 서버 배포 지연 이슈 공유"
-            time="오후 1:48"
-            unread={17}
-          />
-          <RoomRow
-            color="#F59E0B"
-            emoji="📣"
-            name="오픈채팅 · 부동산 정보"
-            summary="쇼핑몰 쿠폰 안내 · 보험 가입 권유"
-            time=""
-            ad
-          />
-          <RoomRow
-            color="#EC4899"
-            emoji="🎮"
-            name="게임 길드 모임"
-            summary="AI 요약 · 주말 레이드 8시 집결 · 신규 장비 공유 · 길드전 일정 확정"
-            time="오후 1:12"
-            unread={28}
-          />
-          <RoomRow
-            color="#8B5CF6"
-            emoji="📚"
-            name="독서 모임"
-            summary="AI 요약 · 이번 주 책 선정 완료 · 모임 장소 카페 N · 출석 확인"
-            time="오전 11:54"
-            unread={6}
-          />
-          <RoomRow
-            color="#06B6D4"
-            emoji="👨‍👩‍👧"
-            name="가족 단톡"
-            summary="AI 요약 · 주말 식사 약속 · 어머니 생신 선물 논의"
-            time="오전 10:32"
-            unread={3}
-          />
-        </div>
-        {/* Page indicator */}
-        <div className="h-6 flex items-center justify-center bg-white border-t border-black/5">
-          <span className="text-[9px] font-bold text-white bg-black/80 rounded-full px-2 py-0.5">
-            📷 1/2
+        <div className="h-7 flex items-center justify-between px-4 pt-1.5 text-[10px] font-semibold text-[#111827]">
+          <span>오후 4:19</span>
+          <span className="flex items-center gap-1">
+            <span className="text-[8px] tracking-tight text-[#374151]">LTE ▮▮▮</span>
+            <span className="rounded-full border border-[#111827]/60 px-1 text-[8px] font-bold">100</span>
           </span>
+        </div>
+        {/* Header — 로고 칩 + 타이틀 */}
+        <div className="px-3.5 pt-1 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-7 w-7 rounded-[9px] bg-[#3B62F6] text-white text-[12px] font-extrabold flex items-center justify-center shadow-sm">
+              톡
+            </span>
+            <span className="text-[15px] font-extrabold tracking-tight">AI 톡비서</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-[#374151]">
+            <BellIcon />
+            <CogIcon />
+          </div>
+        </div>
+        {/* Messenger pill tabs */}
+        <div className="px-3 pb-2">
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <MessengerPill label="KakaoTalk" badge="99+" active />
+            <MessengerPill label="LINE" />
+            <MessengerPill label="WhatsApp" />
+            <MessengerPill label="Tel" cut />
+          </div>
+        </div>
+        {/* 채팅 목록 — 임시 방제목·내용, 광고 요소 없음 (형 지시) */}
+        <div className="flex-1 overflow-hidden bg-white">
+          <ChatRow tint="#0EA5E9" emoji="🏢" name="아파트 입주민 회의" msg="관리비 안건은 다음 주에 다시 논의…" time="오후 4:11" unread={83} ai muted />
+          <ChatRow tint="#F472B6" emoji="🍼" name="육아용품 공동구매" msg="사전 등록하신 분께 발송되는 안내…" time="오후 4:08" unread={2} />
+          <ChatRow tint="#8B5CF6" emoji="🌆" name="소유주 정기 모임" msg="네 전문가도 그렇게 얘기하더라구요." time="오후 4:07" unread={162} ai muted />
+          <ChatRow tint="#F59E0B" emoji="🏃" name="주말 러닝 크루" msg="내일 아침 7시 집결입니다" time="오후 4:05" unread={61} />
+          <ChatRow tint="#10B981" emoji="📋" name="운영위원회" msg="회의록 공유드립니다" time="오후 3:58" unread={156} ai muted />
+          <ChatRow tint="#64748B" emoji="🚗" name="전기차 정보공유" msg="5년 뒤엔 그냥 신형으로 갈까…" time="오후 3:56" unread={569} ai muted />
+          <ChatRow tint="#0284C7" emoji="⚽" name="주말 풋살 모임" msg="이번 주 토요일 10시 확정입니다" time="오후 3:41" unread={34} ai muted />
+          <ChatRow tint="#DB2777" emoji="🎂" name="가족 단톡방" msg="주말에 케이크 픽업 부탁해~" time="오후 3:12" unread={5} />
         </div>
       </div>
     </PhoneFrame>
   );
 }
 
-function MessengerTab({ label, active, badge }: { label: string; active?: boolean; badge?: string }) {
+function MessengerPill({
+  label,
+  active,
+  badge,
+  cut,
+}: {
+  label: string;
+  active?: boolean;
+  badge?: string;
+  cut?: boolean;
+}) {
   return (
-    <div className="relative shrink-0 px-3 py-2.5">
-      <div className="flex items-center gap-1">
-        <span
-          className={`text-[11px] font-semibold ${active ? 'text-[#111827]' : 'text-[#9CA3AF]'}`}
-        >
-          {label}
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 text-[10px] font-bold ${
+        active
+          ? 'border-[#3B62F6] bg-[#EBF1FF] text-[#2F5BFF]'
+          : 'border-black/10 bg-white text-[#374151]'
+      } ${cut ? 'w-[34px] overflow-hidden' : ''}`}
+    >
+      <ChatBubbleIcon />
+      {label}
+      {badge && (
+        <span className="rounded-full bg-[#2F5BFF] px-1.5 py-[1px] text-[7.5px] font-extrabold text-white">
+          {badge}
         </span>
-        {badge && (
-          <span className="h-3 w-3 rounded-full bg-red-500 text-white text-[7.5px] font-bold flex items-center justify-center">
-            {badge}
-          </span>
-        )}
-      </div>
-      {active && (
-        <div className="absolute left-1 right-1 bottom-0 h-[2px] rounded-full bg-[#FBBF24]" />
       )}
+    </span>
+  );
+}
+
+function ChatRow({
+  tint,
+  emoji,
+  name,
+  msg,
+  time,
+  unread,
+  ai,
+  muted,
+}: {
+  tint: string;
+  emoji: string;
+  name: string;
+  msg: string;
+  time: string;
+  unread: number;
+  ai?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-black/[0.05]">
+      <span
+        className="h-9 w-9 rounded-full shrink-0 flex items-center justify-center text-[15px]"
+        style={{ background: `${tint}26`, boxShadow: `inset 0 0 0 1px ${tint}40` }}
+      >
+        {emoji}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10.5px] font-extrabold text-[#111827] truncate">{name}</div>
+        <div className="text-[9px] text-[#6B7280] truncate mt-0.5">{msg}</div>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <div className="flex items-center gap-1">
+          {ai && <SparkleIcon />}
+          {muted && <MutedBellIcon />}
+          <span className="text-[8.5px] text-[#9CA3AF]">{time}</span>
+        </div>
+        <span className="bg-[#2F5BFF] text-white text-[8.5px] font-bold rounded-full min-w-[18px] h-[15px] px-1.5 flex items-center justify-center">
+          {unread}
+        </span>
+      </div>
     </div>
   );
 }
 
-function RoomRow({
-  color,
-  emoji,
-  name,
-  summary,
-  time,
-  unread,
-  ad,
-}: {
-  color: string;
-  emoji: string;
-  name: string;
-  summary: string;
-  time?: string;
-  unread?: number;
-  ad?: boolean;
-}) {
+function ChatBubbleIcon() {
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-black/[0.04]">
-      <div
-        className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center text-[13px] text-white font-bold"
-        style={{ background: color }}
-      >
-        {emoji}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <div className="text-[11.5px] font-bold text-[#111827] truncate">{name}</div>
-          <span className="inline-flex h-2.5 w-2.5 items-center justify-center text-[8px]">
-            ✨
-          </span>
-          {ad && (
-            <span className="bg-gray-200 text-gray-600 text-[8px] font-bold px-1 py-0 rounded">
-              광고
-            </span>
-          )}
-        </div>
-        <div className="text-[10px] leading-tight text-[#4B5563] truncate mt-0.5">{summary}</div>
-      </div>
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        {time && <div className="text-[8.5px] text-[#9CA3AF]">{time}</div>}
-        {unread != null && (
-          <div className="bg-[#3B82F6] text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center">
-            {unread}
-          </div>
-        )}
-      </div>
-    </div>
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21 12a8 8 0 0 1-8 8H4l2.3-2.7A8 8 0 1 1 21 12Z"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="#5B8DEF" aria-hidden>
+      <path d="M12 2l1.8 5.7L19.5 9l-5.7 1.8L12 16.5l-1.8-5.7L4.5 9l5.7-1.3L12 2Z" />
+      <path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z" />
+    </svg>
+  );
+}
+
+function MutedBellIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9Zm4 13a2 2 0 0 0 4 0" />
+      <path d="M3 3l18 18" />
+    </svg>
   );
 }
 
@@ -362,178 +354,24 @@ function CogIcon() {
 }
 
 /* =========================================================
-   모두의 주유충전 — Charging/Gas station aggregator
-   Matches actual app: 충전/주유 toggle, station count card,
-   detailed station rows with price & availability
+   전기차 기름차 — 실기기 캡처 2대 (주유/충전), /charge 히어로와 동일 소스.
+   CSS 재현본은 실사보다 못해서 폐기 (형 컨펌: 실사가 더 진짜 같음).
    ========================================================= */
 function ChargeMockup() {
   return (
-    <PhoneFrame>
-      <div className="relative h-full w-full bg-[#F3F4F6] flex flex-col text-[#111827]">
-        {/* Status bar */}
-        <div className="h-7 flex items-center justify-between px-5 pt-1.5 text-[10px] font-semibold text-[#111827]">
-          <span>오후 2:04</span>
-          <span>●●● 5G 96</span>
-        </div>
-        {/* Header */}
-        <div className="px-4 py-2 flex items-center justify-between bg-[#F3F4F6]">
-          <div className="text-[15px] font-bold">전기차 기름차</div>
-          <div className="relative">
-            <BellIcon />
-            <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-          </div>
-        </div>
-        {/* Toggle */}
-        <div className="px-3">
-          <div className="flex gap-2">
-            <button className="flex-1 flex items-center justify-center gap-1 bg-[#10B981] text-white rounded-xl py-2 text-[12px] font-bold shadow-sm">
-              <span>⚡</span> 충전
-            </button>
-            <button className="flex-1 flex items-center justify-center gap-1 bg-white text-[#6B7280] rounded-xl py-2 text-[12px] font-semibold border border-black/5">
-              <span>⛽</span> 주유
-            </button>
-          </div>
-        </div>
-        {/* Search + sort */}
-        <div className="px-3 mt-2 flex gap-2">
-          <div className="flex-1 flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 border border-black/5">
-            <span className="text-[10px]">🔍</span>
-            <span className="text-[10px] text-[#9CA3AF]">충전소 검색</span>
-          </div>
-          <div className="flex items-center gap-1 bg-white rounded-xl px-2.5 py-1.5 border border-[#10B981]/30 text-[#059669]">
-            <span className="text-[10px]">↕</span>
-            <span className="text-[10px] font-semibold">거리순</span>
-          </div>
-        </div>
-        {/* Summary card */}
-        <div className="mx-3 mt-2 bg-[#ECFDF5] rounded-xl border border-[#10B981]/20 px-3 py-2">
-          <div className="text-[9.5px] font-semibold text-[#047857]">주변 충전소</div>
-          <div className="flex items-end justify-between mt-0.5">
-            <div>
-              <span className="text-[14px] font-bold text-[#111827]">1009개</span>
-              <span className="text-[9.5px] text-[#4B5563] ml-1">· 이용가능 864개</span>
-            </div>
-            <div className="flex flex-col items-end">
-              <div className="text-[12px] font-bold text-[#059669]">85%</div>
-              <div className="text-[8.5px] text-[#047857]">가용률</div>
-            </div>
-          </div>
-        </div>
-        {/* Station list */}
-        <div className="flex-1 overflow-hidden px-2 mt-1.5 space-y-1.5">
-          <Station
-            brand="에버온"
-            brandColor="#10B981"
-            name="시청 공영주차장"
-            meta="32m · 에버온 · AC완속"
-            avail="5/5"
-            power="7kW"
-            nonMember="380원/kWh"
-            member="296원/kWh"
-            faved
-          />
-          <Station
-            brand="EV"
-            brandColor="#9CA3AF"
-            name="중앙도서관 주차장"
-            meta="48m · 아이파킹 · AC완속"
-            avail="3/6"
-            power="7kW"
-            nonMember="400원/kWh"
-            member="285원/kWh"
-          />
-          <Station
-            brand="EV"
-            brandColor="#9CA3AF"
-            name="스타필드 하남점"
-            meta="87m · LG유플러스 · AC완속"
-            avail="5/9"
-            power="7kW"
-            nonMember="450원/kWh"
-            member="295원/kWh"
-          />
-          <Station
-            brand="GS"
-            brandColor="#1E3A8A"
-            name="GS타워 지하주차장"
-            meta="112m · GS차지비 · AC완속"
-            avail="1/1"
-            power="7kW"
-            nonMember="470원/kWh"
-            member="219원/kWh"
-          />
-        </div>
-        {/* Bottom nav */}
-        <div className="border-t border-black/5 bg-white px-3 py-1.5 flex items-center justify-around">
-          <NavItem icon="⌂" label="홈" />
-          <NavItem icon="◉" label="지도" />
-          <NavItem icon="🤍" label="즐겨찾기" />
-          <NavItem icon="⚙" label="설정" />
-        </div>
+    <div className="relative flex max-w-full items-center justify-center">
+      <div className="-mr-14 hidden -rotate-6 scale-[0.92] transition-transform duration-500 hover:rotate-[-3deg] min-[420px]:block">
+        <DeviceShot
+          src="/charge/screens/home-fuel.jpg"
+          alt="전기차 기름차 — 주유소 최저가 홈 화면 (실제 앱 화면)"
+        />
       </div>
-    </PhoneFrame>
-  );
-}
-
-function Station({
-  brand,
-  brandColor,
-  name,
-  meta,
-  avail,
-  power,
-  nonMember,
-  member,
-  faved,
-}: {
-  brand: string;
-  brandColor: string;
-  name: string;
-  meta: string;
-  avail: string;
-  power: string;
-  nonMember: string;
-  member: string;
-  faved?: boolean;
-}) {
-  return (
-    <div className="bg-white rounded-lg border border-black/5 p-2 flex items-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div
-        className="h-8 w-8 rounded-md shrink-0 flex items-center justify-center text-[9px] font-bold text-white"
-        style={{ background: brandColor }}
-      >
-        {brand}
+      <div className="z-10 rotate-3 transition-transform duration-500 hover:rotate-1">
+        <DeviceShot
+          src="/charge/screens/home-ev.jpg"
+          alt="전기차 기름차 — 충전소 빈자리 홈 화면 (실제 앱 화면)"
+        />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <div className="text-[10.5px] font-bold truncate">{name}</div>
-          <span className="bg-[#ECFDF5] text-[#059669] text-[8px] font-bold px-1 py-0 rounded">
-            {avail}
-          </span>
-        </div>
-        <div className="text-[8.5px] text-[#6B7280] truncate mt-0.5">{meta}</div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[8.5px] text-[#9CA3AF]">비회원</span>
-          <span className="text-[8.5px] font-semibold text-[#374151]">{nonMember}</span>
-          <span className="text-[8.5px] text-[#9CA3AF]">회원</span>
-          <span className="text-[8.5px] font-semibold text-[#059669]">{member}</span>
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <div className="text-[11px] font-bold">{power}</div>
-        <span className={`text-[11px] ${faved ? 'text-[#10B981]' : 'text-[#D1D5DB]'}`}>
-          {faved ? '♥' : '♡'}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function NavItem({ icon, label }: { icon: string; label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[12px] text-[#6B7280]">{icon}</span>
-      <span className="text-[8px] text-[#9CA3AF]">{label}</span>
     </div>
   );
 }

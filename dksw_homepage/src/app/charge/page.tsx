@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Container from '../components/Container';
 import StoreBadge from '../components/StoreBadge';
 import Logo from '../components/Logo';
-import SmartInstall, { APP_STORE_URL, PLAY_STORE_URL } from './SmartInstall';
+import { APP_STORE_URL, PLAY_STORE_URL } from './SmartInstall';
 import { FuelMockup, EvMockup, DeviceShot } from './Mockups';
 
 export const metadata: Metadata = {
@@ -186,13 +186,10 @@ function Hero() {
               AI가 내 경로 그대로 <strong className="font-semibold text-slate-900">가장 이득인 곳</strong>을 찾아드립니다.
             </p>
 
-            <div className="mt-9 flex flex-col items-center gap-4 lg:items-start">
-              <SmartInstall />
-              {/* 폰 사용자가 대부분 — 모바일에서도 양쪽 스토어 배지 항상 노출 */}
-              <div className="flex flex-wrap justify-center gap-2.5">
-                <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
-                <StoreBadge store="google" href={PLAY_STORE_URL} variant="light" />
-              </div>
+            {/* CTA = 스토어 배지 2개 (플레이스토어 우선) — 기기감지 버튼은 혼란 유발로 제거 */}
+            <div className="mt-9 flex flex-wrap justify-center gap-2.5 lg:justify-start">
+              <StoreBadge store="google" href={PLAY_STORE_URL} variant="light" />
+              <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
             </div>
           </div>
 
@@ -253,17 +250,17 @@ function Stats() {
 /* ── 문제 공감 — "이런 적 있으시죠" ── */
 const PAINS = [
   {
-    emoji: '⛽',
+    icon: 'fuel',
     title: '넣고 나서 후회한 날',
     desc: '주유하고 500m 지나니 리터당 60원 싼 주유소가 나오던 그 기분. 넣기 전에 주변 가격부터 비교하세요.',
   },
   {
-    emoji: '🔌',
+    icon: 'bolt',
     title: '도착했더니 만석',
     desc: '충전소 앞에서 기다릴지 옮길지 고민하던 시간. 출발 전에 빈자리를 확인하고, 만석이면 자리 나는 순간 알림을 받으세요.',
   },
   {
-    emoji: '🛣️',
+    icon: 'route',
     title: '장거리, 어디서 넣지?',
     desc: '고속도로 타기 전에 넣을지, 휴게소에서 넣을지. AI가 경로 위 가격을 전부 비교해 "여기"라고 답을 줍니다.',
   },
@@ -287,7 +284,9 @@ function PainPoints() {
               key={pn.title}
               className="rounded-2xl border border-black/5 bg-white p-7 shadow-[0_2px_14px_-6px_rgba(6,78,59,0.08)]"
             >
-              <span className="text-[28px]">{pn.emoji}</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
+                <FeatureIcon name={pn.icon} />
+              </span>
               <h3 className="mt-4 text-[17px] font-semibold text-slate-900">{pn.title}</h3>
               <p className="mt-2.5 text-[13.5px] leading-relaxed text-slate-600">{pn.desc}</p>
             </div>
@@ -662,13 +661,9 @@ function FinalCta() {
             <br />
             <GradText>아껴보세요.</GradText>
           </h2>
-          <div className="mt-9">
-            <SmartInstall />
-          </div>
-          {/* 모바일 포함 양쪽 스토어 배지 항상 노출 */}
-          <div className="mt-5 flex flex-wrap justify-center gap-2.5">
-            <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
+          <div className="mt-9 flex flex-wrap justify-center gap-2.5">
             <StoreBadge store="google" href={PLAY_STORE_URL} variant="light" />
+            <StoreBadge store="apple" href={APP_STORE_URL} variant="light" />
           </div>
         </div>
       </Container>
